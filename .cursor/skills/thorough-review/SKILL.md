@@ -142,7 +142,7 @@ Quick scan:
 
 ```bash
 # Files missing DI (should return zero results):
-rg -L '<bpmndi:BPMNDiagram' --glob '*.bpmn' .
+rg --files-without-match '<bpmndi:BPMNDiagram' --glob '*.bpmn' .
 ```
 
 If any file lacks DI, run `python3 scripts/bpmn_add_di.py <path>` to add coordinates.

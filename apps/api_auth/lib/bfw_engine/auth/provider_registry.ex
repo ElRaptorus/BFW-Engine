@@ -38,7 +38,10 @@ defmodule BfwEngine.Auth.ProviderRegistry do
 
   An identity whose `id` is not a non-blank string is rejected with
   `{:error, :missing_subject}` regardless of which provider produced it, so
-  REST and WebSocket callers never see an anonymous-looking identity.
+  REST and WebSocket callers never see an anonymous-looking identity. An `id`
+  starting with `system:` is rejected with `{:error, :reserved_subject}`: that
+  prefix names engine-internal starters (timer, message, and signal starts),
+  so a token must not impersonate them.
 
   An accepted identity is normalised: a `claims` value that is not a map
   becomes `%{}`, and `roles` / `groups` values that are not lists become
@@ -48,9 +51,11 @@ defmodule BfwEngine.Auth.ProviderRegistry do
   def verify_and_resolve(token) do
     case active_provider().verify_and_resolve(token) do
       {:ok, %Identity{id: identifier} = identity} when is_binary(identifier) ->
-        if String.trim(identifier) == "",
-          do: {:error, :missing_subject},
-          else: {:ok, normalise_identity(identity)}
+        cond do
+          String.trim(identifier) == "" -> {:error, :missing_subject}
+          String.starts_with?(identifier, "system:") -> {:error, :reserved_subject}
+          true -> {:ok, normalise_identity(identity)}
+        end
 
       {:ok, _identity} ->
         {:error, :missing_subject}

@@ -115,7 +115,7 @@
           "type": "user_task",
           "typeData": {
             "assigneesExpression": null,
-            "dueDate": "PT1H",
+            "dueDate": "duration(\"PT1H\")",
             "formActions": null,
             "formFields": null,
             "inMappings": [],

@@ -452,13 +452,14 @@ inside it (BPMN 2.0 §13.5.5):
 | Embedded subprocess, transaction, or ad-hoc subprocess **without** a handler | Every activity that completed inside it and has a handler (recursively through nested subprocesses and loops), latest completion first. Activities a Compensate Throw inside the subprocess already compensated are skipped |
 | Multi-Instance or Standard Loop activity with a handler | The handler once per completed iteration, latest completion first, each with that iteration's output |
 | Multi-Instance subprocess without a handler | The inner activities of every completed iteration |
-| Call Activity without a handler | Nothing — the called process is not compensated |
+| Embedded subprocess or called process with a Compensation Event Subprocess (and no handler on the shell) | The Event Subprocess runs in the child instance; the inner handlers do not run |
+| Call Activity without a handler | Every activity that completed inside the called process instance and has a handler, the same way as for an embedded subprocess (nested Call Activities included) |
 
 ### Where inner handlers run
 
-The handlers of a compensated subprocess run in the **subprocess's own
-instance** — the child instance the subprocess ran in — not in the instance
-that threw compensation. Their flow node instances belong to that child
+The handlers of a compensated subprocess or Call Activity run in its **own
+instance** — the child instance the subprocess or called process ran in —
+not in the instance that threw compensation. Their flow node instances belong to that child
 instance, so an inner handler:
 
 - reads and writes only the subprocess's Data Objects (an element inside a
@@ -544,10 +545,10 @@ The current implementation operates within a well-defined scope:
   the top level compensates top-level tasks. A Compensate Throw inside a
   subprocess compensates activities within that subprocess.
 
-- **Completed embedded subprocesses and loops are compensated inside; Call
-  Activities are not.** See
+- **Completed embedded subprocesses, Call Activities, and loops are
+  compensated inside.** See
   [Compensating subprocesses and loops](#compensating-subprocesses-and-loops).
-  A Call Activity is compensated only through a handler attached to it.
+  A handler attached to a Call Activity replaces the inner compensation.
 
 - **Compensation Event Subprocesses are supported.** You can define an Event
   Subprocess with a Compensation start event that activates when compensation

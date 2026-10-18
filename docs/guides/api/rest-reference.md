@@ -296,6 +296,7 @@ deleted in the same transaction.
 | `204`  | PI and FNIs deleted (no body) |
 | `403`  | Insufficient `delete_process_instance` claim |
 | `404`  | PI not found or already deleted |
+| `409`  | `active_instances_exist`: the PI is a child (Call Activity or subprocess) and its root PI has not ended yet |
 | `422`  | PI is not in a terminal state (still running) |
 
 Authorization: requires `delete_process_instance` claim — `own` (can delete

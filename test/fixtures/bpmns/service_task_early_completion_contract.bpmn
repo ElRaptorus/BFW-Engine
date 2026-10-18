@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+                  id="Definitions_ServiceTaskEarlyCompletionContract"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI">
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_Fatal" name="Early Contract Fatal" processRef="ServiceTaskEarlyContractFatal" />
+    <bpmn:participant id="Participant_Boundary" name="Early Contract Boundary" processRef="ServiceTaskEarlyContractBoundary" />
+  </bpmn:collaboration>
+  <bpmn:process id="ServiceTaskEarlyContractFatal" name="Early Contract Fatal" isExecutable="true">
+    <bpmn:extensionElements>
+      <bfw:version>1.0.0</bfw:version>
+    </bpmn:extensionElements>
+    <bpmn:laneSet id="LaneSet_Fatal">
+      <bpmn:lane id="Lane_Fatal" name="default">
+        <bpmn:flowNodeRef>Start_Fatal</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>ServiceTask_Fatal</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Fatal</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Start_Fatal" name="Start"/>
+    <bpmn:serviceTask id="ServiceTask_Fatal" name="Completes Early" implementation="early_completion">
+      <bpmn:extensionElements>
+        <bfw:resultContract>{"type":"object","required":["approved"]}</bfw:resultContract>
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="End_Fatal" name="Done"/>
+    <bpmn:sequenceFlow id="Flow_Fatal_1" sourceRef="Start_Fatal" targetRef="ServiceTask_Fatal"/>
+    <bpmn:sequenceFlow id="Flow_Fatal_2" sourceRef="ServiceTask_Fatal" targetRef="End_Fatal"/>
+  </bpmn:process>
+  <bpmn:process id="ServiceTaskEarlyContractBoundary" name="Early Contract Boundary" isExecutable="true">
+    <bpmn:extensionElements>
+      <bfw:version>1.0.0</bfw:version>
+    </bpmn:extensionElements>
+    <bpmn:laneSet id="LaneSet_Boundary">
+      <bpmn:lane id="Lane_Boundary" name="default">
+        <bpmn:flowNodeRef>Start_Boundary</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>ServiceTask_Boundary</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Done</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Boundary_Error</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Failed</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Start_Boundary" name="Start"/>
+    <bpmn:serviceTask id="ServiceTask_Boundary" name="Completes Early" implementation="early_completion">
+      <bpmn:extensionElements>
+        <bfw:resultContract>{"type":"object","required":["approved"]}</bfw:resultContract>
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="End_Done" name="Done"/>
+    <bpmn:boundaryEvent id="Boundary_Error" name="Any Error" attachedToRef="ServiceTask_Boundary" cancelActivity="true">
+      <bpmn:outgoing>Flow_Failed</bpmn:outgoing>
+      <bpmn:errorEventDefinition id="Boundary_Error_Definition" />
+    </bpmn:boundaryEvent>
+    <bpmn:endEvent id="End_Failed" name="Failed"/>
+    <bpmn:sequenceFlow id="Flow_Boundary_1" sourceRef="Start_Boundary" targetRef="ServiceTask_Boundary"/>
+    <bpmn:sequenceFlow id="Flow_Boundary_2" sourceRef="ServiceTask_Boundary" targetRef="End_Done"/>
+    <bpmn:sequenceFlow id="Flow_Failed" sourceRef="Boundary_Error" targetRef="End_Failed"/>
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_Fatal" bpmnElement="Participant_Fatal" isHorizontal="true">
+        <dc:Bounds x="82" y="60" width="632" height="180" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_Fatal" bpmnElement="Lane_Fatal" isHorizontal="true">
+        <dc:Bounds x="112" y="60" width="602" height="180" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_Fatal" bpmnElement="Start_Fatal">
+        <dc:Bounds x="162" y="112" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ServiceTask_Fatal" bpmnElement="ServiceTask_Fatal">
+        <dc:Bounds x="260" y="90" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Fatal" bpmnElement="End_Fatal">
+        <dc:Bounds x="432" y="112" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_Fatal_1" bpmnElement="Flow_Fatal_1">
+        <di:waypoint x="198" y="130" />
+        <di:waypoint x="260" y="130" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Fatal_2" bpmnElement="Flow_Fatal_2">
+        <di:waypoint x="360" y="130" />
+        <di:waypoint x="432" y="130" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Shape_Participant_Boundary" bpmnElement="Participant_Boundary" isHorizontal="true">
+        <dc:Bounds x="82" y="280" width="632" height="300" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_Boundary" bpmnElement="Lane_Boundary" isHorizontal="true">
+        <dc:Bounds x="112" y="280" width="602" height="300" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_Boundary" bpmnElement="Start_Boundary">
+        <dc:Bounds x="162" y="332" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ServiceTask_Boundary" bpmnElement="ServiceTask_Boundary">
+        <dc:Bounds x="260" y="310" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Done" bpmnElement="End_Done">
+        <dc:Bounds x="432" y="332" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Boundary_Error" bpmnElement="Boundary_Error">
+        <dc:Bounds x="292" y="372" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Failed" bpmnElement="End_Failed">
+        <dc:Bounds x="432" y="452" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_Boundary_1" bpmnElement="Flow_Boundary_1">
+        <di:waypoint x="198" y="350" />
+        <di:waypoint x="260" y="350" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Boundary_2" bpmnElement="Flow_Boundary_2">
+        <di:waypoint x="360" y="350" />
+        <di:waypoint x="432" y="350" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Failed" bpmnElement="Flow_Failed">
+        <di:waypoint x="310" y="408" />
+        <di:waypoint x="310" y="470" />
+        <di:waypoint x="432" y="470" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

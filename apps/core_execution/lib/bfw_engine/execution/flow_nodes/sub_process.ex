@@ -315,9 +315,9 @@ defmodule BfwEngine.Execution.FlowNodes.SubProcess do
   defp run_fresh_lifecycle(flow_node, entry, context, process_instance_pid) do
     type_data = flow_node.type_data
     child_process_instance_id = UuidV7.generate()
-    :ok = ChildLifecycle.record_fresh_child(context, child_process_instance_id)
 
-    with :ok <- guard_event_subprocess(type_data),
+    with :ok <- ChildLifecycle.record_fresh_child(context, child_process_instance_id),
+         :ok <- guard_event_subprocess(type_data),
          {:ok, next_ids} <- ChildLifecycle.resolve_outgoing(flow_node, context),
          {:ok, start_event_id} <- validate_subprocess_contents(flow_node.id, type_data),
          {:ok, input_payload} <-

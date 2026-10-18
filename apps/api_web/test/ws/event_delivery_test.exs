@@ -123,7 +123,8 @@ defmodule BfwEngineWeb.Ws.EventDeliveryTest do
       subscriber =
         assigns(%{topic: "process_instance:pi-1", accessible_lanes: []})
 
-      for type <- EventDelivery.classified_types().flow_node_originating do
+      for type <- EventDelivery.classified_types().flow_node_originating,
+          type != "DataObjectWritten" do
         refute EventDelivery.should_deliver?(
                  envelope(type, %{"laneName" => "Management"}),
                  subscriber
@@ -160,6 +161,35 @@ defmodule BfwEngineWeb.Ws.EventDeliveryTest do
                ),
                "the starter assign must not open #{topic}"
       end
+    end
+
+    test "DataObjectWritten is lane-independent on process_instance topics only" do
+      payload =
+        envelope("DataObjectWritten", %{"laneName" => "Management", "processInstanceId" => "pi-1"})
+
+      assert EventDelivery.should_deliver?(
+               payload,
+               assigns(%{topic: "process_instance:pi-1", accessible_lanes: []})
+             )
+
+      refute EventDelivery.should_deliver?(
+               payload,
+               assigns(%{topic: "process_instance:root-1", accessible_lanes: []})
+             ),
+             "a child's DataObjectWritten fanned out to the root topic must stay lane-filtered"
+
+      for topic <- ["engine:events", "user_tasks:pending"] do
+        refute EventDelivery.should_deliver?(
+                 payload,
+                 assigns(%{topic: topic, accessible_lanes: []})
+               ),
+               "DataObjectWritten on #{topic} must stay lane-filtered"
+      end
+
+      refute EventDelivery.should_deliver?(
+               envelope("FlowNodeInstanceStarted", %{"laneName" => "Management"}),
+               assigns(%{topic: "process_instance:pi-1", accessible_lanes: []})
+             )
     end
 
     test "Jason-encoded FNI structs stamp laneName and are gated" do

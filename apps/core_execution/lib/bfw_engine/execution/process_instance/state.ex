@@ -69,15 +69,27 @@ defmodule BfwEngine.Execution.ProcessInstance.State do
   @typedoc """
   `compensation_scope.request` of a finished subprocess child instance
   revived only to compensate its inner activities for the requester's run
-  `anchor_fni_id`. `compensation_scope.children` holds the scope instances
+  `anchor_flow_node_instance_id`. `compensation_scope.children` holds the scope instances
   this instance waits for, by pid.
   """
   @type compensation_scope_request :: %{
-          anchor_fni_id: String.t(),
+          anchor_flow_node_instance_id: String.t(),
           scope_target_id: String.t(),
           subprocess_node_id: String.t(),
           root_process_instance_id: String.t(),
           reply_to: pid()
+        }
+
+  @typedoc """
+  `resumed` tells whether the instance started from persisted state.
+  `pending` holds the resumed FNIs that have not yet re-registered their
+  subscription or re-attached their child; `waiters` are the
+  `await_resume_settled` callers answered once `pending` is settled.
+  """
+  @type resume_bookkeeping :: %{
+          resumed: boolean(),
+          pending: MapSet.t(String.t()),
+          waiters: [:gen_statem.from()]
         }
 
   @type t :: %__MODULE__{
@@ -123,9 +135,9 @@ defmodule BfwEngine.Execution.ProcessInstance.State do
           bpmn_error_info: map() | nil,
           escalation_info: escalation_info() | nil,
           event_based_gateway_deferred_dispatch: map() | nil,
-          resume_pending: MapSet.t(String.t()),
-          resume_waiters: [:gen_statem.from()],
-          early_async_completions: %{String.t() => {:gen_statem.from(), tuple()}}
+          resume: resume_bookkeeping(),
+          early_async_completions: %{String.t() => tuple()},
+          scheduler_monitor_reference: reference() | nil
         }
 
   @enforce_keys [:process_instance_id, :process_version_id]
@@ -167,8 +179,8 @@ defmodule BfwEngine.Execution.ProcessInstance.State do
     bpmn_error_info: nil,
     escalation_info: nil,
     event_based_gateway_deferred_dispatch: nil,
-    resume_pending: MapSet.new(),
-    resume_waiters: [],
-    early_async_completions: %{}
+    resume: %{resumed: false, pending: MapSet.new(), waiters: []},
+    early_async_completions: %{},
+    scheduler_monitor_reference: nil
   ]
 end

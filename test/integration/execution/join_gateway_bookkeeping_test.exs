@@ -150,6 +150,24 @@ defmodule BfwEngine.Integration.Execution.JoinGatewayBookkeepingTest do
     end
   end
 
+  describe "B6: Exclusive split with two flows into the same join" do
+    test "the join records the flow the split took" do
+      process_instance_id =
+        http_deploy_and_start("exclusive_split_same_target.bpmn", "ExclusiveSplitSameTarget")
+
+      {:ok, _join} = await_waiting_fni_by_node_id(process_instance_id, "Join_1")
+
+      %{rows: [[source_branch_sequence_flow_id]]} =
+        Repo.query!(
+          "SELECT source_branch_sequence_flow_id FROM gateway_pending_arrivals " <>
+            "WHERE process_instance_id = $1",
+          [Ecto.UUID.dump!(process_instance_id)]
+        )
+
+      assert source_branch_sequence_flow_id == "Flow_B"
+    end
+  end
+
   defp finished_count(flow_node_instances, flow_node_id) do
     Enum.count(
       flow_node_instances,

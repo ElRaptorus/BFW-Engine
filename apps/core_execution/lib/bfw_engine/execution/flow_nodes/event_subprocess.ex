@@ -75,6 +75,8 @@ defmodule BfwEngine.Execution.FlowNodes.EventSubprocess do
   alias BfwEngine.Types.Event
   alias BfwEngine.Types.Token
 
+  require Logger
+
   @type trigger_action ::
           {:fire_interrupting, FlowNode.t(), map()}
           | {:fire_non_interrupting, FlowNode.t(), map()}
@@ -342,7 +344,12 @@ defmodule BfwEngine.Execution.FlowNodes.EventSubprocess do
         ChildLifecycle.persisted_child_outcome(child_process_instance_id)
 
       {:DOWN, ^ref, :process, ^child_pid, reason} ->
-        {:crashed, reason}
+        ChildLifecycle.crashed_child_outcome(
+          child_process_instance_id,
+          reason,
+          flow_node,
+          context
+        )
     end
   end
 
@@ -580,7 +587,7 @@ defmodule BfwEngine.Execution.FlowNodes.EventSubprocess do
         handle_child_bpmn_error(
           flow_node,
           context,
-          normalize_error(error_info || "CHILD_FATAL"),
+          ChildLifecycle.live_error_info(error_info),
           child_process_instance_id
         )
 
@@ -654,10 +661,10 @@ defmodule BfwEngine.Execution.FlowNodes.EventSubprocess do
   end
 
   defp run_fresh_lifecycle(flow_node, entry, context, process_instance_pid) do
-    with {:ok, start_event_id} <- resolve_esp_start_event(flow_node.type_data) do
-      child_process_instance_id = UuidV7.generate()
-      :ok = ChildLifecycle.record_fresh_child(context, child_process_instance_id)
+    child_process_instance_id = UuidV7.generate()
 
+    with {:ok, start_event_id} <- resolve_esp_start_event(flow_node.type_data),
+         :ok <- ChildLifecycle.record_fresh_child(context, child_process_instance_id) do
       run_child_lifecycle(
         flow_node,
         entry.token,
@@ -819,6 +826,21 @@ defmodule BfwEngine.Execution.FlowNodes.EventSubprocess do
     put_in(data.event_subprocess_kinds[subprocess_node_id], {trigger_kind, is_interrupting})
   end
 
+  @doc """
+  Whether an interrupting Event Subprocess of this scope already fired: its
+  shell has an FNI, which means every other flow of the scope was
+  interrupted.
+  """
+  @spec interrupting_event_subprocess_fired?(State.t()) :: boolean()
+  def interrupting_event_subprocess_fired?(data) do
+    fired_shell_ids = data |> fired_shell_times() |> Map.keys()
+
+    Enum.any?(data.process_model.flow_nodes || [], fn flow_node ->
+      flow_node.id in fired_shell_ids and event_subprocess_shell?(flow_node) and
+        interrupting_event_subprocess?(flow_node)
+    end)
+  end
+
   defp fired_shell_times(data) do
     data.flow_node_instance_states
     |> Map.values()
@@ -848,6 +870,57 @@ defmodule BfwEngine.Execution.FlowNodes.EventSubprocess do
     end)
 
     %{data | event_subprocess_triggers: %{}}
+  end
+
+  @doc """
+  Whether any armed trigger waits on a Scheduler timer.
+  """
+  @spec timer_triggers_armed?(State.t()) :: boolean()
+  def timer_triggers_armed?(data) do
+    Enum.any?(data.event_subprocess_triggers, fn {_node_id, trigger} ->
+      trigger.armed? and trigger.timer_ref != nil
+    end)
+  end
+
+  @doc """
+  Re-arm the timer triggers after a Scheduler restart, which lost their
+  entries. Fire times are recomputed the same way as on resume: from scope
+  activation and the shell FNIs already fired. A one-shot timer that
+  already fired stays disarmed.
+  """
+  @spec rearm_timer_triggers(State.t()) :: State.t()
+  def rearm_timer_triggers(data) do
+    fired_shell_times = fired_shell_times(data)
+
+    Enum.reduce(data.event_subprocess_triggers, data, fn {subprocess_node_id, trigger},
+                                                         accumulator ->
+      if trigger.armed? and trigger.timer_ref != nil do
+        fired_times = Map.get(fired_shell_times, subprocess_node_id, [])
+        rearm_timer_trigger(accumulator, subprocess_node_id, trigger, fired_times)
+      else
+        accumulator
+      end
+    end)
+  end
+
+  defp rearm_timer_trigger(data, subprocess_node_id, trigger, fired_times) do
+    with %FlowNode{} = esp_node <- FlowNodeLookup.find_flow_node(data, subprocess_node_id),
+         {:ok, start_event} <- esp_start_event_node(esp_node),
+         false <- one_shot_timer_fired?(start_event, fired_times),
+         {:ok, rearmed_trigger} <-
+           register_timer_trigger(data, trigger, start_event, trigger.timer_spec, fired_times) do
+      put_in(data.event_subprocess_triggers[subprocess_node_id], rearmed_trigger)
+    else
+      {:error, reason} ->
+        Logger.warning(
+          "Event Subprocess '#{subprocess_node_id}' timer could not be re-armed after a Scheduler restart: #{inspect(reason)}"
+        )
+
+        data
+
+      _already_fired ->
+        data
+    end
   end
 
   @doc """
@@ -980,6 +1053,28 @@ defmodule BfwEngine.Execution.FlowNodes.EventSubprocess do
       :none ->
         :none
     end
+  end
+
+  @doc """
+  The Compensation-start Event Subprocess at the top level of
+  `data.process_model`, read from the model rather than from registered
+  triggers: a compensation scope instance registers none.
+
+  Returns `{:ok, esp_node}` or `:none`.
+  """
+  @spec find_compensation_event_subprocess(State.t()) :: {:ok, FlowNode.t()} | :none
+  def find_compensation_event_subprocess(data) do
+    data.process_model.flow_nodes
+    |> Enum.filter(&event_subprocess_shell?/1)
+    |> Enum.find_value(:none, fn esp_node ->
+      case esp_start_event_node(esp_node) do
+        {:ok, %FlowNode{type_data: %{event_definition: %EventDefinition.Compensation{}}}} ->
+          {:ok, esp_node}
+
+        _other ->
+          nil
+      end
+    end)
   end
 
   @doc """
@@ -1357,7 +1452,9 @@ defmodule BfwEngine.Execution.FlowNodes.EventSubprocess do
      %{
        fire_at: fire_at,
        cycle_interval: cycle_spec.interval_duration,
-       cycle_remaining: cycle_spec.repetitions
+       cycle_remaining: cycle_spec.repetitions,
+       cycle_anchor: Map.get(cycle_spec, :anchor),
+       cycle_occurrence: Map.get(cycle_spec, :occurrence)
      }}
   end
 

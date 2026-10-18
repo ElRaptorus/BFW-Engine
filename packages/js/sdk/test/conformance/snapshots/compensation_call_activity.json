@@ -1,0 +1,571 @@
+{
+  "definitionsId": "Definitions_CompensationCallActivity",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "associations": [
+        {
+          "associationDirection": "One",
+          "id": "Assoc_Comp_Handled",
+          "sourceRef": "BE_Comp_Handled",
+          "targetRef": "UT_Undo_Handled"
+        }
+      ],
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "dataStoreReferences": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["Flow_1"],
+          "standardLoop": null,
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Call_Booking",
+          "incoming": ["Flow_1"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Booking",
+          "outgoing": ["Flow_2"],
+          "standardLoop": null,
+          "type": "call_activity",
+          "typeData": {
+            "calledElement": "CompensationCallActivityBooking",
+            "calledProcessVersion": null,
+            "inMappings": [],
+            "outMappings": [],
+            "startEventId": null
+          }
+        },
+        {
+          "boundaryEventRefs": ["BE_Comp_Handled"],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Call_Handled",
+          "incoming": ["Flow_2"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Rent Car Handled",
+          "outgoing": ["Flow_3"],
+          "standardLoop": null,
+          "type": "call_activity",
+          "typeData": {
+            "calledElement": "CompensationCallActivityCar",
+            "calledProcessVersion": null,
+            "inMappings": [],
+            "outMappings": [],
+            "startEventId": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "BE_Comp_Handled",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Compensate Car Call",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "boundary_event",
+          "typeData": {
+            "attachedToRef": "Call_Handled",
+            "cancelActivity": false,
+            "compensationHandlerId": "UT_Undo_Handled",
+            "eventDefinition": {
+              "activityRef": null,
+              "waitForCompletion": true
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "UT_Undo_Handled",
+          "incoming": [],
+          "isForCompensation": true,
+          "multiInstance": null,
+          "name": "Undo Car Call",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "user_task",
+          "typeData": {
+            "assigneesExpression": null,
+            "dueDate": null,
+            "formActions": null,
+            "formFields": null,
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "priority": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Throw_Comp",
+          "incoming": ["Flow_3"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Compensate",
+          "outgoing": ["Flow_4"],
+          "standardLoop": null,
+          "type": "intermediate_throw_event",
+          "typeData": {
+            "eventDefinition": {
+              "activityRef": null,
+              "waitForCompletion": true
+            },
+            "inMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_1",
+          "incoming": ["Flow_4"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "End",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "CompensationCallActivity",
+      "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
+      "isExecutable": true,
+      "isTransactionScope": false,
+      "lanes": [
+        {
+          "flowNodeRefs": [
+            "Start_1",
+            "Call_Booking",
+            "Call_Handled",
+            "BE_Comp_Handled",
+            "UT_Undo_Handled",
+            "Throw_Comp",
+            "End_1"
+          ],
+          "id": "Lane_default_Parent",
+          "name": "default"
+        }
+      ],
+      "name": "Compensation Call Activity",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "Call_Booking"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Call_Booking",
+          "targetRef": "Call_Handled"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_3",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Call_Handled",
+          "targetRef": "Throw_Comp"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_4",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Throw_Comp",
+          "targetRef": "End_1"
+        }
+      ],
+      "version": "1.0.0"
+    },
+    {
+      "associations": [
+        {
+          "associationDirection": "One",
+          "id": "Assoc_Comp_Hotel",
+          "sourceRef": "BE_Comp_Hotel",
+          "targetRef": "UT_Undo_Hotel"
+        }
+      ],
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "dataStoreReferences": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Booking_Start",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Booking Start",
+          "outgoing": ["Booking_Flow_1"],
+          "standardLoop": null,
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": ["BE_Comp_Hotel"],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Task_Hotel",
+          "incoming": ["Booking_Flow_1"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Book Hotel",
+          "outgoing": ["Booking_Flow_2"],
+          "standardLoop": null,
+          "type": "task",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "BE_Comp_Hotel",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Compensate Hotel",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "boundary_event",
+          "typeData": {
+            "attachedToRef": "Task_Hotel",
+            "cancelActivity": false,
+            "compensationHandlerId": "UT_Undo_Hotel",
+            "eventDefinition": {
+              "activityRef": null,
+              "waitForCompletion": true
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "UT_Undo_Hotel",
+          "incoming": [],
+          "isForCompensation": true,
+          "multiInstance": null,
+          "name": "Cancel Hotel",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "user_task",
+          "typeData": {
+            "assigneesExpression": null,
+            "dueDate": null,
+            "formActions": null,
+            "formFields": null,
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "priority": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Call_Car",
+          "incoming": ["Booking_Flow_2"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Rent Car",
+          "outgoing": ["Booking_Flow_3"],
+          "standardLoop": null,
+          "type": "call_activity",
+          "typeData": {
+            "calledElement": "CompensationCallActivityCar",
+            "calledProcessVersion": null,
+            "inMappings": [],
+            "outMappings": [],
+            "startEventId": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Booking_End",
+          "incoming": ["Booking_Flow_3"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Booking End",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "CompensationCallActivityBooking",
+      "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
+      "isExecutable": true,
+      "isTransactionScope": false,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Booking_Start", "Task_Hotel", "BE_Comp_Hotel", "UT_Undo_Hotel", "Call_Car", "Booking_End"],
+          "id": "Lane_default_Booking",
+          "name": "default"
+        }
+      ],
+      "name": "Compensation Call Activity Booking",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Booking_Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Booking_Start",
+          "targetRef": "Task_Hotel"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Booking_Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Task_Hotel",
+          "targetRef": "Call_Car"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Booking_Flow_3",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Call_Car",
+          "targetRef": "Booking_End"
+        }
+      ],
+      "version": "1.0.0"
+    },
+    {
+      "associations": [
+        {
+          "associationDirection": "One",
+          "id": "Assoc_Comp_Car",
+          "sourceRef": "BE_Comp_Car",
+          "targetRef": "UT_Undo_Car"
+        }
+      ],
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "dataStoreReferences": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Car_Start",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Car Start",
+          "outgoing": ["Car_Flow_1"],
+          "standardLoop": null,
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": ["BE_Comp_Car"],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Task_Car",
+          "incoming": ["Car_Flow_1"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Rent Car",
+          "outgoing": ["Car_Flow_2"],
+          "standardLoop": null,
+          "type": "task",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "BE_Comp_Car",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Compensate Car",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "boundary_event",
+          "typeData": {
+            "attachedToRef": "Task_Car",
+            "cancelActivity": false,
+            "compensationHandlerId": "UT_Undo_Car",
+            "eventDefinition": {
+              "activityRef": null,
+              "waitForCompletion": true
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "UT_Undo_Car",
+          "incoming": [],
+          "isForCompensation": true,
+          "multiInstance": null,
+          "name": "Return Car",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "user_task",
+          "typeData": {
+            "assigneesExpression": null,
+            "dueDate": null,
+            "formActions": null,
+            "formFields": null,
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "priority": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Car_End",
+          "incoming": ["Car_Flow_2"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Car End",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "CompensationCallActivityCar",
+      "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
+      "isExecutable": true,
+      "isTransactionScope": false,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Car_Start", "Task_Car", "BE_Comp_Car", "UT_Undo_Car", "Car_End"],
+          "id": "Lane_default_Car",
+          "name": "default"
+        }
+      ],
+      "name": "Compensation Call Activity Car",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Car_Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Car_Start",
+          "targetRef": "Task_Car"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Car_Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Task_Car",
+          "targetRef": "Car_End"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

@@ -1,0 +1,885 @@
+{
+  "definitionsId": "Definitions_CompensationScopeEventSubprocess",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "associations": [
+        {
+          "associationDirection": "One",
+          "id": "Assoc_Comp_Hotel",
+          "sourceRef": "BE_Comp_Hotel",
+          "targetRef": "UT_Undo_Hotel"
+        }
+      ],
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "dataStoreReferences": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["Flow_1"],
+          "standardLoop": null,
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "SubProcess_Hotel",
+          "incoming": ["Flow_1"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Hotel",
+          "outgoing": ["Flow_2"],
+          "standardLoop": null,
+          "type": "sub_process",
+          "typeData": {
+            "activeElementsCompiled": null,
+            "activeElementsExpression": null,
+            "adhocCompletionCondition": null,
+            "adhocCompletionConditionCompiled": null,
+            "adhocOrdering": "parallel",
+            "cancelRemainingInstances": true,
+            "dataObjectReferences": [],
+            "dataObjects": [],
+            "dataStoreReferences": [],
+            "flowNodes": [
+              {
+                "boundaryEventRefs": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "Hotel_Start",
+                "incoming": [],
+                "isForCompensation": false,
+                "multiInstance": null,
+                "name": "Hotel Start",
+                "outgoing": ["Hotel_Flow_1"],
+                "standardLoop": null,
+                "type": "start_event",
+                "typeData": {
+                  "eventDefinition": {},
+                  "isInterrupting": true,
+                  "resultContract": null
+                }
+              },
+              {
+                "boundaryEventRefs": ["BE_Comp_Hotel"],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "Task_Hotel",
+                "incoming": ["Hotel_Flow_1"],
+                "isForCompensation": false,
+                "multiInstance": null,
+                "name": "Book Hotel",
+                "outgoing": ["Hotel_Flow_2"],
+                "standardLoop": null,
+                "type": "task",
+                "typeData": {}
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "BE_Comp_Hotel",
+                "incoming": [],
+                "isForCompensation": false,
+                "multiInstance": null,
+                "name": "Compensate Hotel",
+                "outgoing": [],
+                "standardLoop": null,
+                "type": "boundary_event",
+                "typeData": {
+                  "attachedToRef": "Task_Hotel",
+                  "cancelActivity": false,
+                  "compensationHandlerId": "UT_Undo_Hotel",
+                  "eventDefinition": {
+                    "activityRef": null,
+                    "waitForCompletion": true
+                  },
+                  "outMappings": [],
+                  "resultContract": null
+                }
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "UT_Undo_Hotel",
+                "incoming": [],
+                "isForCompensation": true,
+                "multiInstance": null,
+                "name": "Cancel Hotel",
+                "outgoing": [],
+                "standardLoop": null,
+                "type": "user_task",
+                "typeData": {
+                  "assigneesExpression": null,
+                  "dueDate": null,
+                  "formActions": null,
+                  "formFields": null,
+                  "inMappings": [],
+                  "outMappings": [],
+                  "payloadContract": null,
+                  "priority": null,
+                  "resultContract": null
+                }
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "Hotel_End",
+                "incoming": ["Hotel_Flow_2"],
+                "isForCompensation": false,
+                "multiInstance": null,
+                "name": "Hotel End",
+                "outgoing": [],
+                "standardLoop": null,
+                "type": "end_event",
+                "typeData": {
+                  "eventDefinition": {},
+                  "inMappings": [],
+                  "payloadContract": null
+                }
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "ESP_Comp_Hotel",
+                "incoming": [],
+                "isForCompensation": false,
+                "multiInstance": null,
+                "name": "Compensate Hotel Scope",
+                "outgoing": [],
+                "standardLoop": null,
+                "type": "sub_process",
+                "typeData": {
+                  "activeElementsCompiled": null,
+                  "activeElementsExpression": null,
+                  "adhocCompletionCondition": null,
+                  "adhocCompletionConditionCompiled": null,
+                  "adhocOrdering": "parallel",
+                  "cancelRemainingInstances": true,
+                  "dataObjectReferences": [],
+                  "dataObjects": [],
+                  "dataStoreReferences": [],
+                  "flowNodes": [
+                    {
+                      "boundaryEventRefs": [],
+                      "dataInputAssociations": [],
+                      "dataOutputAssociations": [],
+                      "documentation": null,
+                      "id": "ESP_Hotel_Start",
+                      "incoming": [],
+                      "isForCompensation": false,
+                      "multiInstance": null,
+                      "name": "Compensation Start",
+                      "outgoing": ["ESP_Hotel_Flow_1"],
+                      "standardLoop": null,
+                      "type": "start_event",
+                      "typeData": {
+                        "eventDefinition": {
+                          "activityRef": null,
+                          "waitForCompletion": true
+                        },
+                        "isInterrupting": true,
+                        "resultContract": null
+                      }
+                    },
+                    {
+                      "boundaryEventRefs": [],
+                      "dataInputAssociations": [],
+                      "dataOutputAssociations": [],
+                      "documentation": null,
+                      "id": "UT_Esp_Hotel",
+                      "incoming": ["ESP_Hotel_Flow_1"],
+                      "isForCompensation": false,
+                      "multiInstance": null,
+                      "name": "Undo Hotel Scope",
+                      "outgoing": ["ESP_Hotel_Flow_2"],
+                      "standardLoop": null,
+                      "type": "user_task",
+                      "typeData": {
+                        "assigneesExpression": null,
+                        "dueDate": null,
+                        "formActions": null,
+                        "formFields": null,
+                        "inMappings": [],
+                        "outMappings": [],
+                        "payloadContract": null,
+                        "priority": null,
+                        "resultContract": null
+                      }
+                    },
+                    {
+                      "boundaryEventRefs": [],
+                      "dataInputAssociations": [],
+                      "dataOutputAssociations": [],
+                      "documentation": null,
+                      "id": "ESP_Hotel_End",
+                      "incoming": ["ESP_Hotel_Flow_2"],
+                      "isForCompensation": false,
+                      "multiInstance": null,
+                      "name": "Undone",
+                      "outgoing": [],
+                      "standardLoop": null,
+                      "type": "end_event",
+                      "typeData": {
+                        "eventDefinition": {},
+                        "inMappings": [],
+                        "payloadContract": null
+                      }
+                    }
+                  ],
+                  "implementation": null,
+                  "inMappings": [],
+                  "isAdHoc": false,
+                  "isTransaction": false,
+                  "outMappings": [],
+                  "payloadContract": null,
+                  "resultContract": null,
+                  "sequenceFlows": [
+                    {
+                      "conditionExpression": null,
+                      "id": "ESP_Hotel_Flow_1",
+                      "isDefault": false,
+                      "name": null,
+                      "sourceRef": "ESP_Hotel_Start",
+                      "targetRef": "UT_Esp_Hotel"
+                    },
+                    {
+                      "conditionExpression": null,
+                      "id": "ESP_Hotel_Flow_2",
+                      "isDefault": false,
+                      "name": null,
+                      "sourceRef": "UT_Esp_Hotel",
+                      "targetRef": "ESP_Hotel_End"
+                    }
+                  ],
+                  "transactionMethod": null,
+                  "triggeredByEvent": true
+                }
+              }
+            ],
+            "implementation": null,
+            "inMappings": [],
+            "isAdHoc": false,
+            "isTransaction": false,
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": null,
+            "sequenceFlows": [
+              {
+                "conditionExpression": null,
+                "id": "Hotel_Flow_1",
+                "isDefault": false,
+                "name": null,
+                "sourceRef": "Hotel_Start",
+                "targetRef": "Task_Hotel"
+              },
+              {
+                "conditionExpression": null,
+                "id": "Hotel_Flow_2",
+                "isDefault": false,
+                "name": null,
+                "sourceRef": "Task_Hotel",
+                "targetRef": "Hotel_End"
+              }
+            ],
+            "transactionMethod": null,
+            "triggeredByEvent": false
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "SubProcess_Plain",
+          "incoming": ["Flow_2"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Plain",
+          "outgoing": ["Flow_3"],
+          "standardLoop": null,
+          "type": "sub_process",
+          "typeData": {
+            "activeElementsCompiled": null,
+            "activeElementsExpression": null,
+            "adhocCompletionCondition": null,
+            "adhocCompletionConditionCompiled": null,
+            "adhocOrdering": "parallel",
+            "cancelRemainingInstances": true,
+            "dataObjectReferences": [],
+            "dataObjects": [],
+            "dataStoreReferences": [],
+            "flowNodes": [
+              {
+                "boundaryEventRefs": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "Plain_Start",
+                "incoming": [],
+                "isForCompensation": false,
+                "multiInstance": null,
+                "name": "Plain Start",
+                "outgoing": ["Plain_Flow_1"],
+                "standardLoop": null,
+                "type": "start_event",
+                "typeData": {
+                  "eventDefinition": {},
+                  "isInterrupting": true,
+                  "resultContract": null
+                }
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "Task_Plain",
+                "incoming": ["Plain_Flow_1"],
+                "isForCompensation": false,
+                "multiInstance": null,
+                "name": "Plain Work",
+                "outgoing": ["Plain_Flow_2"],
+                "standardLoop": null,
+                "type": "task",
+                "typeData": {}
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "Plain_End",
+                "incoming": ["Plain_Flow_2"],
+                "isForCompensation": false,
+                "multiInstance": null,
+                "name": "Plain End",
+                "outgoing": [],
+                "standardLoop": null,
+                "type": "end_event",
+                "typeData": {
+                  "eventDefinition": {},
+                  "inMappings": [],
+                  "payloadContract": null
+                }
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "ESP_Comp_Plain",
+                "incoming": [],
+                "isForCompensation": false,
+                "multiInstance": null,
+                "name": "Compensate Plain Scope",
+                "outgoing": [],
+                "standardLoop": null,
+                "type": "sub_process",
+                "typeData": {
+                  "activeElementsCompiled": null,
+                  "activeElementsExpression": null,
+                  "adhocCompletionCondition": null,
+                  "adhocCompletionConditionCompiled": null,
+                  "adhocOrdering": "parallel",
+                  "cancelRemainingInstances": true,
+                  "dataObjectReferences": [],
+                  "dataObjects": [],
+                  "dataStoreReferences": [],
+                  "flowNodes": [
+                    {
+                      "boundaryEventRefs": [],
+                      "dataInputAssociations": [],
+                      "dataOutputAssociations": [],
+                      "documentation": null,
+                      "id": "ESP_Plain_Start",
+                      "incoming": [],
+                      "isForCompensation": false,
+                      "multiInstance": null,
+                      "name": "Compensation Start",
+                      "outgoing": ["ESP_Plain_Flow_1"],
+                      "standardLoop": null,
+                      "type": "start_event",
+                      "typeData": {
+                        "eventDefinition": {
+                          "activityRef": null,
+                          "waitForCompletion": true
+                        },
+                        "isInterrupting": true,
+                        "resultContract": null
+                      }
+                    },
+                    {
+                      "boundaryEventRefs": [],
+                      "dataInputAssociations": [],
+                      "dataOutputAssociations": [],
+                      "documentation": null,
+                      "id": "UT_Esp_Plain",
+                      "incoming": ["ESP_Plain_Flow_1"],
+                      "isForCompensation": false,
+                      "multiInstance": null,
+                      "name": "Undo Plain Scope",
+                      "outgoing": ["ESP_Plain_Flow_2"],
+                      "standardLoop": null,
+                      "type": "user_task",
+                      "typeData": {
+                        "assigneesExpression": null,
+                        "dueDate": null,
+                        "formActions": null,
+                        "formFields": null,
+                        "inMappings": [],
+                        "outMappings": [],
+                        "payloadContract": null,
+                        "priority": null,
+                        "resultContract": null
+                      }
+                    },
+                    {
+                      "boundaryEventRefs": [],
+                      "dataInputAssociations": [],
+                      "dataOutputAssociations": [],
+                      "documentation": null,
+                      "id": "ESP_Plain_End",
+                      "incoming": ["ESP_Plain_Flow_2"],
+                      "isForCompensation": false,
+                      "multiInstance": null,
+                      "name": "Undone",
+                      "outgoing": [],
+                      "standardLoop": null,
+                      "type": "end_event",
+                      "typeData": {
+                        "eventDefinition": {},
+                        "inMappings": [],
+                        "payloadContract": null
+                      }
+                    }
+                  ],
+                  "implementation": null,
+                  "inMappings": [],
+                  "isAdHoc": false,
+                  "isTransaction": false,
+                  "outMappings": [],
+                  "payloadContract": null,
+                  "resultContract": null,
+                  "sequenceFlows": [
+                    {
+                      "conditionExpression": null,
+                      "id": "ESP_Plain_Flow_1",
+                      "isDefault": false,
+                      "name": null,
+                      "sourceRef": "ESP_Plain_Start",
+                      "targetRef": "UT_Esp_Plain"
+                    },
+                    {
+                      "conditionExpression": null,
+                      "id": "ESP_Plain_Flow_2",
+                      "isDefault": false,
+                      "name": null,
+                      "sourceRef": "UT_Esp_Plain",
+                      "targetRef": "ESP_Plain_End"
+                    }
+                  ],
+                  "transactionMethod": null,
+                  "triggeredByEvent": true
+                }
+              }
+            ],
+            "implementation": null,
+            "inMappings": [],
+            "isAdHoc": false,
+            "isTransaction": false,
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": null,
+            "sequenceFlows": [
+              {
+                "conditionExpression": null,
+                "id": "Plain_Flow_1",
+                "isDefault": false,
+                "name": null,
+                "sourceRef": "Plain_Start",
+                "targetRef": "Task_Plain"
+              },
+              {
+                "conditionExpression": null,
+                "id": "Plain_Flow_2",
+                "isDefault": false,
+                "name": null,
+                "sourceRef": "Task_Plain",
+                "targetRef": "Plain_End"
+              }
+            ],
+            "transactionMethod": null,
+            "triggeredByEvent": false
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Call_Car",
+          "incoming": ["Flow_3"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Rent Car",
+          "outgoing": ["Flow_4"],
+          "standardLoop": null,
+          "type": "call_activity",
+          "typeData": {
+            "calledElement": "CompensationScopeEventSubprocessCar",
+            "calledProcessVersion": null,
+            "inMappings": [],
+            "outMappings": [],
+            "startEventId": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Throw_Comp",
+          "incoming": ["Flow_4"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Compensate",
+          "outgoing": ["Flow_5"],
+          "standardLoop": null,
+          "type": "intermediate_throw_event",
+          "typeData": {
+            "eventDefinition": {
+              "activityRef": null,
+              "waitForCompletion": true
+            },
+            "inMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_1",
+          "incoming": ["Flow_5"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "End",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "CompensationScopeEventSubprocess",
+      "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
+      "isExecutable": true,
+      "isTransactionScope": false,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_1", "SubProcess_Hotel", "SubProcess_Plain", "Call_Car", "Throw_Comp", "End_1"],
+          "id": "Lane_default_Parent",
+          "name": "default"
+        }
+      ],
+      "name": "Compensation Scope Event Subprocess",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "SubProcess_Hotel"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "SubProcess_Hotel",
+          "targetRef": "SubProcess_Plain"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_3",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "SubProcess_Plain",
+          "targetRef": "Call_Car"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_4",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Call_Car",
+          "targetRef": "Throw_Comp"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_5",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Throw_Comp",
+          "targetRef": "End_1"
+        }
+      ],
+      "version": "1.0.0"
+    },
+    {
+      "associations": [],
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "dataStoreReferences": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Car_Start",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Car Start",
+          "outgoing": ["Car_Flow_1"],
+          "standardLoop": null,
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Task_Car",
+          "incoming": ["Car_Flow_1"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Rent Car",
+          "outgoing": ["Car_Flow_2"],
+          "standardLoop": null,
+          "type": "task",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Car_End",
+          "incoming": ["Car_Flow_2"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Car End",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "ESP_Comp_Car",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Compensate Car Scope",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "sub_process",
+          "typeData": {
+            "activeElementsCompiled": null,
+            "activeElementsExpression": null,
+            "adhocCompletionCondition": null,
+            "adhocCompletionConditionCompiled": null,
+            "adhocOrdering": "parallel",
+            "cancelRemainingInstances": true,
+            "dataObjectReferences": [],
+            "dataObjects": [],
+            "dataStoreReferences": [],
+            "flowNodes": [
+              {
+                "boundaryEventRefs": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "ESP_Car_Start",
+                "incoming": [],
+                "isForCompensation": false,
+                "multiInstance": null,
+                "name": "Compensation Start",
+                "outgoing": ["ESP_Car_Flow_1"],
+                "standardLoop": null,
+                "type": "start_event",
+                "typeData": {
+                  "eventDefinition": {
+                    "activityRef": null,
+                    "waitForCompletion": true
+                  },
+                  "isInterrupting": true,
+                  "resultContract": null
+                }
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "UT_Esp_Car",
+                "incoming": ["ESP_Car_Flow_1"],
+                "isForCompensation": false,
+                "multiInstance": null,
+                "name": "Undo Car Scope",
+                "outgoing": ["ESP_Car_Flow_2"],
+                "standardLoop": null,
+                "type": "user_task",
+                "typeData": {
+                  "assigneesExpression": null,
+                  "dueDate": null,
+                  "formActions": null,
+                  "formFields": null,
+                  "inMappings": [],
+                  "outMappings": [],
+                  "payloadContract": null,
+                  "priority": null,
+                  "resultContract": null
+                }
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "ESP_Car_End",
+                "incoming": ["ESP_Car_Flow_2"],
+                "isForCompensation": false,
+                "multiInstance": null,
+                "name": "Undone",
+                "outgoing": [],
+                "standardLoop": null,
+                "type": "end_event",
+                "typeData": {
+                  "eventDefinition": {},
+                  "inMappings": [],
+                  "payloadContract": null
+                }
+              }
+            ],
+            "implementation": null,
+            "inMappings": [],
+            "isAdHoc": false,
+            "isTransaction": false,
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": null,
+            "sequenceFlows": [
+              {
+                "conditionExpression": null,
+                "id": "ESP_Car_Flow_1",
+                "isDefault": false,
+                "name": null,
+                "sourceRef": "ESP_Car_Start",
+                "targetRef": "UT_Esp_Car"
+              },
+              {
+                "conditionExpression": null,
+                "id": "ESP_Car_Flow_2",
+                "isDefault": false,
+                "name": null,
+                "sourceRef": "UT_Esp_Car",
+                "targetRef": "ESP_Car_End"
+              }
+            ],
+            "transactionMethod": null,
+            "triggeredByEvent": true
+          }
+        }
+      ],
+      "id": "CompensationScopeEventSubprocessCar",
+      "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
+      "isExecutable": true,
+      "isTransactionScope": false,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Car_Start", "Task_Car", "Car_End", "ESP_Comp_Car"],
+          "id": "Lane_default_Car",
+          "name": "default"
+        }
+      ],
+      "name": "Compensation Scope Event Subprocess Car",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Car_Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Car_Start",
+          "targetRef": "Task_Car"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Car_Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Task_Car",
+          "targetRef": "Car_End"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

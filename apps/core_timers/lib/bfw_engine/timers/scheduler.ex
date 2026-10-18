@@ -38,8 +38,8 @@ defmodule BfwEngine.Timers.Scheduler do
   whole cycle. Occurrences already due when the cycle re-arms are skipped
   (each uses up one repetition), so a late tick never fires a burst.
   An optional `on_cycle_advance` callback (MFA) receives
-  `(metadata, next_fire_at | nil, remaining)` so the `StartEventManager`
-  can persist the cycle state. It runs in a linked worker process, in fire
+  `(metadata, next_fire_at | nil, remaining)`, with the cycle's `timer_ref`
+  added to `metadata`, so the `StartEventManager` can persist the cycle state. It runs in a linked worker process, in fire
   order, so a slow callback never delays a tick.
 
   ## Restart
@@ -63,7 +63,9 @@ defmodule BfwEngine.Timers.Scheduler do
 
   @type cycle_info :: %{
           interval_duration: Duration.t(),
-          remaining: pos_integer() | :infinite
+          remaining: pos_integer() | :infinite,
+          anchor: DateTime.t(),
+          occurrence: non_neg_integer()
         }
 
   @type schedule_request :: %{
@@ -71,13 +73,17 @@ defmodule BfwEngine.Timers.Scheduler do
           required(:target) => target(),
           required(:metadata) => map(),
           optional(:cycle_interval) => Duration.t() | nil,
-          optional(:cycle_remaining) => pos_integer() | :infinite | nil
+          optional(:cycle_remaining) => pos_integer() | :infinite | nil,
+          optional(:cycle_anchor) => DateTime.t() | nil,
+          optional(:cycle_occurrence) => non_neg_integer() | nil
         }
 
   @default_primary_table :bfw_engine_timers_primary
   @default_target_index_table :bfw_engine_timers_target_index
   @restore_attempts 3
   @restore_initial_backoff_ms 500
+  @restart_wait_initial_ms 50
+  @restart_wait_max_ms 1_000
 
   # --- Client API ---
 
@@ -100,6 +106,8 @@ defmodule BfwEngine.Timers.Scheduler do
 
   - `cycle_interval` — `Duration.t()` for repeating timers
   - `cycle_remaining` — number of remaining repetitions (`:infinite` or positive integer)
+  - `cycle_anchor` / `cycle_occurrence` — the occurrence a calendar interval
+    counts from and the index of `fire_at` after it; default `fire_at` and 0
   """
   @spec schedule(schedule_request(), GenServer.server()) :: {:ok, timer_ref()}
   def schedule(request, server \\ __MODULE__) do
@@ -134,11 +142,56 @@ defmodule BfwEngine.Timers.Scheduler do
   matching timer, then removes them from ETS. Cycle timers are re-armed
   naturally by the fire logic (same as tick-based expiry).
 
-  Returns the number of timers fired.
+  Returns the number of fires delivered to a live target; an entry whose
+  target is gone is removed without being counted.
   """
   @spec fire_now_for_target(target(), GenServer.server()) :: non_neg_integer()
   def fire_now_for_target(target, server \\ __MODULE__) do
     GenServer.call(server, {:fire_now_for_target, target})
+  end
+
+  @doc """
+  Blocks the calling process until `{:timer_fired, timer_ref, metadata}`
+  arrives and returns the ref that fired.
+
+  The Scheduler's ETS tables die with it, so the caller monitors it while
+  waiting. When it goes down, the caller waits for the restarted Scheduler
+  (backoff from #{@restart_wait_initial_ms} ms, doubling up to
+  #{@restart_wait_max_ms} ms) and calls `reschedule`, which schedules the
+  same fire time again and returns `{:ok, new_timer_ref}`; then it waits for
+  the new ref. A fire sent before the Scheduler went down is still received.
+  """
+  @spec await_fire(timer_ref(), (-> {:ok, timer_ref()}), atom()) :: timer_ref()
+  def await_fire(timer_ref, reschedule, server \\ __MODULE__) when is_atom(server) do
+    monitor_reference = Process.monitor(server)
+
+    receive do
+      {:timer_fired, ^timer_ref, _metadata} ->
+        Process.demonitor(monitor_reference, [:flush])
+        timer_ref
+
+      {:DOWN, ^monitor_reference, :process, _object, _reason} ->
+        timer_ref = reschedule_after_restart(reschedule, server, @restart_wait_initial_ms)
+        await_fire(timer_ref, reschedule, server)
+    end
+  end
+
+  defp reschedule_after_restart(reschedule, server, wait_ms) do
+    Process.sleep(wait_ms)
+
+    with pid when is_pid(pid) <- Process.whereis(server),
+         {:ok, timer_ref} <- try_reschedule(reschedule) do
+      timer_ref
+    else
+      _not_restarted ->
+        reschedule_after_restart(reschedule, server, min(wait_ms * 2, @restart_wait_max_ms))
+    end
+  end
+
+  defp try_reschedule(reschedule) do
+    reschedule.()
+  catch
+    :exit, _reason -> :scheduler_unavailable
   end
 
   # --- Server Callbacks ---
@@ -348,10 +401,13 @@ defmodule BfwEngine.Timers.Scheduler do
   defp deliver_fire_message(target, timer_ref, metadata) when is_pid(target) do
     if Process.alive?(target) do
       send(target, {:timer_fired, timer_ref, metadata})
+      true
     else
       Logger.debug(
         "Scheduler: target PID #{inspect(target)} is dead, dropping fire for #{timer_ref}"
       )
+
+      false
     end
   end
 
@@ -362,8 +418,11 @@ defmodule BfwEngine.Timers.Scheduler do
           "Scheduler: registered name #{inspect(target)} not found, dropping fire for #{timer_ref}"
         )
 
+        false
+
       pid ->
         send(pid, {:timer_fired, timer_ref, metadata})
+        true
     end
   end
 
@@ -374,7 +433,9 @@ defmodule BfwEngine.Timers.Scheduler do
     cycle_spec = %{
       repetitions: cycle_info.remaining,
       interval_duration: cycle_info.interval_duration,
-      start_at: nil
+      start_at: nil,
+      anchor: cycle_info.anchor,
+      occurrence: cycle_info.occurrence
     }
 
     case ISO8601.next_future_cycle_fire(cycle_spec, fire_at, DateTime.utc_now()) do
@@ -383,7 +444,9 @@ defmodule BfwEngine.Timers.Scheduler do
 
         new_cycle_info = %{
           interval_duration: updated_cycle_spec.interval_duration,
-          remaining: updated_cycle_spec.repetitions
+          remaining: updated_cycle_spec.repetitions,
+          anchor: updated_cycle_spec.anchor,
+          occurrence: updated_cycle_spec.occurrence
         }
 
         :ets.insert(state.primary, {{next_fire_ms, timer_ref}, target, metadata, new_cycle_info})
@@ -391,10 +454,15 @@ defmodule BfwEngine.Timers.Scheduler do
 
         emit_telemetry(:armed, timer_ref, %{fire_at: next_fire}, metadata)
 
-        invoke_cycle_advance_callback(state, metadata, next_fire, updated_cycle_spec.repetitions)
+        invoke_cycle_advance_callback(
+          state,
+          Map.put(metadata, :timer_ref, timer_ref),
+          next_fire,
+          updated_cycle_spec.repetitions
+        )
 
       nil ->
-        invoke_cycle_advance_callback(state, metadata, nil, 0)
+        invoke_cycle_advance_callback(state, Map.put(metadata, :timer_ref, timer_ref), nil, 0)
     end
   end
 
@@ -463,11 +531,11 @@ defmodule BfwEngine.Timers.Scheduler do
     Enum.count(target_entries, fn {_target_key, timer_ref, fire_at_ms} ->
       case :ets.lookup(state.primary, {fire_at_ms, timer_ref}) do
         [{key, ^target, metadata, cycle_info}] ->
-          deliver_fire_message(target, timer_ref, metadata)
+          delivered? = deliver_fire_message(target, timer_ref, metadata)
           delete_timer(state, key, timer_ref)
           emit_telemetry(:fired, timer_ref, %{}, metadata)
           maybe_rearm_cycle(state, {target, timer_ref}, metadata, cycle_info, fire_at_ms)
-          true
+          delivered?
 
         [] ->
           false
@@ -480,6 +548,7 @@ defmodule BfwEngine.Timers.Scheduler do
 
     Enum.each(target_entries, fn {_target_key, timer_ref, fire_at_ms} ->
       :ets.delete(state.primary, {fire_at_ms, timer_ref})
+      emit_telemetry(:cancelled, timer_ref, %{}, %{})
     end)
 
     :ets.match_delete(state.target_index, {target_key(target), :_, :_})
@@ -520,9 +589,15 @@ defmodule BfwEngine.Timers.Scheduler do
     Process.send_after(self(), :tick, interval_ms)
   end
 
-  defp build_cycle_info(%{cycle_interval: interval, cycle_remaining: remaining})
+  # Without an explicit anchor the first scheduled fire is occurrence 0.
+  defp build_cycle_info(%{cycle_interval: interval, cycle_remaining: remaining} = request)
        when not is_nil(interval) and not is_nil(remaining) do
-    %{interval_duration: interval, remaining: remaining}
+    %{
+      interval_duration: interval,
+      remaining: remaining,
+      anchor: Map.get(request, :cycle_anchor) || request.fire_at,
+      occurrence: Map.get(request, :cycle_occurrence) || 0
+    }
   end
 
   defp build_cycle_info(_request), do: nil

@@ -12,8 +12,9 @@ defmodule BfwEngine.Execution.FlowNodes.TimerBoundaryEvent do
   1. `handle_enter/3` extracts the timer spec, evaluates FEEL if
      needed, schedules the timer with `target: self()` (the handler
      Task PID), and returns `{:async, fni_id, continuation, type_properties}`.
-  2. The continuation blocks on `receive {:timer_fired, ...}`. When
-     the timer fires, it returns `{:boundary, ...}` to the PI.
+  2. The continuation waits in `Scheduler.await_fire/3`, which re-arms
+     the timer if the Scheduler restarts. When the timer fires, it
+     returns `{:boundary, ...}` to the PI.
   3. The PI processes the boundary result generically: interrupts the
      host (if `cancel_activity`), cancels siblings, and dispatches the
      boundary event's outgoing path.
@@ -166,7 +167,7 @@ defmodule BfwEngine.Execution.FlowNodes.TimerBoundaryEvent do
         do_schedule_and_wait(flow_node, context, fire_at, cancel_activity, host_fni_id)
 
       {:error, reason} ->
-        {:error, %{reason: :timer_resolution_failed, detail: reason}}
+        {:error, TimerSpecResolver.failure(reason)}
     end
   end
 
@@ -183,11 +184,9 @@ defmodule BfwEngine.Execution.FlowNodes.TimerBoundaryEvent do
     case FniLifecycle.park_async(context, type_properties) do
       :ok ->
         continuation = fn ->
-          receive do
-            {:timer_fired, ^timer_ref, _metadata} ->
-              emit_timer_fired_event(context, flow_node, timer_ref)
-              {:boundary, flow_node.id, %{}, cancel_activity}
-          end
+          fired_timer_ref = await_timer(flow_node, context, timer_ref, fire_at)
+          emit_timer_fired_event(context, flow_node, fired_timer_ref)
+          {:boundary, flow_node.id, %{}, cancel_activity}
         end
 
         {:async, context.flow_node_instance_id, continuation,
@@ -227,7 +226,7 @@ defmodule BfwEngine.Execution.FlowNodes.TimerBoundaryEvent do
       end
     else
       nil -> park_exhausted_cycle(context, cancel_activity)
-      {:error, reason} -> {:error, %{reason: :timer_resolution_failed, detail: reason}}
+      {:error, reason} -> {:error, TimerSpecResolver.failure(reason)}
     end
   end
 
@@ -300,50 +299,48 @@ defmodule BfwEngine.Execution.FlowNodes.TimerBoundaryEvent do
          current_fire,
          cycle_spec
        ) do
-    receive do
-      {:timer_fired, ^timer_ref, _metadata} ->
-        emit_timer_fired_event(context, flow_node, timer_ref)
+    fired_timer_ref = await_timer(flow_node, context, timer_ref, current_fire)
+    emit_timer_fired_event(context, flow_node, fired_timer_ref)
 
-        case ISO8601.next_future_cycle_fire(cycle_spec, current_fire, DateTime.utc_now()) do
-          {next_fire, updated_spec} ->
-            send(
+    case ISO8601.next_future_cycle_fire(cycle_spec, current_fire, DateTime.utc_now()) do
+      {next_fire, updated_spec} ->
+        send(
+          process_instance_pid,
+          {:fni_result, flow_node_instance_id,
+           {:boundary_cycle_fire, flow_node.id, %{}, cancel_activity}}
+        )
+
+        {:ok, next_timer_ref} = schedule_timer(flow_node, context, next_fire)
+
+        rearm_type_properties =
+          cycle_type_properties(
+            context.host_flow_node_instance_id,
+            next_fire,
+            cancel_activity,
+            next_timer_ref,
+            updated_spec
+          )
+
+        case persist_cycle_type_properties(context, rearm_type_properties) do
+          :ok ->
+            cycle_receive_loop(
               process_instance_pid,
-              {:fni_result, flow_node_instance_id,
-               {:boundary_cycle_fire, flow_node.id, %{}, cancel_activity}}
+              flow_node_instance_id,
+              flow_node,
+              context,
+              cancel_activity,
+              next_timer_ref,
+              next_fire,
+              updated_spec
             )
 
-            {:ok, next_timer_ref} = schedule_timer(flow_node, context, next_fire)
-
-            rearm_type_properties =
-              cycle_type_properties(
-                context.host_flow_node_instance_id,
-                next_fire,
-                cancel_activity,
-                next_timer_ref,
-                updated_spec
-              )
-
-            case persist_cycle_type_properties(context, rearm_type_properties) do
-              :ok ->
-                cycle_receive_loop(
-                  process_instance_pid,
-                  flow_node_instance_id,
-                  flow_node,
-                  context,
-                  cancel_activity,
-                  next_timer_ref,
-                  next_fire,
-                  updated_spec
-                )
-
-              {:error, :persistence_failed} ->
-                _cancel_result = Scheduler.cancel(next_timer_ref)
-                {:error, :persistence_failed}
-            end
-
-          nil ->
-            {:boundary, flow_node.id, %{}, cancel_activity}
+          {:error, :persistence_failed} ->
+            _cancel_result = Scheduler.cancel(next_timer_ref)
+            {:error, :persistence_failed}
         end
+
+      nil ->
+        {:boundary, flow_node.id, %{}, cancel_activity}
     end
   end
 
@@ -451,12 +448,9 @@ defmodule BfwEngine.Execution.FlowNodes.TimerBoundaryEvent do
 
   defp resume_schedule_and_wait(flow_node, context, fire_at, cancel_activity) do
     {:ok, timer_ref} = schedule_timer(flow_node, context, fire_at)
-
-    receive do
-      {:timer_fired, ^timer_ref, _metadata} ->
-        emit_timer_fired_event(context, flow_node, timer_ref)
-        {:boundary, flow_node.id, %{}, cancel_activity}
-    end
+    fired_timer_ref = await_timer(flow_node, context, timer_ref, fire_at)
+    emit_timer_fired_event(context, flow_node, fired_timer_ref)
+    {:boundary, flow_node.id, %{}, cancel_activity}
   end
 
   defp resume_immediate_fire(flow_node, context, cancel_activity) do
@@ -467,6 +461,10 @@ defmodule BfwEngine.Execution.FlowNodes.TimerBoundaryEvent do
   # -------------------------------------------------------------------
   # Private: Scheduler interaction
   # -------------------------------------------------------------------
+
+  defp await_timer(flow_node, context, timer_ref, fire_at) do
+    Scheduler.await_fire(timer_ref, fn -> schedule_timer(flow_node, context, fire_at) end)
+  end
 
   defp schedule_timer(flow_node, context, fire_at) do
     Scheduler.schedule(%{
@@ -571,7 +569,13 @@ defmodule BfwEngine.Execution.FlowNodes.TimerBoundaryEvent do
       cycle_repetitions: encode_cycle_repetitions(cycle_spec.repetitions),
       cycle_interval: Duration.to_iso8601(cycle_spec.interval_duration)
     }
+    |> Map.merge(encode_cycle_anchor(cycle_spec))
   end
+
+  defp encode_cycle_anchor(%{anchor: %DateTime{} = anchor, occurrence: occurrence}),
+    do: %{cycle_anchor: DateTime.to_iso8601(anchor), cycle_occurrence: occurrence}
+
+  defp encode_cycle_anchor(_cycle_spec), do: %{}
 
   defp persist_cycle_type_properties(context, type_properties) do
     case FniLifecycle.park_async(context, type_properties) do
@@ -596,7 +600,21 @@ defmodule BfwEngine.Execution.FlowNodes.TimerBoundaryEvent do
 
     with {:ok, decoded_repetitions} <- decode_cycle_repetitions(repetitions),
          {:ok, duration} <- parse_cycle_interval(interval) do
-      {:ok, %{repetitions: decoded_repetitions, interval_duration: duration, start_at: nil}}
+      cycle_spec = %{repetitions: decoded_repetitions, interval_duration: duration, start_at: nil}
+      {:ok, Map.merge(cycle_spec, decode_cycle_anchor(type_props))}
+    end
+  end
+
+  # A row parked before the anchor was stored counts from its resumed fire.
+  defp decode_cycle_anchor(type_props) do
+    anchor = Map.get(type_props, :cycle_anchor) || Map.get(type_props, "cycle_anchor")
+    occurrence = Map.get(type_props, :cycle_occurrence) || Map.get(type_props, "cycle_occurrence")
+
+    with true <- is_binary(anchor) and is_integer(occurrence) and occurrence >= 0,
+         {:ok, anchor_date_time, _offset} <- DateTime.from_iso8601(anchor) do
+      %{anchor: anchor_date_time, occurrence: occurrence}
+    else
+      _missing_or_invalid -> %{}
     end
   end
 

@@ -37,7 +37,7 @@
     </bpmn:userTask>
     <bpmn:userTask id="UserTask_DurationDueDate" name="Duration Due Date">
       <bpmn:extensionElements>
-        <bfw:dueDate>PT1H</bfw:dueDate>
+        <bfw:dueDate>duration("PT1H")</bfw:dueDate>
       </bpmn:extensionElements>
     </bpmn:userTask>
     <bpmn:userTask id="UserTask_MisspelledDueDate" name="Misspelled Due Date">

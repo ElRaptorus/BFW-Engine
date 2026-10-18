@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions
+  xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+  targetNamespace="https://bifrostforge.world/schema/bpmn"
+  id="Definitions_MiParallelTerminate">
+
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_1" name="MI Parallel Terminate" processRef="MiParallelTerminate" />
+  </bpmn:collaboration>
+
+  <bpmn:process id="MiParallelTerminate" name="MI Parallel Terminate" isExecutable="true">
+    <bpmn:extensionElements>
+      <bfw:version>1.0.0</bfw:version>
+    </bpmn:extensionElements>
+
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Fork</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Park</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Work</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gate</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Terminate</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:startEvent id="Start_1" name="Start">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:parallelGateway id="Fork" name="Fork">
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_Work</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Gate</bpmn:outgoing>
+    </bpmn:parallelGateway>
+    <bpmn:serviceTask id="Task_Park" name="Park Item" implementation="async_park">
+      <bpmn:incoming>Flow_Work</bpmn:incoming>
+      <bpmn:outgoing>Flow_Work_End</bpmn:outgoing>
+      <bpmn:multiInstanceLoopCharacteristics isSequential="false">
+        <bpmn:extensionElements>
+          <bfw:inputCollection>token.items</bfw:inputCollection>
+          <bfw:elementVariable>item</bfw:elementVariable>
+        </bpmn:extensionElements>
+      </bpmn:multiInstanceLoopCharacteristics>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="End_Work" name="Work Done">
+      <bpmn:incoming>Flow_Work_End</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:intermediateCatchEvent id="Gate" name="Wait">
+      <bpmn:incoming>Flow_Gate</bpmn:incoming>
+      <bpmn:outgoing>Flow_Terminate</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration>PT1H</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:endEvent id="End_Terminate" name="Terminate">
+      <bpmn:incoming>Flow_Terminate</bpmn:incoming>
+      <bpmn:terminateEventDefinition />
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="Fork" />
+    <bpmn:sequenceFlow id="Flow_Work" sourceRef="Fork" targetRef="Task_Park" />
+    <bpmn:sequenceFlow id="Flow_Gate" sourceRef="Fork" targetRef="Gate" />
+    <bpmn:sequenceFlow id="Flow_Work_End" sourceRef="Task_Park" targetRef="End_Work" />
+    <bpmn:sequenceFlow id="Flow_Terminate" sourceRef="Gate" targetRef="End_Terminate" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_1" bpmnElement="Participant_1" isHorizontal="true">
+        <dc:Bounds x="82" y="102" width="646" height="218" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="112" y="102" width="616" height="218" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Fork" bpmnElement="Fork">
+        <dc:Bounds x="315" y="175" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Park" bpmnElement="Task_Park">
+        <dc:Bounds x="450" y="210" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Work" bpmnElement="End_Work">
+        <dc:Bounds x="642" y="232" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Gate" bpmnElement="Gate">
+        <dc:Bounds x="482" y="132" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Terminate" bpmnElement="End_Terminate">
+        <dc:Bounds x="642" y="132" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="198" y="200" />
+        <di:waypoint x="315" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Work" bpmnElement="Flow_Work">
+        <di:waypoint x="365" y="200" />
+        <di:waypoint x="407" y="200" />
+        <di:waypoint x="407" y="250" />
+        <di:waypoint x="450" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Gate" bpmnElement="Flow_Gate">
+        <di:waypoint x="365" y="200" />
+        <di:waypoint x="423" y="200" />
+        <di:waypoint x="423" y="150" />
+        <di:waypoint x="482" y="150" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Work_End" bpmnElement="Flow_Work_End">
+        <di:waypoint x="550" y="250" />
+        <di:waypoint x="642" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Terminate" bpmnElement="Flow_Terminate">
+        <di:waypoint x="518" y="150" />
+        <di:waypoint x="642" y="150" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

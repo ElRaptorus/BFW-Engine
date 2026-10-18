@@ -63,6 +63,90 @@ defmodule BfwEngine.Integration.Execution.LoopResumeTest do
     end
   end
 
+  describe "parallel shell whose completionCondition is met by finished iterations" do
+    test "the resumed shell finishes with an early break and interrupts the live iterations" do
+      process_instance_id =
+        http_deploy_and_start(
+          "mi_parallel_user_task_early_break.bpmn",
+          "mi-parallel-user-task-early-break",
+          %{"payload" => %{"items" => [1, 2, 3]}}
+        )
+
+      [first | live_iterations] =
+        await_waiting_iterations(process_instance_id, [0, 1, 2], "Task_1")
+
+      stop_all_process_instances()
+
+      Repo.query!(
+        "UPDATE flow_node_instances SET state = 'finished', finished_at = now(), output_token = $2 WHERE id = $1",
+        [Ecto.UUID.dump!(first.id), %{"approved" => true}]
+      )
+
+      {:ok, 1} = ResumeRunner.resume_all()
+
+      assert {:ok, _process_instance} =
+               await_process_instance_state(process_instance_id, "finished")
+
+      rows = fetch_flow_node_instances(process_instance_id)
+
+      for iteration <- live_iterations do
+        assert Enum.find(rows, &(&1.id == iteration.id)).state == "interrupted"
+      end
+
+      shell = Enum.find(rows, &(&1.flow_node_id == "Task_1" and &1.multi_instance_id == nil))
+      assert shell.state == "finished"
+      assert shell.output_token["reviewResults"] == [%{"approved" => true}]
+    end
+  end
+
+  describe "bfw:loopInterval across a resume" do
+    test "a sequential Multi-Instance waits a full interval after the resume" do
+      process_instance_id =
+        http_deploy_and_start("mi_sequential_with_interval.bpmn", "mi-sequential-with-interval", %{
+          "payload" => %{"items" => ["a", "b"]}
+        })
+
+      assert_next_iteration_waits_after_resume(process_instance_id)
+    end
+
+    test "a Standard Loop waits a full interval after the resume" do
+      process_instance_id = http_deploy_and_start("loop_with_interval.bpmn", "loop-with-interval")
+      assert_next_iteration_waits_after_resume(process_instance_id)
+    end
+  end
+
+  defp assert_next_iteration_waits_after_resume(process_instance_id) do
+    await_finished_iteration(process_instance_id, 0)
+    stop_all_process_instances()
+    refute iteration_row(process_instance_id, 1)
+
+    resumed_at = DateTime.utc_now()
+    {:ok, 1} = ResumeRunner.resume_all()
+    second_iteration = await_finished_iteration(process_instance_id, 1)
+
+    assert DateTime.diff(second_iteration.started_at, resumed_at, :millisecond) >= 950
+  end
+
+  defp await_finished_iteration(process_instance_id, iteration_index, attempts_left \\ 200) do
+    case iteration_row(process_instance_id, iteration_index) do
+      %{state: "finished"} = iteration ->
+        iteration
+
+      _not_yet when attempts_left > 0 ->
+        Process.sleep(20)
+        await_finished_iteration(process_instance_id, iteration_index, attempts_left - 1)
+
+      _not_yet ->
+        flunk("iteration #{iteration_index} did not finish")
+    end
+  end
+
+  defp iteration_row(process_instance_id, iteration_index) do
+    process_instance_id
+    |> fetch_flow_node_instances()
+    |> Enum.find(&(&1.multi_instance_id != nil and &1.iteration_index == iteration_index))
+  end
+
   defp start_review do
     http_deploy_and_start(
       "mi_parallel_user_task_loop_mapping.bpmn",
@@ -85,12 +169,17 @@ defmodule BfwEngine.Integration.Execution.LoopResumeTest do
     end_event.input_token["reviews"] |> Enum.map(& &1["reviewed"]) |> Enum.sort()
   end
 
-  defp await_waiting_iterations(process_instance_id, indices, attempts_left \\ 100) do
+  defp await_waiting_iterations(
+         process_instance_id,
+         indices,
+         flow_node_id \\ "Task_Review",
+         attempts_left \\ 100
+       ) do
     waiting =
       process_instance_id
       |> fetch_flow_node_instances()
       |> Enum.filter(
-        &(&1.flow_node_id == "Task_Review" and &1.state == "waiting" and
+        &(&1.flow_node_id == flow_node_id and &1.state == "waiting" and
             &1.iteration_index in indices)
       )
       |> Enum.sort_by(& &1.iteration_index)
@@ -101,7 +190,7 @@ defmodule BfwEngine.Integration.Execution.LoopResumeTest do
 
       attempts_left > 0 ->
         Process.sleep(50)
-        await_waiting_iterations(process_instance_id, indices, attempts_left - 1)
+        await_waiting_iterations(process_instance_id, indices, flow_node_id, attempts_left - 1)
 
       true ->
         flunk("expected waiting iterations #{inspect(indices)}, got #{length(waiting)}")

@@ -399,6 +399,14 @@ defmodule BfwEngineWeb.Http.ProcessInstanceController do
           current_state: state
         )
 
+      {:error, :active_instances_exist} ->
+        render_error(
+          conn,
+          409,
+          "active_instances_exist",
+          "Process instance '#{process_instance_id}' belongs to a process tree whose root instance has not ended yet"
+        )
+
       {:error, reason} ->
         Logger.error(
           "Delete failed for process instance '#{process_instance_id}': #{inspect(reason)}"

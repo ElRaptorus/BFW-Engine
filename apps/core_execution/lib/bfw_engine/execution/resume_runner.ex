@@ -41,6 +41,10 @@ defmodule BfwEngine.Execution.ResumeRunner do
   """
   @spec resume_all() :: {:ok, non_neg_integer()}
   def resume_all do
+    # Readiness outlives an application restart in the same node; only this
+    # run may set it again.
+    :ok = MessageSubscriptions.mark_not_ready()
+    :ok = SignalSubscriptions.mark_not_ready()
     adapter = Persistence.adapter()
 
     cleanup_orphans(adapter)
@@ -48,7 +52,7 @@ defmodule BfwEngine.Execution.ResumeRunner do
     batch_size = batch_size()
 
     count = resume_batches(adapter, batch_size, nil, 0, 0)
-    await_resume_settled([])
+    await_resume_settled(%{})
     MessageSubscriptions.mark_ready()
     SignalSubscriptions.mark_ready()
     emit_engine_started()
@@ -95,8 +99,10 @@ defmodule BfwEngine.Execution.ResumeRunner do
   end
 
   # Child PIs are resumed by their parent's handler Task, which reports the
-  # parent settled only after the child is running; sweeping until no new PI
-  # shows up therefore covers whole trees.
+  # parent settled only after the child is running; sweeping until a round
+  # finds no newly resumed PI therefore covers whole trees. Fresh starts
+  # settle at once and never cause another round, so a steady start load
+  # cannot keep the sweep going.
   defp await_resume_settled(settled_pids) do
     unsettled_pids =
       BfwEngine.Execution.Supervisor
@@ -105,26 +111,32 @@ defmodule BfwEngine.Execution.ResumeRunner do
         {_id, pid, _type, _modules} when is_pid(pid) -> [pid]
         _restarting -> []
       end)
-      |> Enum.reject(&(&1 in settled_pids))
+      |> Enum.reject(&Map.has_key?(settled_pids, &1))
 
-    if unsettled_pids == [] do
-      :ok
+    resumed_found? =
+      unsettled_pids
+      |> Enum.map(&await_process_instance_settled/1)
+      |> Enum.any?()
+
+    if resumed_found? do
+      await_resume_settled(Map.merge(settled_pids, Map.from_keys(unsettled_pids, true)))
     else
-      Enum.each(unsettled_pids, &await_process_instance_settled/1)
-      await_resume_settled(settled_pids ++ unsettled_pids)
+      :ok
     end
   end
 
   defp await_process_instance_settled(process_instance_pid) do
     case ProcessInstance.await_resume_settled(process_instance_pid, @resume_settle_timeout_ms) do
-      :ok ->
-        :ok
+      {:ok, resumed?} ->
+        resumed?
 
       {:error, :timeout} ->
         Logger.warning(
           "ResumeRunner: PI #{inspect(process_instance_pid)} did not report its subscriptions " <>
             "re-registered within #{@resume_settle_timeout_ms} ms"
         )
+
+        true
     end
   end
 

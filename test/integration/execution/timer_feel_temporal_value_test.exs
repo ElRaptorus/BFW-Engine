@@ -3,6 +3,7 @@ defmodule BfwEngine.Integration.Execution.TimerFeelTemporalValueTest do
   use BfwEngine.ExecutionCase, async: false
 
   @fixture "timer_catch_feel_temporal_value.bpmn"
+  @boundary_esp_fixture "timer_feel_duration_boundary_esp.bpmn"
 
   describe "D1: FEEL temporal values in timer definitions" do
     test "timeDuration yielding a FEEL duration fires" do
@@ -24,6 +25,20 @@ defmodule BfwEngine.Integration.Execution.TimerFeelTemporalValueTest do
         })
 
       assert_timer_fired(process_instance_id, "DateTime_Timer")
+    end
+
+    test "a boundary timeDuration yielding a FEEL duration fires" do
+      process_instance_id =
+        http_deploy_and_start(@boundary_esp_fixture, "TimerBoundaryFeelDuration")
+
+      assert_timer_fired(process_instance_id, "Boundary_Timer")
+    end
+
+    test "an Event Subprocess timeDuration yielding a FEEL duration fires" do
+      process_instance_id =
+        http_deploy_and_start(@boundary_esp_fixture, "TimerEventSubprocessFeelDuration")
+
+      assert_timer_fired(process_instance_id, "EventSubprocess_Timer")
     end
   end
 

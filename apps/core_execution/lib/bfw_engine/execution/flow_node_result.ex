@@ -11,6 +11,9 @@ defmodule BfwEngine.Execution.FlowNodeResult do
   - `type_properties` — per-element runtime state snapshot, written to
     `flow_node_instances.type_properties` (e.g. form fields for User
     Tasks, End Event ID for FinalToken decoration).
+  - `taken_sequence_flow_ids` — ids of the sequence flows a split gateway
+    took, one per entry of `next_flow_node_ids`; `nil` for every other
+    handler. Joins record these as the arrival's incoming flow.
   - `metadata` — transient info not persisted (e.g. handler timing).
   """
 
@@ -18,9 +21,14 @@ defmodule BfwEngine.Execution.FlowNodeResult do
           output_payload: term(),
           next_flow_node_ids: [String.t()],
           type_properties: map(),
+          taken_sequence_flow_ids: [String.t()] | nil,
           metadata: map()
         }
 
   @enforce_keys []
-  defstruct output_payload: nil, next_flow_node_ids: [], type_properties: %{}, metadata: %{}
+  defstruct output_payload: nil,
+            next_flow_node_ids: [],
+            type_properties: %{},
+            taken_sequence_flow_ids: nil,
+            metadata: %{}
 end

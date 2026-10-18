@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions
+  xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+  targetNamespace="https://bifrostforge.world/schema/bpmn"
+  id="Definitions_TimerFeelDurationBoundaryEsp">
+
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_Boundary" name="FEEL Duration Boundary" processRef="TimerBoundaryFeelDuration" />
+    <bpmn:participant id="Participant_EventSubprocess" name="FEEL Duration Event Subprocess" processRef="TimerEventSubprocessFeelDuration" />
+  </bpmn:collaboration>
+
+  <bpmn:process id="TimerBoundaryFeelDuration" name="Timer Boundary FEEL Duration" isExecutable="true">
+    <bpmn:extensionElements>
+      <bfw:version>1.0.0</bfw:version>
+    </bpmn:extensionElements>
+
+    <bpmn:laneSet id="LaneSet_Boundary">
+      <bpmn:lane id="Lane_default_Boundary" name="default">
+        <bpmn:flowNodeRef>Boundary_Start</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Boundary_UserTask</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Boundary_Timer</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Boundary_End</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Boundary_Timeout_End</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:startEvent id="Boundary_Start" name="Start">
+      <bpmn:outgoing>Boundary_Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:userTask id="Boundary_UserTask" name="Wait">
+      <bpmn:incoming>Boundary_Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Boundary_Flow_2</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:boundaryEvent id="Boundary_Timer" name="FEEL Duration" attachedToRef="Boundary_UserTask" cancelActivity="true">
+      <bpmn:outgoing>Boundary_Flow_3</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration>duration("PT1S")</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+    <bpmn:endEvent id="Boundary_End" name="Done">
+      <bpmn:incoming>Boundary_Flow_2</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="Boundary_Timeout_End" name="Timed Out">
+      <bpmn:incoming>Boundary_Flow_3</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Boundary_Flow_1" sourceRef="Boundary_Start" targetRef="Boundary_UserTask" />
+    <bpmn:sequenceFlow id="Boundary_Flow_2" sourceRef="Boundary_UserTask" targetRef="Boundary_End" />
+    <bpmn:sequenceFlow id="Boundary_Flow_3" sourceRef="Boundary_Timer" targetRef="Boundary_Timeout_End" />
+  </bpmn:process>
+
+  <bpmn:process id="TimerEventSubprocessFeelDuration" name="Timer Event Subprocess FEEL Duration" isExecutable="true">
+    <bpmn:extensionElements>
+      <bfw:version>1.0.0</bfw:version>
+    </bpmn:extensionElements>
+
+    <bpmn:laneSet id="LaneSet_EventSubprocess">
+      <bpmn:lane id="Lane_default_EventSubprocess" name="default">
+        <bpmn:flowNodeRef>EventSubprocess_Main_Start</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>EventSubprocess_Main_UserTask</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>EventSubprocess_Main_End</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>EventSubprocess_Timer</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:startEvent id="EventSubprocess_Main_Start" name="Start">
+      <bpmn:outgoing>EventSubprocess_Main_Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:userTask id="EventSubprocess_Main_UserTask" name="Wait">
+      <bpmn:incoming>EventSubprocess_Main_Flow_1</bpmn:incoming>
+      <bpmn:outgoing>EventSubprocess_Main_Flow_2</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:endEvent id="EventSubprocess_Main_End" name="Done">
+      <bpmn:incoming>EventSubprocess_Main_Flow_2</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="EventSubprocess_Main_Flow_1" sourceRef="EventSubprocess_Main_Start" targetRef="EventSubprocess_Main_UserTask" />
+    <bpmn:sequenceFlow id="EventSubprocess_Main_Flow_2" sourceRef="EventSubprocess_Main_UserTask" targetRef="EventSubprocess_Main_End" />
+
+    <bpmn:subProcess id="EventSubprocess_Timer" name="FEEL Duration Event Subprocess" triggeredByEvent="true">
+      <bpmn:startEvent id="EventSubprocess_Start" name="FEEL Duration" isInterrupting="true">
+        <bpmn:timerEventDefinition>
+          <bpmn:timeDuration>duration("PT1S")</bpmn:timeDuration>
+        </bpmn:timerEventDefinition>
+        <bpmn:outgoing>EventSubprocess_Flow_1</bpmn:outgoing>
+      </bpmn:startEvent>
+      <bpmn:endEvent id="EventSubprocess_End" name="Timed Out">
+        <bpmn:incoming>EventSubprocess_Flow_1</bpmn:incoming>
+      </bpmn:endEvent>
+      <bpmn:sequenceFlow id="EventSubprocess_Flow_1" sourceRef="EventSubprocess_Start" targetRef="EventSubprocess_End" />
+    </bpmn:subProcess>
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="TimerBoundaryFeelDuration">
+      <bpmndi:BPMNShape id="Shape_Lane_default_Boundary" bpmnElement="Lane_default_Boundary" isHorizontal="true">
+        <dc:Bounds x="112" y="102" width="456" height="196" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Boundary_Start" bpmnElement="Boundary_Start">
+        <dc:Bounds x="162" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Boundary_UserTask" bpmnElement="Boundary_UserTask">
+        <dc:Bounds x="290" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Boundary_Timer" bpmnElement="Boundary_Timer">
+        <dc:Bounds x="322" y="222" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Boundary_End" bpmnElement="Boundary_End">
+        <dc:Bounds x="482" y="232" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Boundary_Timeout_End" bpmnElement="Boundary_Timeout_End">
+        <dc:Bounds x="482" y="132" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Boundary_Flow_1" bpmnElement="Boundary_Flow_1">
+        <di:waypoint x="198" y="200" />
+        <di:waypoint x="290" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Boundary_Flow_2" bpmnElement="Boundary_Flow_2">
+        <di:waypoint x="390" y="200" />
+        <di:waypoint x="436" y="200" />
+        <di:waypoint x="436" y="250" />
+        <di:waypoint x="482" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Boundary_Flow_3" bpmnElement="Boundary_Flow_3">
+        <di:waypoint x="340" y="258" />
+        <di:waypoint x="411" y="258" />
+        <di:waypoint x="411" y="150" />
+        <di:waypoint x="482" y="150" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_2">
+    <bpmndi:BPMNPlane id="BPMNPlane_2" bpmnElement="TimerEventSubprocessFeelDuration">
+      <bpmndi:BPMNShape id="Shape_Lane_default_EventSubprocess" bpmnElement="Lane_default_EventSubprocess" isHorizontal="true">
+        <dc:Bounds x="80" y="268" width="488" height="240" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_EventSubprocess_Main_Start" bpmnElement="EventSubprocess_Main_Start">
+        <dc:Bounds x="162" y="420" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_EventSubprocess_Main_UserTask" bpmnElement="EventSubprocess_Main_UserTask">
+        <dc:Bounds x="290" y="398" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_EventSubprocess_Main_End" bpmnElement="EventSubprocess_Main_End">
+        <dc:Bounds x="482" y="420" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_EventSubprocess_Timer" bpmnElement="EventSubprocess_Timer">
+        <dc:Bounds x="130" y="298" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_EventSubprocess_Main_Flow_1" bpmnElement="EventSubprocess_Main_Flow_1">
+        <di:waypoint x="198" y="438" />
+        <di:waypoint x="290" y="438" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_EventSubprocess_Main_Flow_2" bpmnElement="EventSubprocess_Main_Flow_2">
+        <di:waypoint x="390" y="438" />
+        <di:waypoint x="482" y="438" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

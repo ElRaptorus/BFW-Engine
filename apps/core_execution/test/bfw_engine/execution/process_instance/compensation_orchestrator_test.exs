@@ -266,7 +266,26 @@ defmodule BfwEngine.Execution.ProcessInstance.CompensationOrchestratorTest do
       assert handler_target.handler_activity_id == "Task_Undo_Book"
     end
 
-    test "drops a subprocess without a child instance and a Call Activity without a handler" do
+    test "expands a Call Activity without a handler into a scope target on the called process's top level" do
+      data =
+        compensation_model_data(%{
+          "fni_call" => %{type_properties: %{"child_process_instance_id" => "child-2"}}
+        })
+
+      assert [target] =
+               CompensationOrchestrator.expand_targets(data, [
+                 registry_entry("Call_Fulfill", "fni_call", 1)
+               ])
+
+      assert %{
+               kind: :scope,
+               child_process_instance_id: "child-2",
+               subprocess_node_id: nil,
+               handler_activity_id: nil
+             } = target
+    end
+
+    test "drops a subprocess and a Call Activity without a child instance" do
       data = compensation_model_data(%{})
 
       assert CompensationOrchestrator.expand_targets(data, [

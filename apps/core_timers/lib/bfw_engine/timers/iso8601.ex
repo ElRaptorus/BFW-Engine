@@ -5,7 +5,7 @@ defmodule BfwEngine.Timers.ISO8601 do
   Converts raw ISO 8601 spec strings into concrete `DateTime` fire-at
   values. Handles three kinds:
 
-  - `:date` — Absolute datetime (`2026-06-01T10:00:00Z`)
+  - `:date` — Absolute datetime (`2026-06-01T10:00:00Z`) or date (`2026-06-01`, midnight UTC)
   - `:duration` — Duration relative to a reference time (`PT1H30M`, `P1DT12H`)
   - `:cycle` — Recurring timer (`R3/PT1H`, `R/2026-06-01T10:00:00Z/PT1H`)
 
@@ -13,7 +13,14 @@ defmodule BfwEngine.Timers.ISO8601 do
   exclusively on ISO 8601 strings and Elixir datetime/duration types.
   """
 
+  @typedoc """
+  A parsed cycle. For a calendar interval (years or months) the computed
+  occurrences also carry `anchor`, the occurrence counted from, and
+  `occurrence`, the index of the occurrence the spec travels with.
+  """
   @type cycle_spec :: %{
+          optional(:anchor) => DateTime.t(),
+          optional(:occurrence) => non_neg_integer(),
           repetitions: pos_integer() | :infinite,
           interval_duration: Duration.t(),
           start_at: DateTime.t() | nil
@@ -37,9 +44,8 @@ defmodule BfwEngine.Timers.ISO8601 do
   @spec resolve_fire_at(:date | :duration | :cycle, String.t(), DateTime.t()) ::
           {:ok, DateTime.t()} | {:ok, {:cycle, cycle_spec()}} | {:error, term()}
   def resolve_fire_at(:date, spec_string, _reference_time) do
-    case DateTime.from_iso8601(spec_string) do
-      {:ok, datetime, _offset} -> {:ok, datetime}
-      {:error, reason} -> {:error, {:invalid_date, reason}}
+    with {:error, reason} <- date_time_from_iso8601(spec_string) do
+      {:error, {:invalid_date, reason}}
     end
   end
 
@@ -64,22 +70,31 @@ defmodule BfwEngine.Timers.ISO8601 do
     end
   end
 
+  # A date without a time is midnight UTC, as for `bfw:dueDate`.
+  defp date_time_from_iso8601(spec_string) do
+    case {DateTime.from_iso8601(spec_string), Date.from_iso8601(spec_string)} do
+      {{:ok, datetime, _offset}, _date} -> {:ok, datetime}
+      {_date_time_error, {:ok, date}} -> DateTime.new(date, ~T[00:00:00], "Etc/UTC")
+      {{:error, reason}, _date_error} -> {:error, reason}
+    end
+  end
+
   @doc """
   Computes the next fire time for a cycle, given the last fire time.
 
   Returns `nil` when repetitions are exhausted (finite cycle fully consumed).
-  Decrements `cycle_remaining` for finite cycles.
+  Decrements `cycle_remaining` for finite cycles. A calendar interval counts
+  from the spec's `anchor` (or `last_fire_at` when it has none), so
+  `R/2026-01-31T10:00:00Z/P1M` fires on Feb 28, Mar 31, Apr 30.
   """
   @spec next_cycle_fire(cycle_spec(), DateTime.t()) :: {DateTime.t(), cycle_spec()} | nil
   def next_cycle_fire(%{repetitions: :infinite} = cycle_spec, last_fire_at) do
-    next_fire = DateTime.shift(last_fire_at, cycle_spec.interval_duration)
-    {next_fire, cycle_spec}
+    shift_occurrence(cycle_spec, last_fire_at, 1)
   end
 
   def next_cycle_fire(%{repetitions: remaining} = cycle_spec, last_fire_at) when remaining > 1 do
-    next_fire = DateTime.shift(last_fire_at, cycle_spec.interval_duration)
-    updated_spec = %{cycle_spec | repetitions: remaining - 1}
-    {next_fire, updated_spec}
+    {next_fire, updated_spec} = shift_occurrence(cycle_spec, last_fire_at, 1)
+    {next_fire, %{updated_spec | repetitions: remaining - 1}}
   end
 
   def next_cycle_fire(%{repetitions: remaining}, _last_fire_at) when remaining <= 1 do
@@ -115,12 +130,26 @@ defmodule BfwEngine.Timers.ISO8601 do
         {fire_at, cycle_spec}
 
       calendar_interval?(cycle_spec.interval_duration) ->
-        with {next_fire, next_spec} <- next_cycle_fire(cycle_spec, fire_at) do
-          skip_missed_occurrences(next_spec, next_fire, now)
-        end
+        skip_missed_calendar_occurrences(cycle_spec, fire_at, now, 1)
 
       true ->
         skip_missed_fixed_occurrences(cycle_spec, fire_at, now)
+    end
+  end
+
+  defp skip_missed_calendar_occurrences(cycle_spec, fire_at, now, missed) do
+    case repetitions_after(cycle_spec.repetitions, missed) do
+      {:ok, remaining} ->
+        {next_fire, next_spec} = shift_occurrence(cycle_spec, fire_at, missed)
+
+        if DateTime.after?(next_fire, now) do
+          {next_fire, %{next_spec | repetitions: remaining}}
+        else
+          skip_missed_calendar_occurrences(cycle_spec, fire_at, now, missed + 1)
+        end
+
+      :exhausted ->
+        nil
     end
   end
 
@@ -134,6 +163,27 @@ defmodule BfwEngine.Timers.ISO8601 do
       {next_fire, %{cycle_spec | repetitions: remaining}}
     else
       _exhausted -> nil
+    end
+  end
+
+  # A calendar occurrence n is `anchor + n × interval`: chained month shifts
+  # would drift (Jan 31 → Feb 28 → Mar 28).
+  defp shift_occurrence(cycle_spec, fire_at, steps) do
+    if calendar_interval?(cycle_spec.interval_duration) do
+      {anchor, occurrence} =
+        case cycle_spec do
+          %{anchor: %DateTime{} = anchor, occurrence: occurrence} -> {anchor, occurrence}
+          _unanchored -> {fire_at, 0}
+        end
+
+      next_occurrence = occurrence + steps
+      interval = Duration.multiply(cycle_spec.interval_duration, next_occurrence)
+
+      {DateTime.shift(anchor, interval),
+       Map.merge(cycle_spec, %{anchor: anchor, occurrence: next_occurrence})}
+    else
+      interval = Duration.multiply(cycle_spec.interval_duration, steps)
+      {DateTime.shift(fire_at, interval), cycle_spec}
     end
   end
 

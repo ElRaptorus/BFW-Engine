@@ -48,6 +48,8 @@ defmodule BfwEngine.Execution.FlowNodes.BusinessRuleTask do
   alias BfwEngine.Expressions.Context, as: FeelContext
   alias BfwEngine.Types.Token
 
+  @raised_message_max_length 500
+
   @spec handle_enter(FlowNode.t(), Token.t(), HandlerContext.t()) ::
           {:ok, FlowNodeResult.t()} | {:error, term()}
   @impl true
@@ -204,7 +206,9 @@ defmodule BfwEngine.Execution.FlowNodes.BusinessRuleTask do
     DMN.Evaluator.evaluate(definitions, decision_element_id, payload, evaluator_opts)
   rescue
     exception ->
-      {:error, "the DMN evaluator raised an exception: #{Exception.message(exception)}"}
+      {:error,
+       "the DMN evaluator raised an exception: " <>
+         String.slice(Exception.message(exception), 0, @raised_message_max_length)}
   catch
     kind, value -> {:error, "the DMN evaluator failed with #{kind} (#{exit_reason_type(value)})"}
   end

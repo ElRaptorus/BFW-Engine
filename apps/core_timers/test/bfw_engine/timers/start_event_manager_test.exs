@@ -247,6 +247,21 @@ defmodule BfwEngine.Timers.StartEventManagerTest do
       assert :ok = StartEventManager.unregister_timer_starts("nonexistent")
     end
 
+    test "keeps the schedules and returns the error when they cannot be listed" do
+      specs = [%{flow_node_id: "Timer_kept", kind: :cycle, iso_spec: "R3/PT1H"}]
+
+      StartEventManager.register_timer_starts("pv-kept", "process", specs,
+        reference_time: future_reference_time()
+      )
+
+      with_failing_persistence([:list_all_schedules], fn ->
+        assert {:error, :injected_failure} = StartEventManager.unregister_timer_starts("pv-kept")
+      end)
+
+      assert {:ok, [_kept]} = PersistenceNoOp.list_all_schedules()
+      assert Scheduler.armed_count() == 1
+    end
+
     test "does not cancel scheduler entries for other versions" do
       specs_a = [%{flow_node_id: "Timer_A", kind: :duration, iso_spec: "PT1H"}]
       specs_b = [%{flow_node_id: "Timer_B", kind: :duration, iso_spec: "PT2H"}]
@@ -371,6 +386,54 @@ defmodule BfwEngine.Timers.StartEventManagerTest do
 
       {:ok, _updated} = StartEventManager.disable_schedule(first_schedule.id)
       assert Scheduler.armed_count() == 1
+    end
+
+    test "parallel enables and reloads arm exactly one scheduler entry", %{
+      schedule_id: schedule_id
+    } do
+      reference_time = future_reference_time()
+
+      1..20
+      |> Enum.map(fn attempt ->
+        Task.async(fn ->
+          if rem(attempt, 2) == 0 do
+            StartEventManager.enable_schedule(schedule_id, reference_time: reference_time)
+          else
+            StartEventManager.reload_start_schedules()
+          end
+        end)
+      end)
+      |> Task.await_many(10_000)
+
+      assert Scheduler.armed_count() == 1
+    end
+
+    test "an enable whose write fails keeps the armed entry and returns the error", %{
+      schedule_id: schedule_id
+    } do
+      {:ok, before_enable} = PersistenceNoOp.get_schedule(schedule_id)
+
+      with_failing_persistence([:update_schedule], fn ->
+        assert {:error, :injected_failure} =
+                 StartEventManager.enable_schedule(schedule_id,
+                   reference_time: future_reference_time()
+                 )
+      end)
+
+      assert {:ok, ^before_enable} = PersistenceNoOp.get_schedule(schedule_id)
+      assert Scheduler.armed_count() == 1
+    end
+
+    test "an enable that cannot arm returns the error and clears the stale ref", %{
+      schedule_id: schedule_id
+    } do
+      assert {:error, {:scheduler_unavailable, _reason}} =
+               StartEventManager.enable_schedule(schedule_id,
+                 scheduler: :missing_scheduler,
+                 reference_time: future_reference_time()
+               )
+
+      assert {:ok, %{scheduler_ref: nil}} = PersistenceNoOp.get_schedule(schedule_id)
     end
 
     test "disable then enable restores scheduler entry" do
@@ -583,11 +646,13 @@ defmodule BfwEngine.Timers.StartEventManagerTest do
         id: "cycle-adv-1",
         process_version_id: "pv-1",
         kind: "cycle",
+        enabled: true,
+        scheduler_ref: "ref-cycle-adv-1",
         cycle_remaining: 5,
         next_fire_at: ~U[2026-06-01 11:00:00Z]
       })
 
-      metadata = %{schedule_id: "cycle-adv-1"}
+      metadata = %{schedule_id: "cycle-adv-1", timer_ref: "ref-cycle-adv-1"}
       next_fire = ~U[2026-06-01 12:00:00Z]
 
       assert :ok = StartEventManager.handle_cycle_advance(metadata, next_fire, 4)
@@ -602,11 +667,13 @@ defmodule BfwEngine.Timers.StartEventManagerTest do
         id: "cycle-adv-2",
         process_version_id: "pv-1",
         kind: "cycle",
+        enabled: true,
+        scheduler_ref: "ref-cycle-adv-2",
         cycle_remaining: 1,
         next_fire_at: ~U[2026-06-01 11:00:00Z]
       })
 
-      metadata = %{schedule_id: "cycle-adv-2"}
+      metadata = %{schedule_id: "cycle-adv-2", timer_ref: "ref-cycle-adv-2"}
 
       assert :ok = StartEventManager.handle_cycle_advance(metadata, nil, 0)
 
@@ -619,11 +686,13 @@ defmodule BfwEngine.Timers.StartEventManagerTest do
         id: "cycle-adv-inf",
         process_version_id: "pv-1",
         kind: "cycle",
+        enabled: true,
+        scheduler_ref: "ref-cycle-adv-inf",
         cycle_remaining: nil,
         next_fire_at: ~U[2026-06-01 11:00:00Z]
       })
 
-      metadata = %{schedule_id: "cycle-adv-inf"}
+      metadata = %{schedule_id: "cycle-adv-inf", timer_ref: "ref-cycle-adv-inf"}
 
       assert :ok =
                StartEventManager.handle_cycle_advance(
@@ -635,6 +704,36 @@ defmodule BfwEngine.Timers.StartEventManagerTest do
       {:ok, updated} = PersistenceNoOp.get_schedule("cycle-adv-inf")
       assert updated.next_fire_at == ~U[2026-06-01 12:00:00Z]
       assert updated.cycle_remaining == nil
+    end
+
+    test "drops an advance queued before the schedule was disabled or re-armed" do
+      PersistenceNoOp.create_schedule(%{
+        id: "cycle-adv-stale",
+        process_version_id: "pv-1",
+        kind: "cycle",
+        enabled: false,
+        scheduler_ref: nil,
+        cycle_remaining: 3,
+        next_fire_at: nil
+      })
+
+      metadata = %{schedule_id: "cycle-adv-stale", timer_ref: "ref-old"}
+      assert :ok = StartEventManager.handle_cycle_advance(metadata, ~U[2026-06-01 12:00:00Z], 2)
+
+      {:ok, disabled} = PersistenceNoOp.get_schedule("cycle-adv-stale")
+      assert disabled.next_fire_at == nil
+      assert disabled.cycle_remaining == 3
+
+      PersistenceNoOp.update_schedule("cycle-adv-stale", %{
+        enabled: true,
+        scheduler_ref: "ref-new"
+      })
+
+      assert :ok = StartEventManager.handle_cycle_advance(metadata, ~U[2026-06-01 12:00:00Z], 2)
+
+      {:ok, re_armed} = PersistenceNoOp.get_schedule("cycle-adv-stale")
+      assert re_armed.next_fire_at == nil
+      assert re_armed.cycle_remaining == 3
     end
 
     test "is a no-op when metadata has no schedule_id" do
@@ -726,6 +825,33 @@ defmodule BfwEngine.Timers.StartEventManagerTest do
 
       assert :ok = StartEventManager.reload_start_schedules()
       assert Scheduler.armed_count() == 1
+    end
+
+    test "a monthly cycle with an explicit start catches up on the start's day" do
+      start_at = ~U[2026-01-31 10:00:00Z]
+
+      PersistenceNoOp.create_schedule(%{
+        id: "reload-month-end",
+        process_version_id: "pv-month",
+        process_model_id: "month-model",
+        flow_node_id: "Timer_month",
+        kind: "cycle",
+        iso_spec: "R/2026-01-31T10:00:00Z/P1M",
+        enabled: true,
+        next_fire_at: ~U[2026-02-28 10:00:00Z]
+      })
+
+      assert :ok = StartEventManager.reload_start_schedules()
+
+      now = DateTime.utc_now()
+
+      expected =
+        Stream.iterate(1, &(&1 + 1))
+        |> Stream.map(&DateTime.shift(start_at, month: &1))
+        |> Enum.find(&DateTime.after?(&1, now))
+
+      {:ok, schedule} = PersistenceNoOp.get_schedule("reload-month-end")
+      assert DateTime.compare(schedule.next_fire_at, expected) == :eq
     end
 
     test "a finite cycle whose remaining occurrences were missed ends without firing" do
@@ -835,6 +961,40 @@ defmodule BfwEngine.Timers.StartEventManagerTest do
     test "is a no-op when no armed schedules exist" do
       assert :ok = StartEventManager.reload_start_schedules()
       assert Scheduler.armed_count() == 0
+    end
+  end
+
+  defmodule FailingPersistence do
+    @moduledoc false
+    @behaviour BfwEngine.Timers.Persistence
+
+    alias BfwEngine.Timers.Persistence
+    alias BfwEngine.Timers.Persistence.NoOp
+
+    for {name, arity} <- Persistence.behaviour_info(:callbacks) do
+      arguments = Macro.generate_arguments(arity, __MODULE__)
+
+      @impl true
+      def unquote(name)(unquote_splicing(arguments)) do
+        if unquote(name) in Application.get_env(:core_timers, :failing_persistence_functions, []) do
+          {:error, :injected_failure}
+        else
+          NoOp.unquote(name)(unquote_splicing(arguments))
+        end
+      end
+    end
+  end
+
+  defp with_failing_persistence(function_names, fun) do
+    previous_module = Application.get_env(:core_timers, :persistence_module)
+    Application.put_env(:core_timers, :persistence_module, FailingPersistence)
+    Application.put_env(:core_timers, :failing_persistence_functions, function_names)
+
+    try do
+      fun.()
+    after
+      Application.put_env(:core_timers, :persistence_module, previous_module)
+      Application.delete_env(:core_timers, :failing_persistence_functions)
     end
   end
 

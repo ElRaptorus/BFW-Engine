@@ -107,7 +107,8 @@ When a child PI transitions to `fatal`, the Call Activity checks for attached [E
 | Child fatals, no matching boundary | Parent PI transitions to `fatal` |
 | Child ends at an uncaught Error End Event, matching error boundary | Parent routes through the boundary (child stays `error`) |
 | Child ends at an uncaught Error End Event, no matching boundary | The error is offered to the parent's Error Event Subprocess starts; otherwise the Call Activity and the parent end `error` and the error bubbles to the grandparent the same way |
-| Child crashes (OTP process death) | Treated as `CHILD_CRASH` error, checked against boundaries |
+| Child crashes (its process stops abnormally) | The child is set to `fatal` (`process_instance_crashed`) and reaches the parent as `CHILD_FATAL`, checked against boundaries |
+| Child process is gone and its row is still `running` | Treated as `CHILD_CRASH` error, checked against boundaries |
 | Called element cannot be resolved | Parent PI transitions to `fatal` (no child spawned) |
 | Input mapping FEEL expression fails | Parent PI transitions to `fatal` (no child spawned) |
 | Output mapping FEEL expression fails | Parent PI transitions to `fatal` (child completed, but result mapping failed) |
@@ -117,7 +118,7 @@ When a child PI transitions to `fatal`, the Call Activity checks for attached [E
 | Error Code | Meaning |
 |-----------|---------|
 | `CHILD_FATAL` | Child PI went fatal (generic, no specific error code from the child) |
-| `CHILD_CRASH` | Child process crashed at the OTP level |
+| `CHILD_CRASH` | Child process is gone without a terminal state recorded for it |
 | `CHILD_START_FAILED` | Child PI could not be started |
 | *(handler-specific)* | If the child's error carries its own `error_code`, it is forwarded as-is |
 

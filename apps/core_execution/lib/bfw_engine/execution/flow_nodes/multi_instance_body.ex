@@ -148,26 +148,45 @@ defmodule BfwEngine.Execution.FlowNodes.MultiInstanceBody do
          {:ok, collection} <- validate_collection(collection) do
       total = length(collection)
       finished = payloads_to_results(snapshot.finished_payloads)
-      occupied = MapSet.new(snapshot.occupied_indices)
 
-      never_dispatched =
-        collection
-        |> Enum.with_index()
-        |> Enum.reject(fn {_item, index} -> MapSet.member?(occupied, index) end)
+      case resumed_break_met(mi, finished, total, context, token_payload) do
+        {:ok, true} ->
+          interrupt_remaining_iterations(context)
+          drain_remaining_results(snapshot.live_count)
+          finish_parallel_shell(flow_node, mi, total, context, token_payload, finished)
 
-      with :ok <-
-             dispatch_parallel_iterations(flow_node, token, context, mi, never_dispatched, total),
-           {:ok, collected} <-
-             collect_iteration_results(
-               snapshot.live_count + length(never_dispatched),
-               mi,
-               total,
-               context,
-               token_payload,
-               Enum.reverse(finished)
-             ) do
-        finish_parallel_shell(flow_node, mi, total, context, token_payload, collected)
+        {:ok, false} ->
+          resume_parallel_dispatch(flow_node, token, context, mi, collection, snapshot, finished)
+
+        {:error, reason} ->
+          interrupt_remaining_iterations(context)
+          {:error, reason}
       end
+    end
+  end
+
+  defp resume_parallel_dispatch(flow_node, token, context, mi, collection, snapshot, finished) do
+    token_payload = token.payload || %{}
+    total = length(collection)
+    occupied = MapSet.new(snapshot.occupied_indices)
+
+    never_dispatched =
+      collection
+      |> Enum.with_index()
+      |> Enum.reject(fn {_item, index} -> MapSet.member?(occupied, index) end)
+
+    with :ok <-
+           dispatch_parallel_iterations(flow_node, token, context, mi, never_dispatched, total),
+         {:ok, collected} <-
+           collect_iteration_results(
+             snapshot.live_count + length(never_dispatched),
+             mi,
+             total,
+             context,
+             token_payload,
+             Enum.reverse(finished)
+           ) do
+      finish_parallel_shell(flow_node, mi, total, context, token_payload, collected)
     end
   end
 

@@ -1,0 +1,258 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions
+  xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+  targetNamespace="https://bifrostforge.world/schema/bpmn"
+  id="Definitions_CompensationScopeEventSubprocess">
+
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_Parent" name="Parent" processRef="CompensationScopeEventSubprocess" />
+    <bpmn:participant id="Participant_Car" name="Car" processRef="CompensationScopeEventSubprocessCar" />
+  </bpmn:collaboration>
+
+  <bpmn:process id="CompensationScopeEventSubprocess" name="Compensation Scope Event Subprocess" isExecutable="true">
+    <bpmn:extensionElements>
+      <bfw:version>1.0.0</bfw:version>
+    </bpmn:extensionElements>
+
+    <bpmn:laneSet id="LaneSet_Parent">
+      <bpmn:lane id="Lane_default_Parent" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>SubProcess_Hotel</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>SubProcess_Plain</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Call_Car</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Throw_Comp</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_1</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:startEvent id="Start_1" name="Start">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:subProcess id="SubProcess_Hotel" name="Hotel">
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_2</bpmn:outgoing>
+
+      <bpmn:startEvent id="Hotel_Start" name="Hotel Start">
+        <bpmn:outgoing>Hotel_Flow_1</bpmn:outgoing>
+      </bpmn:startEvent>
+
+      <bpmn:task id="Task_Hotel" name="Book Hotel">
+        <bpmn:incoming>Hotel_Flow_1</bpmn:incoming>
+        <bpmn:outgoing>Hotel_Flow_2</bpmn:outgoing>
+      </bpmn:task>
+
+      <bpmn:boundaryEvent id="BE_Comp_Hotel" name="Compensate Hotel" attachedToRef="Task_Hotel" cancelActivity="false">
+        <bpmn:compensateEventDefinition />
+      </bpmn:boundaryEvent>
+
+      <bpmn:userTask id="UT_Undo_Hotel" name="Cancel Hotel" isForCompensation="true" />
+
+      <bpmn:endEvent id="Hotel_End" name="Hotel End">
+        <bpmn:incoming>Hotel_Flow_2</bpmn:incoming>
+      </bpmn:endEvent>
+
+      <bpmn:sequenceFlow id="Hotel_Flow_1" sourceRef="Hotel_Start" targetRef="Task_Hotel" />
+      <bpmn:sequenceFlow id="Hotel_Flow_2" sourceRef="Task_Hotel" targetRef="Hotel_End" />
+
+      <bpmn:association id="Assoc_Comp_Hotel" sourceRef="BE_Comp_Hotel" targetRef="UT_Undo_Hotel" associationDirection="One" />
+
+      <bpmn:subProcess id="ESP_Comp_Hotel" name="Compensate Hotel Scope" triggeredByEvent="true">
+        <bpmn:startEvent id="ESP_Hotel_Start" name="Compensation Start">
+          <bpmn:compensateEventDefinition />
+          <bpmn:outgoing>ESP_Hotel_Flow_1</bpmn:outgoing>
+        </bpmn:startEvent>
+        <bpmn:userTask id="UT_Esp_Hotel" name="Undo Hotel Scope">
+          <bpmn:incoming>ESP_Hotel_Flow_1</bpmn:incoming>
+          <bpmn:outgoing>ESP_Hotel_Flow_2</bpmn:outgoing>
+        </bpmn:userTask>
+        <bpmn:endEvent id="ESP_Hotel_End" name="Undone">
+          <bpmn:incoming>ESP_Hotel_Flow_2</bpmn:incoming>
+        </bpmn:endEvent>
+        <bpmn:sequenceFlow id="ESP_Hotel_Flow_1" sourceRef="ESP_Hotel_Start" targetRef="UT_Esp_Hotel" />
+        <bpmn:sequenceFlow id="ESP_Hotel_Flow_2" sourceRef="UT_Esp_Hotel" targetRef="ESP_Hotel_End" />
+      </bpmn:subProcess>
+    </bpmn:subProcess>
+
+    <bpmn:subProcess id="SubProcess_Plain" name="Plain">
+      <bpmn:incoming>Flow_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_3</bpmn:outgoing>
+
+      <bpmn:startEvent id="Plain_Start" name="Plain Start">
+        <bpmn:outgoing>Plain_Flow_1</bpmn:outgoing>
+      </bpmn:startEvent>
+
+      <bpmn:task id="Task_Plain" name="Plain Work">
+        <bpmn:incoming>Plain_Flow_1</bpmn:incoming>
+        <bpmn:outgoing>Plain_Flow_2</bpmn:outgoing>
+      </bpmn:task>
+
+      <bpmn:endEvent id="Plain_End" name="Plain End">
+        <bpmn:incoming>Plain_Flow_2</bpmn:incoming>
+      </bpmn:endEvent>
+
+      <bpmn:sequenceFlow id="Plain_Flow_1" sourceRef="Plain_Start" targetRef="Task_Plain" />
+      <bpmn:sequenceFlow id="Plain_Flow_2" sourceRef="Task_Plain" targetRef="Plain_End" />
+
+      <bpmn:subProcess id="ESP_Comp_Plain" name="Compensate Plain Scope" triggeredByEvent="true">
+        <bpmn:startEvent id="ESP_Plain_Start" name="Compensation Start">
+          <bpmn:compensateEventDefinition />
+          <bpmn:outgoing>ESP_Plain_Flow_1</bpmn:outgoing>
+        </bpmn:startEvent>
+        <bpmn:userTask id="UT_Esp_Plain" name="Undo Plain Scope">
+          <bpmn:incoming>ESP_Plain_Flow_1</bpmn:incoming>
+          <bpmn:outgoing>ESP_Plain_Flow_2</bpmn:outgoing>
+        </bpmn:userTask>
+        <bpmn:endEvent id="ESP_Plain_End" name="Undone">
+          <bpmn:incoming>ESP_Plain_Flow_2</bpmn:incoming>
+        </bpmn:endEvent>
+        <bpmn:sequenceFlow id="ESP_Plain_Flow_1" sourceRef="ESP_Plain_Start" targetRef="UT_Esp_Plain" />
+        <bpmn:sequenceFlow id="ESP_Plain_Flow_2" sourceRef="UT_Esp_Plain" targetRef="ESP_Plain_End" />
+      </bpmn:subProcess>
+    </bpmn:subProcess>
+
+    <bpmn:callActivity id="Call_Car" name="Rent Car" calledElement="CompensationScopeEventSubprocessCar">
+      <bpmn:incoming>Flow_3</bpmn:incoming>
+      <bpmn:outgoing>Flow_4</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <bpmn:intermediateThrowEvent id="Throw_Comp" name="Compensate">
+      <bpmn:incoming>Flow_4</bpmn:incoming>
+      <bpmn:outgoing>Flow_5</bpmn:outgoing>
+      <bpmn:compensateEventDefinition />
+    </bpmn:intermediateThrowEvent>
+
+    <bpmn:endEvent id="End_1" name="End">
+      <bpmn:incoming>Flow_5</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="SubProcess_Hotel" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="SubProcess_Hotel" targetRef="SubProcess_Plain" />
+    <bpmn:sequenceFlow id="Flow_3" sourceRef="SubProcess_Plain" targetRef="Call_Car" />
+    <bpmn:sequenceFlow id="Flow_4" sourceRef="Call_Car" targetRef="Throw_Comp" />
+    <bpmn:sequenceFlow id="Flow_5" sourceRef="Throw_Comp" targetRef="End_1" />
+  </bpmn:process>
+
+  <bpmn:process id="CompensationScopeEventSubprocessCar" name="Compensation Scope Event Subprocess Car" isExecutable="true">
+    <bpmn:extensionElements>
+      <bfw:version>1.0.0</bfw:version>
+    </bpmn:extensionElements>
+
+    <bpmn:laneSet id="LaneSet_Car">
+      <bpmn:lane id="Lane_default_Car" name="default">
+        <bpmn:flowNodeRef>Car_Start</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Car</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Car_End</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>ESP_Comp_Car</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:startEvent id="Car_Start" name="Car Start">
+      <bpmn:outgoing>Car_Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:task id="Task_Car" name="Rent Car">
+      <bpmn:incoming>Car_Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Car_Flow_2</bpmn:outgoing>
+    </bpmn:task>
+
+    <bpmn:endEvent id="Car_End" name="Car End">
+      <bpmn:incoming>Car_Flow_2</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Car_Flow_1" sourceRef="Car_Start" targetRef="Task_Car" />
+    <bpmn:sequenceFlow id="Car_Flow_2" sourceRef="Task_Car" targetRef="Car_End" />
+
+    <bpmn:subProcess id="ESP_Comp_Car" name="Compensate Car Scope" triggeredByEvent="true">
+      <bpmn:startEvent id="ESP_Car_Start" name="Compensation Start">
+        <bpmn:compensateEventDefinition />
+        <bpmn:outgoing>ESP_Car_Flow_1</bpmn:outgoing>
+      </bpmn:startEvent>
+      <bpmn:userTask id="UT_Esp_Car" name="Undo Car Scope">
+        <bpmn:incoming>ESP_Car_Flow_1</bpmn:incoming>
+        <bpmn:outgoing>ESP_Car_Flow_2</bpmn:outgoing>
+      </bpmn:userTask>
+      <bpmn:endEvent id="ESP_Car_End" name="Undone">
+        <bpmn:incoming>ESP_Car_Flow_2</bpmn:incoming>
+      </bpmn:endEvent>
+      <bpmn:sequenceFlow id="ESP_Car_Flow_1" sourceRef="ESP_Car_Start" targetRef="UT_Esp_Car" />
+      <bpmn:sequenceFlow id="ESP_Car_Flow_2" sourceRef="UT_Esp_Car" targetRef="ESP_Car_End" />
+    </bpmn:subProcess>
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="CompensationScopeEventSubprocess">
+      <bpmndi:BPMNShape id="Shape_Lane_default_Parent" bpmnElement="Lane_default_Parent" isHorizontal="true">
+        <dc:Bounds x="112" y="130" width="936" height="140" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_SubProcess_Hotel" bpmnElement="SubProcess_Hotel">
+        <dc:Bounds x="290" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_SubProcess_Plain" bpmnElement="SubProcess_Plain">
+        <dc:Bounds x="450" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Call_Car" bpmnElement="Call_Car">
+        <dc:Bounds x="610" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Throw_Comp" bpmnElement="Throw_Comp">
+        <dc:Bounds x="802" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_1" bpmnElement="End_1">
+        <dc:Bounds x="962" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="198" y="200" />
+        <di:waypoint x="290" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_2" bpmnElement="Flow_2">
+        <di:waypoint x="390" y="200" />
+        <di:waypoint x="450" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_3" bpmnElement="Flow_3">
+        <di:waypoint x="550" y="200" />
+        <di:waypoint x="610" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_4" bpmnElement="Flow_4">
+        <di:waypoint x="710" y="200" />
+        <di:waypoint x="802" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_5" bpmnElement="Flow_5">
+        <di:waypoint x="838" y="200" />
+        <di:waypoint x="962" y="200" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_2">
+    <bpmndi:BPMNPlane id="BPMNPlane_2" bpmnElement="CompensationScopeEventSubprocessCar">
+      <bpmndi:BPMNShape id="Shape_Lane_default_Car" bpmnElement="Lane_default_Car" isHorizontal="true">
+        <dc:Bounds x="80" y="240" width="488" height="240" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Car_Start" bpmnElement="Car_Start">
+        <dc:Bounds x="162" y="392" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Car" bpmnElement="Task_Car">
+        <dc:Bounds x="290" y="370" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Car_End" bpmnElement="Car_End">
+        <dc:Bounds x="482" y="392" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ESP_Comp_Car" bpmnElement="ESP_Comp_Car">
+        <dc:Bounds x="130" y="270" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Car_Flow_1" bpmnElement="Car_Flow_1">
+        <di:waypoint x="198" y="410" />
+        <di:waypoint x="290" y="410" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Car_Flow_2" bpmnElement="Car_Flow_2">
+        <di:waypoint x="390" y="410" />
+        <di:waypoint x="482" y="410" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

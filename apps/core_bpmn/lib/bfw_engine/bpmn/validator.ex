@@ -37,6 +37,7 @@ defmodule BfwEngine.BPMN.Validator do
   alias BfwEngine.BPMN.Model.SequenceFlow
   alias BfwEngine.BPMN.Model.StandardLoop
   alias BfwEngine.BPMN.Validator.ContractScan
+  alias BfwEngine.Timers.ISO8601
 
   @activity_types [
     :task,
@@ -1649,6 +1650,24 @@ defmodule BfwEngine.BPMN.Validator do
 
       _parsed_or_expression ->
         []
+    end
+  end
+
+  defp timer_spec_violations(id, type, {:time_cycle, time_cycle}, scope_label)
+       when is_binary(time_cycle) do
+    trimmed_cycle = String.trim(time_cycle)
+
+    # Text that does not start like a repeating interval is a FEEL expression.
+    with true <- Regex.match?(~r/^R\d*\//, trimmed_cycle),
+         {:error, reason} <- ISO8601.parse_cycle(trimmed_cycle) do
+      [
+        {:timer_cycle_invalid,
+         scope_label <>
+           "#{type_label(type)} '#{id}' has an invalid timeCycle '#{time_cycle}' " <>
+           "(#{inspect(reason)}); use R[n]/[start/]<positive duration>, such as R3/PT1H"}
+      ]
+    else
+      _valid_or_expression -> []
     end
   end
 

@@ -242,9 +242,11 @@ defmodule BfwEngine.Execution.Persistence do
   @doc """
   Patch a single FNI's type_properties in the database.
 
-  Merges `patch` into the existing `type_properties` column. Used to
-  reconcile `child_process_instance_id` on parent FNIs after children
-  are discovered by `parent_process_instance_id` query.
+  Merges `patch` into the existing `type_properties` column of an `active`
+  or `waiting` row; any other row answers `{:error, :already_terminal}`.
+  Used to reconcile `child_process_instance_id` on parent FNIs after
+  children are discovered by `parent_process_instance_id` query, and to
+  record a resumed handler's child or subscription.
   """
   @callback patch_fni_type_properties(
               flow_node_instance_id :: String.t(),

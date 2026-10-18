@@ -53,7 +53,7 @@ defmodule BfwEngine.Execution.FlowNodes.MessageEndEvent do
          {:ok, correlation_value} <-
            MessageEventHelper.resolve_throw_correlation(event_definition, mapped_payload, context) do
       publish_message(context, message_name, mapped_payload, correlation_value)
-      finish(flow_node, context, Map.merge(raw_payload, mapped_payload))
+      finish(flow_node, context, MappingHelper.merge_over_input(raw_payload, mapped_payload))
     else
       {:error, :payload_too_large, details} ->
         {:error, Map.put(details, :reason, :payload_too_large)}

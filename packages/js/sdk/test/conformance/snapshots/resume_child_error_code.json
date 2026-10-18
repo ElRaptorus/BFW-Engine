@@ -1,0 +1,753 @@
+{
+  "definitionsId": "Definitions_Resume_Child_Error_Code",
+  "errors": [
+    {
+      "errorCode": "BOOM",
+      "id": "Err_Boom",
+      "name": "Boom"
+    },
+    {
+      "errorCode": "OTHER",
+      "id": "Err_Other",
+      "name": "Other"
+    }
+  ],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "associations": [],
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "dataStoreReferences": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_Child",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": null,
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "UT_Child",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Child Work",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "user_task",
+          "typeData": {
+            "assigneesExpression": null,
+            "dueDate": null,
+            "formActions": null,
+            "formFields": null,
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "priority": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "ErrorEnd_Child",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": null,
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {
+              "errorCode": null,
+              "errorMessage": null,
+              "errorRef": "Err_Boom"
+            },
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "ResumeErrorCodeChild",
+      "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
+      "isExecutable": true,
+      "isTransactionScope": false,
+      "lanes": [],
+      "name": "Resume Error Code Child",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_Child_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_Child",
+          "targetRef": "UT_Child"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Child_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "UT_Child",
+          "targetRef": "ErrorEnd_Child"
+        }
+      ],
+      "version": "1.0.0"
+    },
+    {
+      "associations": [],
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "dataStoreReferences": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_Parent",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": null,
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": ["BE_Boom", "BE_Other"],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "CA_Child",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Call Child",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "call_activity",
+          "typeData": {
+            "calledElement": "ResumeErrorCodeChild",
+            "calledProcessVersion": null,
+            "inMappings": [],
+            "outMappings": [],
+            "startEventId": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Parent_Normal",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": null,
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "BE_Other",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": null,
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "boundary_event",
+          "typeData": {
+            "attachedToRef": "CA_Child",
+            "cancelActivity": true,
+            "compensationHandlerId": null,
+            "eventDefinition": {
+              "errorCode": null,
+              "errorMessage": null,
+              "errorRef": "Err_Other"
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Parent_Other",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": null,
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "BE_Boom",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": null,
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "boundary_event",
+          "typeData": {
+            "attachedToRef": "CA_Child",
+            "cancelActivity": true,
+            "compensationHandlerId": null,
+            "eventDefinition": {
+              "errorCode": null,
+              "errorMessage": null,
+              "errorRef": "Err_Boom"
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Parent_Caught",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": null,
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "ResumeErrorCodeParent",
+      "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
+      "isExecutable": true,
+      "isTransactionScope": false,
+      "lanes": [],
+      "name": "Resume Error Code Parent",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_Parent_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_Parent",
+          "targetRef": "CA_Child"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Parent_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "CA_Child",
+          "targetRef": "End_Parent_Normal"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Parent_3",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "BE_Other",
+          "targetRef": "End_Parent_Other"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Parent_4",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "BE_Boom",
+          "targetRef": "End_Parent_Caught"
+        }
+      ],
+      "version": "1.0.0"
+    },
+    {
+      "associations": [],
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "dataStoreReferences": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_Esp_Host",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": null,
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": ["BE_Host_Boom", "BE_Host_Other"],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Sub_Host",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Host",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "sub_process",
+          "typeData": {
+            "activeElementsCompiled": null,
+            "activeElementsExpression": null,
+            "adhocCompletionCondition": null,
+            "adhocCompletionConditionCompiled": null,
+            "adhocOrdering": "parallel",
+            "cancelRemainingInstances": true,
+            "dataObjectReferences": [],
+            "dataObjects": [],
+            "dataStoreReferences": [],
+            "flowNodes": [
+              {
+                "boundaryEventRefs": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "Start_Sub",
+                "incoming": [],
+                "isForCompensation": false,
+                "multiInstance": null,
+                "name": null,
+                "outgoing": [],
+                "standardLoop": null,
+                "type": "start_event",
+                "typeData": {
+                  "eventDefinition": {},
+                  "isInterrupting": true,
+                  "resultContract": null
+                }
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "UT_Sub",
+                "incoming": [],
+                "isForCompensation": false,
+                "multiInstance": null,
+                "name": "Sub Work",
+                "outgoing": [],
+                "standardLoop": null,
+                "type": "user_task",
+                "typeData": {
+                  "assigneesExpression": null,
+                  "dueDate": null,
+                  "formActions": null,
+                  "formFields": null,
+                  "inMappings": [],
+                  "outMappings": [],
+                  "payloadContract": null,
+                  "priority": null,
+                  "resultContract": null
+                }
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "End_Sub",
+                "incoming": [],
+                "isForCompensation": false,
+                "multiInstance": null,
+                "name": null,
+                "outgoing": [],
+                "standardLoop": null,
+                "type": "end_event",
+                "typeData": {
+                  "eventDefinition": {},
+                  "inMappings": [],
+                  "payloadContract": null
+                }
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "Esp_Signal",
+                "incoming": [],
+                "isForCompensation": false,
+                "multiInstance": null,
+                "name": "On Signal",
+                "outgoing": [],
+                "standardLoop": null,
+                "type": "sub_process",
+                "typeData": {
+                  "activeElementsCompiled": null,
+                  "activeElementsExpression": null,
+                  "adhocCompletionCondition": null,
+                  "adhocCompletionConditionCompiled": null,
+                  "adhocOrdering": "parallel",
+                  "cancelRemainingInstances": true,
+                  "dataObjectReferences": [],
+                  "dataObjects": [],
+                  "dataStoreReferences": [],
+                  "flowNodes": [
+                    {
+                      "boundaryEventRefs": [],
+                      "dataInputAssociations": [],
+                      "dataOutputAssociations": [],
+                      "documentation": null,
+                      "id": "Start_Esp_Signal",
+                      "incoming": [],
+                      "isForCompensation": false,
+                      "multiInstance": null,
+                      "name": null,
+                      "outgoing": [],
+                      "standardLoop": null,
+                      "type": "start_event",
+                      "typeData": {
+                        "eventDefinition": {
+                          "signalRef": "Sig_Go"
+                        },
+                        "isInterrupting": false,
+                        "resultContract": null
+                      }
+                    },
+                    {
+                      "boundaryEventRefs": [],
+                      "dataInputAssociations": [],
+                      "dataOutputAssociations": [],
+                      "documentation": null,
+                      "id": "UT_Esp",
+                      "incoming": [],
+                      "isForCompensation": false,
+                      "multiInstance": null,
+                      "name": "ESP Work",
+                      "outgoing": [],
+                      "standardLoop": null,
+                      "type": "user_task",
+                      "typeData": {
+                        "assigneesExpression": null,
+                        "dueDate": null,
+                        "formActions": null,
+                        "formFields": null,
+                        "inMappings": [],
+                        "outMappings": [],
+                        "payloadContract": null,
+                        "priority": null,
+                        "resultContract": null
+                      }
+                    },
+                    {
+                      "boundaryEventRefs": [],
+                      "dataInputAssociations": [],
+                      "dataOutputAssociations": [],
+                      "documentation": null,
+                      "id": "ErrorEnd_Esp",
+                      "incoming": [],
+                      "isForCompensation": false,
+                      "multiInstance": null,
+                      "name": null,
+                      "outgoing": [],
+                      "standardLoop": null,
+                      "type": "end_event",
+                      "typeData": {
+                        "eventDefinition": {
+                          "errorCode": null,
+                          "errorMessage": null,
+                          "errorRef": "Err_Boom"
+                        },
+                        "inMappings": [],
+                        "payloadContract": null
+                      }
+                    }
+                  ],
+                  "implementation": null,
+                  "inMappings": [],
+                  "isAdHoc": false,
+                  "isTransaction": false,
+                  "outMappings": [],
+                  "payloadContract": null,
+                  "resultContract": null,
+                  "sequenceFlows": [
+                    {
+                      "conditionExpression": null,
+                      "id": "Flow_Esp_1",
+                      "isDefault": false,
+                      "name": null,
+                      "sourceRef": "Start_Esp_Signal",
+                      "targetRef": "UT_Esp"
+                    },
+                    {
+                      "conditionExpression": null,
+                      "id": "Flow_Esp_2",
+                      "isDefault": false,
+                      "name": null,
+                      "sourceRef": "UT_Esp",
+                      "targetRef": "ErrorEnd_Esp"
+                    }
+                  ],
+                  "transactionMethod": null,
+                  "triggeredByEvent": true
+                }
+              }
+            ],
+            "implementation": null,
+            "inMappings": [],
+            "isAdHoc": false,
+            "isTransaction": false,
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": null,
+            "sequenceFlows": [
+              {
+                "conditionExpression": null,
+                "id": "Flow_Sub_1",
+                "isDefault": false,
+                "name": null,
+                "sourceRef": "Start_Sub",
+                "targetRef": "UT_Sub"
+              },
+              {
+                "conditionExpression": null,
+                "id": "Flow_Sub_2",
+                "isDefault": false,
+                "name": null,
+                "sourceRef": "UT_Sub",
+                "targetRef": "End_Sub"
+              }
+            ],
+            "transactionMethod": null,
+            "triggeredByEvent": false
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Esp_Host_Normal",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": null,
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "BE_Host_Other",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": null,
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "boundary_event",
+          "typeData": {
+            "attachedToRef": "Sub_Host",
+            "cancelActivity": true,
+            "compensationHandlerId": null,
+            "eventDefinition": {
+              "errorCode": null,
+              "errorMessage": null,
+              "errorRef": "Err_Other"
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Esp_Host_Other",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": null,
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "BE_Host_Boom",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": null,
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "boundary_event",
+          "typeData": {
+            "attachedToRef": "Sub_Host",
+            "cancelActivity": true,
+            "compensationHandlerId": null,
+            "eventDefinition": {
+              "errorCode": null,
+              "errorMessage": null,
+              "errorRef": "Err_Boom"
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Esp_Host_Caught",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": null,
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "ResumeEspErrorCode",
+      "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
+      "isExecutable": true,
+      "isTransactionScope": false,
+      "lanes": [],
+      "name": "Resume ESP Error Code",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_Host_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_Esp_Host",
+          "targetRef": "Sub_Host"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Host_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Sub_Host",
+          "targetRef": "End_Esp_Host_Normal"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Host_3",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "BE_Host_Other",
+          "targetRef": "End_Esp_Host_Other"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Host_4",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "BE_Host_Boom",
+          "targetRef": "End_Esp_Host_Caught"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": [
+    {
+      "id": "Sig_Go",
+      "name": "resume-esp-error-go"
+    }
+  ]
+}

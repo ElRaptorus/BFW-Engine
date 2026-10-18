@@ -9,6 +9,7 @@ defmodule BfwEngine.Execution.FlowNodes.TimerCatchEventTest do
   alias BfwEngine.Execution.FlowNodeResult
   alias BfwEngine.Execution.FlowNodes.TimerCatchEvent
   alias BfwEngine.Execution.HandlerContext
+  alias BfwEngine.Execution.ProcessInstance.ErrorInfo
   alias BfwEngine.Execution.ServiceReset
   alias BfwEngine.Timers.Scheduler
   alias BfwEngine.Types.Token
@@ -106,6 +107,24 @@ defmodule BfwEngine.Execution.FlowNodes.TimerCatchEventTest do
       assert Scheduler.armed_count() == 1
     end
 
+    test "a date-only static timeDate fires at midnight UTC" do
+      flow_node = build_timer_flow_node(%EventDefinition.Timer{time_date: " 2099-12-25 "})
+      context = build_context(flow_node)
+
+      assert {:async, _id, _continuation, %{fire_at: "2099-12-25T00:00:00Z"}} =
+               TimerCatchEvent.handle_enter(flow_node, build_token(), context)
+    end
+
+    test "a static timeDate with a space before the time is read as ISO 8601" do
+      flow_node =
+        build_timer_flow_node(%EventDefinition.Timer{time_date: "2099-12-25 10:30:00Z"})
+
+      context = build_context(flow_node)
+
+      assert {:async, _id, _continuation, %{fire_at: "2099-12-25T10:30:00Z"}} =
+               TimerCatchEvent.handle_enter(flow_node, build_token(), context)
+    end
+
     test "continuation completes when timer fires" do
       flow_node = build_timer_flow_node(%EventDefinition.Timer{time_duration: "PT0S"})
       context = build_context(flow_node)
@@ -189,12 +208,29 @@ defmodule BfwEngine.Execution.FlowNodes.TimerCatchEventTest do
     end
 
     test "returns error for invalid ISO date" do
-      flow_node = build_timer_flow_node(%EventDefinition.Timer{time_date: "not-a-date"})
+      flow_node = build_timer_flow_node(%EventDefinition.Timer{time_date: "2026-13-45T10:00:00Z"})
       context = build_context(flow_node)
       token = build_token()
 
       assert {:error, %{reason: :timer_resolution_failed}} =
                TimerCatchEvent.handle_enter(flow_node, token, context)
+    end
+
+    test "a FEEL error in the timer text fails with timer_expression_failed and the FEEL message" do
+      flow_node = build_timer_flow_node(%EventDefinition.Timer{time_duration: "duration(("})
+      context = build_context(flow_node)
+      token = build_token()
+
+      assert {:error,
+              %{
+                reason: :timer_expression_failed,
+                detail: {:timer_expression_failed, "duration((", feel_message}
+              } = error} = TimerCatchEvent.handle_enter(flow_node, token, context)
+
+      assert is_binary(feel_message) and feel_message != ""
+
+      assert ErrorInfo.build(error)["message"] =~
+               "The timer definition could not be evaluated: the FEEL expression 'duration((' failed"
     end
   end
 

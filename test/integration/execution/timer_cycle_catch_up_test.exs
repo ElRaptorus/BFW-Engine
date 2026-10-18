@@ -14,6 +14,7 @@ defmodule BfwEngine.Integration.Execution.TimerCycleCatchUpTest do
   alias BfwEngine.Persistence.Resources.FlowNodeInstance
   alias BfwEngine.Plugins.FacadeBuilder
   alias BfwEngine.Test.EventCollector
+  alias BfwEngine.Timers.Scheduler
   alias BfwEngine.Types.Event
 
   @domain BfwEngine.Persistence.Api
@@ -29,8 +30,7 @@ defmodule BfwEngine.Integration.Execution.TimerCycleCatchUpTest do
 
       assert :ok = await_flow_node_instance_count(process_instance_id, "ESP_Cycle", 2, 5_000)
 
-      # The assertion is that no third repetition fires one interval later.
-      Process.sleep(2_500)
+      poll(5_000, fn -> if Scheduler.armed_count() == 0, do: :ok end)
       assert length(flow_node_instances_for_node(process_instance_id, "ESP_Cycle")) == 2
 
       timer_fired_events =

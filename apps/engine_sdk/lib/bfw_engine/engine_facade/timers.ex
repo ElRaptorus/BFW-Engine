@@ -12,7 +12,10 @@ defmodule BfwEngine.EngineFacade.Timers do
   """
 
   @type t :: %__MODULE__{
-          trigger_event: (String.t() -> {:ok, %{triggered: boolean()}} | {:error, term()}),
+          trigger_event: (String.t() ->
+                            {:ok, %{triggered: boolean()}}
+                            | {:error, term()}
+                            | {:error, :forbidden, map()}),
           list_schedules: (keyword() -> {:ok, list()} | {:error, term()}),
           get_schedule: (String.t() -> {:ok, map()} | {:error, term()}),
           enable_schedule: (String.t() -> {:ok, map()} | {:error, term()}),

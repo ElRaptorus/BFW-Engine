@@ -905,6 +905,67 @@ defmodule BfwEngine.Execution.ProcessInstance.ErrorInfoTest do
                  "'child-1' could not be started again: process_instance_not_found."
     end
 
+    test "compensation_handler_dispatch_failed names the handler and the unsupported node" do
+      result =
+        ErrorInfo.build(
+          {:compensation_handler_dispatch_failed,
+           %{
+             handler_activity_id: "Start_Undo_Book",
+             reason: {:unsupported_event_definition, %{id: "Start_Undo_Book"}}
+           }}
+        )
+
+      assert result["error_code"] == "compensation_handler_dispatch_failed"
+
+      assert result["message"] ==
+               "Compensation handler 'Start_Undo_Book' could not be started, so the compensation " <>
+                 "did not complete: the engine has no handler for the event definition of flow " <>
+                 "node 'Start_Undo_Book'."
+    end
+
+    test "compensation_handler_dispatch_failed formats an atom reason" do
+      result =
+        ErrorInfo.build(
+          {:compensation_handler_dispatch_failed,
+           %{handler_activity_id: "Task_Undo", reason: :persistence_unavailable}}
+        )
+
+      assert result["message"] =~ "'Task_Undo' could not be started"
+      assert result["message"] =~ "persistence_unavailable"
+    end
+
+    test "process_instance_crashed quotes an exception message, capped" do
+      reason = {%RuntimeError{message: String.duplicate("x", 600)}, []}
+      result = ErrorInfo.build(ErrorInfo.process_instance_crashed("pi-1", reason))
+
+      assert result["error_code"] == "process_instance_crashed"
+      assert result["message"] =~ "process instance 'pi-1' crashed with an exception: xxx"
+      refute result["message"] =~ String.duplicate("x", 501)
+    end
+
+    test "process_instance_crashed names only the shape of an exit reason" do
+      result =
+        ErrorInfo.build(ErrorInfo.process_instance_crashed("pi-2", {:badmatch, %{"secret" => 1}}))
+
+      assert result["message"] ==
+               "The process of process instance 'pi-2' crashed with exit reason a :badmatch " <>
+                 "tuple, so the instance and its active flow node instances were set to fatal."
+    end
+
+    test "child_record_failed names the child that was not started" do
+      result =
+        ErrorInfo.build(
+          {:child_record_failed,
+           %{child_process_instance_id: "child-2", reason: :connection_lost}}
+        )
+
+      assert result["error_code"] == "child_record_failed"
+
+      assert result["message"] ==
+               "After an engine restart, the shell could not record its new child process " <>
+                 "instance 'child-2' in the database (connection_lost), so the child was not started."
+    end
+
     test "compensation_handler_fatal names the handler activity" do
       result = ErrorInfo.build({:compensation_handler_fatal, "Task_Undo_Book"})
 

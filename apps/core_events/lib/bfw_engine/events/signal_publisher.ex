@@ -7,7 +7,8 @@ defmodule BfwEngine.Events.SignalPublisher do
   1. Generate UUID signal ID
   2. Insert `signals` audit row (no payload, no correlation)
   3. ETS lookup for matching subscriptions (by signal_name only); subscriptions
-     whose `via_pid` is dead are pruned and never counted as deliveries
+     whose `via_pid` is dead or whose flow node instance is cancelled
+     (`CancelledFlowNodeInstances`) are pruned and never counted as deliveries
   4. Deliver `{:signal_arrived, signal_id}` to each subscription via `send(via_pid, ...)`
   5. Simultaneously call `SignalStartHandler` callback — start new PIs from Signal Start Events
   6. If zero deliveries AND zero start events fired → insert `pending_signals` with TTL
@@ -20,6 +21,7 @@ defmodule BfwEngine.Events.SignalPublisher do
   AND starts new PIs simultaneously (true broadcast, no gating).
   """
 
+  alias BfwEngine.Events.CancelledFlowNodeInstances
   alias BfwEngine.Events.EngineEventBus
   alias BfwEngine.Events.PendingTtl
   alias BfwEngine.Events.SignalPersistence
@@ -82,7 +84,7 @@ defmodule BfwEngine.Events.SignalPublisher do
     {subscriptions, dead_subscriptions} =
       signal_name
       |> SignalSubscriptions.lookup()
-      |> Enum.split_with(&Process.alive?(&1.via_pid))
+      |> Enum.split_with(&deliverable?/1)
 
     SignalSubscriptions.prune(dead_subscriptions)
     deliveries = deliver_to_subscriptions(subscriptions, signal_id, triggerer_fni_id)
@@ -348,5 +350,10 @@ defmodule BfwEngine.Events.SignalPublisher do
 
       "#{a}-#{b}-#{c}-#{d}-#{e}"
     end)
+  end
+
+  defp deliverable?(subscription) do
+    Process.alive?(subscription.via_pid) and
+      not CancelledFlowNodeInstances.cancelled?(subscription.flow_node_instance_id)
   end
 end

@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions
+  xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+  targetNamespace="https://bifrostforge.world/schema/bpmn"
+  id="Definitions_CrashedChildCleanup">
+
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_Parent" name="Parent" processRef="CrashedChildParent" />
+    <bpmn:participant id="Participant_Middle" name="Middle" processRef="CrashedChildMiddle" />
+    <bpmn:participant id="Participant_Leaf" name="Leaf" processRef="CrashedChildLeaf" />
+  </bpmn:collaboration>
+
+  <bpmn:process id="CrashedChildParent" name="Crashed Child Parent" isExecutable="true">
+    <bpmn:extensionElements>
+      <bfw:version>1.0.0</bfw:version>
+    </bpmn:extensionElements>
+    <bpmn:startEvent id="Start_1" name="Start">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:callActivity id="Call_Middle" name="Call Middle" calledElement="CrashedChildMiddle">
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_2</bpmn:outgoing>
+    </bpmn:callActivity>
+    <bpmn:endEvent id="End_1" name="End">
+      <bpmn:incoming>Flow_2</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="Call_Middle" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="Call_Middle" targetRef="End_1" />
+  </bpmn:process>
+
+  <bpmn:process id="CrashedChildMiddle" name="Crashed Child Middle" isExecutable="true">
+    <bpmn:extensionElements>
+      <bfw:version>1.0.0</bfw:version>
+    </bpmn:extensionElements>
+    <bpmn:startEvent id="Middle_Start" name="Middle Start">
+      <bpmn:outgoing>Middle_Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:parallelGateway id="Middle_Fork" name="Fork">
+      <bpmn:incoming>Middle_Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Middle_Flow_2</bpmn:outgoing>
+      <bpmn:outgoing>Middle_Flow_3</bpmn:outgoing>
+    </bpmn:parallelGateway>
+    <bpmn:userTask id="UT_Middle" name="Middle Work">
+      <bpmn:incoming>Middle_Flow_2</bpmn:incoming>
+      <bpmn:outgoing>Middle_Flow_4</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:callActivity id="Call_Leaf" name="Call Leaf" calledElement="CrashedChildLeaf">
+      <bpmn:incoming>Middle_Flow_3</bpmn:incoming>
+      <bpmn:outgoing>Middle_Flow_5</bpmn:outgoing>
+    </bpmn:callActivity>
+    <bpmn:parallelGateway id="Middle_Join" name="Join">
+      <bpmn:incoming>Middle_Flow_4</bpmn:incoming>
+      <bpmn:incoming>Middle_Flow_5</bpmn:incoming>
+      <bpmn:outgoing>Middle_Flow_6</bpmn:outgoing>
+    </bpmn:parallelGateway>
+    <bpmn:endEvent id="Middle_End" name="Middle End">
+      <bpmn:incoming>Middle_Flow_6</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Middle_Flow_1" sourceRef="Middle_Start" targetRef="Middle_Fork" />
+    <bpmn:sequenceFlow id="Middle_Flow_2" sourceRef="Middle_Fork" targetRef="UT_Middle" />
+    <bpmn:sequenceFlow id="Middle_Flow_3" sourceRef="Middle_Fork" targetRef="Call_Leaf" />
+    <bpmn:sequenceFlow id="Middle_Flow_4" sourceRef="UT_Middle" targetRef="Middle_Join" />
+    <bpmn:sequenceFlow id="Middle_Flow_5" sourceRef="Call_Leaf" targetRef="Middle_Join" />
+    <bpmn:sequenceFlow id="Middle_Flow_6" sourceRef="Middle_Join" targetRef="Middle_End" />
+  </bpmn:process>
+
+  <bpmn:process id="CrashedChildLeaf" name="Crashed Child Leaf" isExecutable="true">
+    <bpmn:extensionElements>
+      <bfw:version>1.0.0</bfw:version>
+    </bpmn:extensionElements>
+    <bpmn:startEvent id="Leaf_Start" name="Leaf Start">
+      <bpmn:outgoing>Leaf_Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:userTask id="UT_Leaf" name="Leaf Work">
+      <bpmn:incoming>Leaf_Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Leaf_Flow_2</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:endEvent id="Leaf_End" name="Leaf End">
+      <bpmn:incoming>Leaf_Flow_2</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Leaf_Flow_1" sourceRef="Leaf_Start" targetRef="UT_Leaf" />
+    <bpmn:sequenceFlow id="Leaf_Flow_2" sourceRef="UT_Leaf" targetRef="Leaf_End" />
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_Parent" bpmnElement="Participant_Parent" isHorizontal="true">
+        <dc:Bounds x="100" y="60" width="560" height="140" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="112" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Call_Middle" bpmnElement="Call_Middle">
+        <dc:Bounds x="290" y="90" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_1" bpmnElement="End_1">
+        <dc:Bounds x="482" y="112" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="198" y="130" />
+        <di:waypoint x="290" y="130" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_2" bpmnElement="Flow_2">
+        <di:waypoint x="390" y="130" />
+        <di:waypoint x="482" y="130" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNShape id="Shape_Participant_Middle" bpmnElement="Participant_Middle" isHorizontal="true">
+        <dc:Bounds x="100" y="240" width="760" height="240" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Middle_Start" bpmnElement="Middle_Start">
+        <dc:Bounds x="162" y="342" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Middle_Fork" bpmnElement="Middle_Fork">
+        <dc:Bounds x="245" y="335" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_UT_Middle" bpmnElement="UT_Middle">
+        <dc:Bounds x="350" y="260" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Call_Leaf" bpmnElement="Call_Leaf">
+        <dc:Bounds x="350" y="380" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Middle_Join" bpmnElement="Middle_Join">
+        <dc:Bounds x="505" y="335" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Middle_End" bpmnElement="Middle_End">
+        <dc:Bounds x="612" y="342" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Middle_Flow_1" bpmnElement="Middle_Flow_1">
+        <di:waypoint x="198" y="360" />
+        <di:waypoint x="245" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Middle_Flow_2" bpmnElement="Middle_Flow_2">
+        <di:waypoint x="270" y="335" />
+        <di:waypoint x="270" y="300" />
+        <di:waypoint x="350" y="300" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Middle_Flow_3" bpmnElement="Middle_Flow_3">
+        <di:waypoint x="270" y="385" />
+        <di:waypoint x="270" y="420" />
+        <di:waypoint x="350" y="420" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Middle_Flow_4" bpmnElement="Middle_Flow_4">
+        <di:waypoint x="450" y="300" />
+        <di:waypoint x="530" y="300" />
+        <di:waypoint x="530" y="335" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Middle_Flow_5" bpmnElement="Middle_Flow_5">
+        <di:waypoint x="450" y="420" />
+        <di:waypoint x="530" y="420" />
+        <di:waypoint x="530" y="385" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Middle_Flow_6" bpmnElement="Middle_Flow_6">
+        <di:waypoint x="555" y="360" />
+        <di:waypoint x="612" y="360" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNShape id="Shape_Participant_Leaf" bpmnElement="Participant_Leaf" isHorizontal="true">
+        <dc:Bounds x="100" y="520" width="560" height="140" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Leaf_Start" bpmnElement="Leaf_Start">
+        <dc:Bounds x="162" y="572" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_UT_Leaf" bpmnElement="UT_Leaf">
+        <dc:Bounds x="290" y="550" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Leaf_End" bpmnElement="Leaf_End">
+        <dc:Bounds x="482" y="572" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Leaf_Flow_1" bpmnElement="Leaf_Flow_1">
+        <di:waypoint x="198" y="590" />
+        <di:waypoint x="290" y="590" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Leaf_Flow_2" bpmnElement="Leaf_Flow_2">
+        <di:waypoint x="390" y="590" />
+        <di:waypoint x="482" y="590" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

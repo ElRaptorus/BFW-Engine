@@ -254,6 +254,28 @@ defmodule BfwEngine.Timers.ISO8601Test do
 
       assert nil == ISO8601.next_cycle_fire(spec_2, fire_2)
     end
+
+    test "a monthly cycle counts every fire from its anchor and keeps the day" do
+      {:ok, cycle_spec} = ISO8601.parse_cycle("R/2026-01-31T10:00:00Z/P1M")
+      first_fire = ISO8601.first_fire_at(cycle_spec, ~U[2026-01-01 00:00:00Z])
+
+      {february, february_spec} = ISO8601.next_cycle_fire(cycle_spec, first_fire)
+      {march, march_spec} = ISO8601.next_cycle_fire(february_spec, february)
+      {april, _april_spec} = ISO8601.next_cycle_fire(march_spec, march)
+
+      assert [february, march, april] ==
+               [~U[2026-02-28 10:00:00Z], ~U[2026-03-31 10:00:00Z], ~U[2026-04-30 10:00:00Z]]
+
+      assert %{anchor: ~U[2026-01-31 10:00:00Z], occurrence: 2} = march_spec
+    end
+
+    test "catch-up after anchored fires keeps the anchor's day" do
+      {:ok, cycle_spec} = ISO8601.parse_cycle("R/2026-01-31T10:00:00Z/P1M")
+      {february, february_spec} = ISO8601.next_cycle_fire(cycle_spec, ~U[2026-01-31 10:00:00Z])
+
+      assert {~U[2026-05-31 10:00:00Z], %{occurrence: 4}} =
+               ISO8601.next_future_cycle_fire(february_spec, february, ~U[2026-05-01 00:00:00Z])
+    end
   end
 
   # -------------------------------------------------------------------------
@@ -304,6 +326,33 @@ defmodule BfwEngine.Timers.ISO8601Test do
                )
 
       assert DateTime.compare(next_fire, ~U[2026-06-01 11:00:00Z]) == :eq
+    end
+
+    test "month-end catch-up counts each occurrence from the anchor without drift" do
+      {:ok, cycle_spec} = ISO8601.parse_cycle("R/P1M")
+
+      assert {~U[2026-03-31 00:00:00Z], %{repetitions: :infinite}} =
+               ISO8601.skip_missed_occurrences(
+                 cycle_spec,
+                 ~U[2026-01-31 00:00:00Z],
+                 ~U[2026-03-15 00:00:00Z]
+               )
+
+      {:ok, finite_spec} = ISO8601.parse_cycle("R4/P1M")
+
+      assert {~U[2026-04-30 00:00:00Z], %{repetitions: 1}} =
+               ISO8601.skip_missed_occurrences(
+                 finite_spec,
+                 ~U[2026-01-31 00:00:00Z],
+                 ~U[2026-04-01 00:00:00Z]
+               )
+
+      assert nil ==
+               ISO8601.skip_missed_occurrences(
+                 finite_spec,
+                 ~U[2026-01-31 00:00:00Z],
+                 ~U[2026-05-01 00:00:00Z]
+               )
     end
 
     test "skips calendar intervals month by month" do

@@ -471,6 +471,120 @@ defmodule BfwEngine.Integration.Execution.CompensationScopeTest do
     end
   end
 
+  describe "compensating a completed Call Activity" do
+    test "without its own handler compensates inside its child instance, nested Call Activities included; with a handler only the handler runs",
+         %{collector: collector} do
+      process_instance_id =
+        http_deploy_and_start("compensation_call_activity.bpmn", "CompensationCallActivity")
+
+      {:ok, _throw} = await_waiting_fni_by_node_id(process_instance_id, "Throw_Comp")
+      {:ok, undo_handled} = await_waiting_fni_by_node_id(process_instance_id, "UT_Undo_Handled")
+      {204, _} = http_finish_user_task(undo_handled.id, %{})
+
+      booking_instance_id = called_instance_id(process_instance_id, "Call_Booking")
+      car_instance_id = called_instance_id(booking_instance_id, "Call_Car")
+
+      {:ok, undo_car} = await_waiting_fni_by_node_id(car_instance_id, "UT_Undo_Car")
+      assert flow_node_instances_for(booking_instance_id, "UT_Undo_Hotel") == []
+      {204, _} = http_finish_user_task(undo_car.id, %{})
+
+      {:ok, undo_hotel} = await_waiting_fni_by_node_id(booking_instance_id, "UT_Undo_Hotel")
+      {204, _} = http_finish_user_task(undo_hotel.id, %{})
+
+      assert {:ok, _process_instance} =
+               await_process_instance_state(process_instance_id, "finished")
+
+      handled_instance_id = called_instance_id(process_instance_id, "Call_Handled")
+      assert flow_node_instances_for(handled_instance_id, "UT_Undo_Car") == []
+
+      for scope_instance_id <- [booking_instance_id, car_instance_id, handled_instance_id] do
+        assert to_string(fetch_process_instance!(scope_instance_id).state) == "finished"
+      end
+
+      [%{id: task_car_id}] = flow_node_instances_for(car_instance_id, "Task_Car")
+
+      assert Enum.any?(
+               EventCollector.get_events(collector),
+               &match?(
+                 %Event.ActivityCompensated{
+                   process_instance_id: ^car_instance_id,
+                   compensated_fni_id: ^task_car_id,
+                   handler_activity_id: "UT_Undo_Car"
+                 },
+                 &1
+               )
+             )
+    end
+  end
+
+  describe "a compensated scope with a Compensation Event Subprocess" do
+    test "fires that Event Subprocess in place of its inner handlers, for subprocesses and Call Activities" do
+      process_instance_id =
+        http_deploy_and_start(
+          "compensation_scope_event_subprocess.bpmn",
+          "CompensationScopeEventSubprocess"
+        )
+
+      {:ok, _throw} = await_waiting_fni_by_node_id(process_instance_id, "Throw_Comp")
+
+      car_instance_id = called_instance_id(process_instance_id, "Call_Car")
+      plain_instance_id = called_instance_id(process_instance_id, "SubProcess_Plain")
+      hotel_instance_id = called_instance_id(process_instance_id, "SubProcess_Hotel")
+
+      for {scope_instance_id, esp_node_id, user_task_node_id} <- [
+            {car_instance_id, "ESP_Comp_Car", "UT_Esp_Car"},
+            {plain_instance_id, "ESP_Comp_Plain", "UT_Esp_Plain"},
+            {hotel_instance_id, "ESP_Comp_Hotel", "UT_Esp_Hotel"}
+          ] do
+        {:ok, _esp_shell} = await_waiting_fni_by_node_id(scope_instance_id, esp_node_id)
+        esp_instance_id = called_instance_id(scope_instance_id, esp_node_id)
+        {:ok, user_task} = await_waiting_fni_by_node_id(esp_instance_id, user_task_node_id)
+        {204, _} = http_finish_user_task(user_task.id, %{})
+      end
+
+      assert {:ok, _process_instance} =
+               await_process_instance_state(process_instance_id, "finished")
+
+      assert flow_node_instances_for(hotel_instance_id, "UT_Undo_Hotel") == []
+
+      for scope_instance_id <- [car_instance_id, plain_instance_id, hotel_instance_id] do
+        assert to_string(fetch_process_instance!(scope_instance_id).state) == "finished"
+      end
+    end
+
+    for {outcome, expected_code} <- [{"error", "UNDO_FAILED"}, {"escalation", "UNDO_ESCALATED"}] do
+      test "an uncaught #{outcome} end in that Event Subprocess fatals the requester" do
+        process_instance_id =
+          http_deploy_and_start(
+            "compensation_scope_esp_uncaught_end.bpmn",
+            "CompensationScopeEspUncaughtEnd"
+          )
+
+        {:ok, _throw} = await_waiting_fni_by_node_id(process_instance_id, "Throw_Comp")
+        scope_instance_id = called_instance_id(process_instance_id, "SubProcess_Booking")
+        {:ok, _esp_shell} = await_waiting_fni_by_node_id(scope_instance_id, "ESP_Comp_Booking")
+        esp_instance_id = called_instance_id(scope_instance_id, "ESP_Comp_Booking")
+        {:ok, user_task} = await_waiting_fni_by_node_id(esp_instance_id, "UT_Decide")
+        {:ok, scope_pid} = Execution.lookup_process_instance(scope_instance_id)
+        scope_monitor = Process.monitor(scope_pid)
+
+        {204, _} = http_finish_user_task(user_task.id, %{"outcome" => unquote(outcome)})
+
+        assert {:ok, fatal_instance} = await_process_instance_state(process_instance_id, "fatal")
+        assert fatal_instance.error_info["error_code"] == "compensation_scope_failed"
+        assert fatal_instance.error_info["message"] =~ unquote(expected_code)
+        assert fatal_instance.error_info["message"] =~ "SubProcess_Booking"
+        assert_receive {:DOWN, ^scope_monitor, :process, ^scope_pid, :normal}, 5_000
+        assert to_string(fetch_process_instance!(scope_instance_id).state) == "finished"
+      end
+    end
+  end
+
+  defp called_instance_id(process_instance_id, call_activity_node_id) do
+    [call_activity] = flow_node_instances_for(process_instance_id, call_activity_node_id)
+    call_activity.type_properties["child_process_instance_id"]
+  end
+
   defp restart_engine(process_instance_id) do
     BfwEngine.Execution.Supervisor
     |> DynamicSupervisor.which_children()

@@ -21,8 +21,28 @@ defmodule BfwEngine.Integration.Execution.CompensationEventTest do
   """
   use BfwEngine.ExecutionCase, async: false
 
+  alias BfwEngine.Execution.Persistence
+  alias BfwEngine.Persistence.ExecutionAdapter
   alias BfwEngine.Test.EventCollector
   alias BfwEngine.Types.Event
+
+  defmodule HandlerCreateFailingAdapter do
+    @moduledoc false
+
+    for {name, arity} <- Persistence.behaviour_info(:callbacks),
+        name != :create_flow_node_instance do
+      arguments = Macro.generate_arguments(arity, __MODULE__)
+
+      def unquote(name)(unquote_splicing(arguments)),
+        do: ExecutionAdapter.unquote(name)(unquote_splicing(arguments))
+    end
+
+    def create_flow_node_instance(%{flow_node_id: "Task_CompHandler_A"}),
+      do: {:error, :connection_lost}
+
+    def create_flow_node_instance(attributes),
+      do: ExecutionAdapter.create_flow_node_instance(attributes)
+  end
 
   # ---------------------------------------------------------------------------
   # COMP-1: Basic broadcast compensation throw
@@ -544,6 +564,54 @@ defmodule BfwEngine.Integration.Execution.CompensationEventTest do
       handler_b_final = Enum.find(final_fnis, &(&1.flow_node_id == "Task_CompHandler_B"))
       assert handler_b_final == nil,
              "Handler B must still not exist — compensation already completed before UserTask_B finished"
+    end
+  end
+
+  describe "a compensation handler that cannot be started" do
+    test "fatals the throw and the instance with compensation_handler_dispatch_failed" do
+      process_instance_id =
+        http_deploy_and_start(
+          "compensation_handler_dispatch_failure.bpmn",
+          "CompensationHandlerDispatchFailure"
+        )
+
+      assert {:ok, process_instance} =
+               await_process_instance_state(process_instance_id, "fatal")
+
+      assert process_instance.error_info["error_code"] == "compensation_handler_dispatch_failed"
+      assert process_instance.error_info["message"] =~ "'Start_Undo_Book' could not be started"
+
+      [throw] =
+        Enum.filter(
+          fetch_flow_node_instances(process_instance_id),
+          &(&1.flow_node_id == "Throw_Comp")
+        )
+
+      assert throw.state == "fatal"
+      assert throw.error_info["error_code"] == "compensation_handler_dispatch_failed"
+    end
+
+    test "fatals the throw and the instance when the handler row cannot be persisted" do
+      previous_adapter = Application.get_env(:core_execution, :persistence_adapter)
+      on_exit(fn -> Application.put_env(:core_execution, :persistence_adapter, previous_adapter) end)
+      Application.put_env(:core_execution, :persistence_adapter, HandlerCreateFailingAdapter)
+
+      process_instance_id =
+        http_deploy_and_start("compensation_basic_throw.bpmn", "CompensationBasicThrow")
+
+      assert {:ok, process_instance} =
+               await_process_instance_state(process_instance_id, "fatal")
+
+      assert process_instance.error_info["error_code"] == "compensation_handler_dispatch_failed"
+
+      [throw] =
+        Enum.filter(
+          fetch_flow_node_instances(process_instance_id),
+          &(&1.flow_node_id == "Throw_Compensation")
+        )
+
+      assert throw.state == "fatal"
+      assert throw.error_info["error_code"] == "compensation_handler_dispatch_failed"
     end
   end
 

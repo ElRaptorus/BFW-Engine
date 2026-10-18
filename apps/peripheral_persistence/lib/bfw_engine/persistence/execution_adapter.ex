@@ -205,13 +205,17 @@ defmodule BfwEngine.Persistence.ExecutionAdapter do
 
   @doc "Finish an FNI and persist all Data Object writes in a single transaction."
   @impl true
-  def finish_fni_with_data_objects(flow_node_instance_id, fni_changes, write_intents) do
+  def finish_fni_with_data_objects(
+        flow_node_instance_id,
+        flow_node_instance_changes,
+        write_intents
+      ) do
     Repo.transaction(fn ->
       with {:ok, record} <-
              Ash.get(FlowNodeInstance, flow_node_instance_id, domain: @domain, authorize?: false),
            :ok <- guard_first_terminal_write(record, :update_finished),
            {:ok, _updated, notifications} <-
-             Ash.update(record, keep_compensation_links(record, fni_changes),
+             Ash.update(record, keep_compensation_links(record, flow_node_instance_changes),
                domain: @domain,
                action: :update_finished,
                authorize?: false,
@@ -236,13 +240,17 @@ defmodule BfwEngine.Persistence.ExecutionAdapter do
   # A finished compensation handler must keep naming its target and throw
   # event, or a resumed compensation run dispatches it again. Other
   # handler-written keys (such as `mapped_input`) must not survive the finish.
-  defp keep_compensation_links(record, %{type_properties: type_properties} = fni_changes)
+  defp keep_compensation_links(
+         record,
+         %{type_properties: type_properties} = flow_node_instance_changes
+       )
        when is_map(type_properties) do
     links = Map.take(record.type_properties || %{}, @compensation_link_keys)
-    %{fni_changes | type_properties: Map.merge(links, type_properties)}
+    %{flow_node_instance_changes | type_properties: Map.merge(links, type_properties)}
   end
 
-  defp keep_compensation_links(_record, fni_changes), do: fni_changes
+  defp keep_compensation_links(_record, flow_node_instance_changes),
+    do: flow_node_instance_changes
 
   # The first terminal write wins. `active` and `waiting` may move to a
   # terminal state; a row that is already terminal is left unchanged.
@@ -441,7 +449,7 @@ defmodule BfwEngine.Persistence.ExecutionAdapter do
   end
 
   defp abort_orphaned_batch(orphaned_ids, pass, total_count) do
-    abort_fnis_sql = """
+    abort_flow_node_instances_sql = """
     UPDATE flow_node_instances
     SET state = 'aborted',
         finished_at = NOW(),
@@ -460,7 +468,8 @@ defmodule BfwEngine.Persistence.ExecutionAdapter do
       AND deleted = false
     """
 
-    with {:ok, _fni_result} <- EctoSQL.query(Repo, abort_fnis_sql, [orphaned_ids]),
+    with {:ok, _flow_node_instance_result} <-
+           EctoSQL.query(Repo, abort_flow_node_instances_sql, [orphaned_ids]),
          {:ok, _pi_result} <- EctoSQL.query(Repo, abort_pis_sql, [orphaned_ids]) do
       cleanup_orphaned_process_instances_loop(pass + 1, total_count + length(orphaned_ids))
     end
@@ -518,8 +527,8 @@ defmodule BfwEngine.Persistence.ExecutionAdapter do
 
   @doc "Fetch a single FNI by its own ID (for retry ancestor-chain inspection)."
   @impl true
-  def get_flow_node_instance_by_id(fni_id) do
-    case Ash.get(FlowNodeInstance, fni_id, domain: @domain, authorize?: false) do
+  def get_flow_node_instance_by_id(flow_node_instance_id) do
+    case Ash.get(FlowNodeInstance, flow_node_instance_id, domain: @domain, authorize?: false) do
       {:ok, record} -> {:ok, flow_node_instance_to_retry_map(record)}
       {:error, %Ash.Error.Query.NotFound{}} -> {:error, :not_found}
       {:error, _reason} -> {:error, :not_found}
@@ -549,23 +558,23 @@ defmodule BfwEngine.Persistence.ExecutionAdapter do
     end
   end
 
-  @doc "Merge a patch into a single FNI's type_properties."
+  @doc """
+  Merge a patch into a single FNI's type_properties in one statement, like
+  the park patch. Only an `active` or `waiting` row is patched; a terminal,
+  deleted, or missing row answers `{:error, :already_terminal}`.
+  """
   @impl true
   def patch_fni_type_properties(flow_node_instance_id, patch) do
-    with {:ok, record} <-
-           Ash.get(FlowNodeInstance, flow_node_instance_id, domain: @domain, authorize?: false) do
-      merged = Map.merge(record.type_properties || %{}, patch)
+    patch_sql = """
+    UPDATE flow_node_instances
+    SET type_properties = COALESCE(type_properties, '{}'::jsonb) || $2::jsonb
+    WHERE id = $1 AND state IN ('active', 'waiting') AND deleted = false
+    """
 
-      case Ash.update(
-             record,
-             %{type_properties: merged},
-             domain: @domain,
-             action: :retry_reset,
-             authorize?: false
-           ) do
-        {:ok, _updated} -> :ok
-        {:error, reason} -> {:error, reason}
-      end
+    case EctoSQL.query(Repo, patch_sql, [dump_uuid!(flow_node_instance_id), patch]) do
+      {:ok, %{num_rows: 1}} -> :ok
+      {:ok, %{num_rows: 0}} -> {:error, :already_terminal}
+      {:error, reason} -> {:error, reason}
     end
   end
 
@@ -573,11 +582,12 @@ defmodule BfwEngine.Persistence.ExecutionAdapter do
   @impl true
   def execute_retry_reset(process_instance_id, opts) do
     Repo.transaction(fn ->
-      with :ok <- maybe_delete_fnis(process_instance_id, opts),
-           :ok <- reset_fnis(opts),
+      with :ok <- maybe_delete_flow_node_instances(process_instance_id, opts),
+           :ok <- reset_flow_node_instances(opts),
            :ok <- reset_process_instance(process_instance_id, opts),
-           {:ok, reactivation_fnis} <- load_reactivation_fnis(process_instance_id) do
-        reactivation_fnis
+           {:ok, reactivation_flow_node_instances} <-
+             load_reactivation_flow_node_instances(process_instance_id) do
+        reactivation_flow_node_instances
       else
         {:error, reason} -> Repo.rollback(reason)
       end
@@ -657,14 +667,14 @@ defmodule BfwEngine.Persistence.ExecutionAdapter do
   @doc "Delete all pending arrival rows for a specific gateway FNI."
   @impl true
   def delete_gateway_pending_arrivals_for_gateway(gateway_flow_node_instance_id) do
-    gateway_fni_id_bin = dump_uuid!(gateway_flow_node_instance_id)
+    gateway_flow_node_instance_id_binary = dump_uuid!(gateway_flow_node_instance_id)
 
     delete_sql = """
     DELETE FROM gateway_pending_arrivals
     WHERE gateway_flow_node_instance_id = $1
     """
 
-    case EctoSQL.query(Repo, delete_sql, [gateway_fni_id_bin]) do
+    case EctoSQL.query(Repo, delete_sql, [gateway_flow_node_instance_id_binary]) do
       {:ok, _result} -> :ok
       {:error, reason} -> {:error, reason}
     end
@@ -674,27 +684,27 @@ defmodule BfwEngine.Persistence.ExecutionAdapter do
   # execute_retry_reset helpers
   # ---------------------------------------------------------------------------
 
-  defp maybe_delete_fnis(process_instance_id, %{delete_fni_ids: delete_fni_ids})
+  defp maybe_delete_flow_node_instances(process_instance_id, %{delete_fni_ids: delete_fni_ids})
        when is_list(delete_fni_ids) and delete_fni_ids != [] do
-    fni_ids = Enum.map(delete_fni_ids, &elem(&1, 0))
+    flow_node_instance_ids = Enum.map(delete_fni_ids, &elem(&1, 0))
 
     cascade_delete_call_activity_children(delete_fni_ids)
     |> case do
-      :ok -> rollback_data_objects(process_instance_id, fni_ids)
+      :ok -> rollback_data_objects(process_instance_id, flow_node_instance_ids)
       error -> error
     end
     |> case do
-      :ok -> bulk_delete_fnis(fni_ids)
+      :ok -> bulk_delete_flow_node_instances(flow_node_instance_ids)
       error -> error
     end
   end
 
-  defp maybe_delete_fnis(_process_instance_id, _opts), do: :ok
+  defp maybe_delete_flow_node_instances(_process_instance_id, _opts), do: :ok
 
   defp cascade_delete_call_activity_children(delete_fni_ids) do
     call_activity_children =
       delete_fni_ids
-      |> Enum.filter(fn {_fni_id, flow_node_type, type_properties} ->
+      |> Enum.filter(fn {_flow_node_instance_id, flow_node_type, type_properties} ->
         flow_node_type in ["call_activity", "sub_process"] and
           is_binary(Map.get(type_properties || %{}, "child_process_instance_id"))
       end)
@@ -713,9 +723,9 @@ defmodule BfwEngine.Persistence.ExecutionAdapter do
     end)
   end
 
-  defp rollback_data_objects(process_instance_id, fni_ids) do
+  defp rollback_data_objects(process_instance_id, flow_node_instance_ids) do
     process_instance_id_bin = dump_uuid!(process_instance_id)
-    fni_id_bins = Enum.map(fni_ids, &dump_uuid!/1)
+    flow_node_instance_id_binaries = Enum.map(flow_node_instance_ids, &dump_uuid!/1)
 
     delete_writes_sql = """
     DELETE FROM data_object_writes
@@ -724,7 +734,10 @@ defmodule BfwEngine.Persistence.ExecutionAdapter do
     RETURNING data_object_id
     """
 
-    case EctoSQL.query(Repo, delete_writes_sql, [process_instance_id_bin, fni_id_bins]) do
+    case EctoSQL.query(Repo, delete_writes_sql, [
+           process_instance_id_bin,
+           flow_node_instance_id_binaries
+         ]) do
       {:ok, %{rows: []}} ->
         :ok
 
@@ -794,8 +807,8 @@ defmodule BfwEngine.Persistence.ExecutionAdapter do
     end
   end
 
-  defp bulk_delete_fnis(fni_ids) do
-    fni_id_bins = Enum.map(fni_ids, &dump_uuid!/1)
+  defp bulk_delete_flow_node_instances(flow_node_instance_ids) do
+    flow_node_instance_id_binaries = Enum.map(flow_node_instance_ids, &dump_uuid!/1)
 
     delete_pending_arrivals_sql = """
     DELETE FROM gateway_pending_arrivals WHERE gateway_flow_node_instance_id = ANY($1)
@@ -805,18 +818,19 @@ defmodule BfwEngine.Persistence.ExecutionAdapter do
     DELETE FROM flow_node_instances WHERE id = ANY($1)
     """
 
-    with {:ok, _result} <- EctoSQL.query(Repo, delete_pending_arrivals_sql, [fni_id_bins]),
-         {:ok, _result} <- EctoSQL.query(Repo, delete_sql, [fni_id_bins]) do
+    with {:ok, _result} <-
+           EctoSQL.query(Repo, delete_pending_arrivals_sql, [flow_node_instance_id_binaries]),
+         {:ok, _result} <- EctoSQL.query(Repo, delete_sql, [flow_node_instance_id_binaries]) do
       :ok
     else
       {:error, reason} -> {:error, reason}
     end
   end
 
-  defp reset_fnis(%{reset_fni_ids: reset_fni_ids}) when is_list(reset_fni_ids) do
-    Enum.reduce_while(reset_fni_ids, :ok, fn {fni_id, target_state}, :ok ->
+  defp reset_flow_node_instances(%{reset_fni_ids: reset_fni_ids}) when is_list(reset_fni_ids) do
+    Enum.reduce_while(reset_fni_ids, :ok, fn {flow_node_instance_id, target_state}, :ok ->
       with {:ok, record} <-
-             Ash.get(FlowNodeInstance, fni_id, domain: @domain, authorize?: false),
+             Ash.get(FlowNodeInstance, flow_node_instance_id, domain: @domain, authorize?: false),
            {:ok, _updated} <-
              Ash.update(
                record,
@@ -838,7 +852,7 @@ defmodule BfwEngine.Persistence.ExecutionAdapter do
     end)
   end
 
-  defp reset_fnis(_opts), do: :ok
+  defp reset_flow_node_instances(_opts), do: :ok
 
   defp structural_type_properties(%{flow_node_type: "boundary_event", type_properties: props})
        when is_map(props) do
@@ -882,7 +896,7 @@ defmodule BfwEngine.Persistence.ExecutionAdapter do
 
   defp maybe_put_version_id(changes, _opts), do: changes
 
-  defp load_reactivation_fnis(process_instance_id) do
+  defp load_reactivation_flow_node_instances(process_instance_id) do
     query =
       FlowNodeInstance
       |> Ash.Query.filter(

@@ -14,6 +14,8 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
   """
 
   alias BfwEngine.BPMN.Model.FlowNode
+  alias BfwEngine.BPMN.ModelCache
+  alias BfwEngine.Events.EngineEventBus
   alias BfwEngine.Execution.BoundaryResolver
   alias BfwEngine.Execution.EscalationResolver
   alias BfwEngine.Execution.FlowNodeResult
@@ -23,7 +25,9 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
   alias BfwEngine.Execution.Persistence, as: PersistenceAdapter
   alias BfwEngine.Execution.PersistenceRetry
   alias BfwEngine.Execution.ProcessInstance
+  alias BfwEngine.Execution.ProcessInstance.ErrorInfo
   alias BfwEngine.Execution.SequenceFlowResolver
+  alias BfwEngine.Types.Event
   alias BfwEngine.Types.Token
 
   # ===================================================================
@@ -118,7 +122,7 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
         noproc_outcome(child_pid, child_process_instance_id, extra_message_handler)
 
       {:DOWN, ^ref, :process, ^child_pid, reason} ->
-        {:crashed, reason}
+        crashed_child_outcome(child_process_instance_id, reason, flow_node, context)
 
       {:child_pi_cancelled, ^child_pid, _final_tokens} = cancelled_message
       when is_function(extra_message_handler, 1) ->
@@ -138,6 +142,212 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
               extra_message_handler
             )
         end
+    end
+  end
+
+  @doc """
+  Outcome of a child PI that went down with an abnormal reason before it
+  announced a terminal state (a crash its `terminate/3` could not record).
+  A child row still `running` is persisted `fatal` with
+  `process_instance_crashed`, together with its live FNIs, a
+  `ProcessInstanceStateChanged` event, and its running descendants (force-fataled
+  when alive, written fatal the same way when not). The shell gets
+  `{:fatal, reason}`, which reaches Error Boundaries as `CHILD_FATAL`. A child
+  stopped by an engine shutdown (`:shutdown`, `{:shutdown, _}`) keeps its row
+  for resume and yields `{:crashed, reason}`.
+
+  `shell_flow_node` (the awaiting shell) selects the child's model for the
+  FNI events; `context` supplies the root process instance id.
+  """
+  @spec crashed_child_outcome(String.t(), term(), FlowNode.t() | nil, HandlerContext.t() | nil) ::
+          {:fatal, {:process_instance_crashed, map()}} | {:crashed, term()}
+  def crashed_child_outcome(child_process_instance_id, reason, shell_flow_node, context)
+
+  def crashed_child_outcome(_child_process_instance_id, :shutdown, _shell_flow_node, _context),
+    do: {:crashed, :shutdown}
+
+  def crashed_child_outcome(
+        _child_process_instance_id,
+        {:shutdown, _detail} = reason,
+        _shell_flow_node,
+        _context
+      ),
+      do: {:crashed, reason}
+
+  def crashed_child_outcome(child_process_instance_id, reason, shell_flow_node, context) do
+    crash_reason = ErrorInfo.process_instance_crashed(child_process_instance_id, reason)
+    root_process_instance_id = context && context.root_process_instance_id
+
+    _ =
+      case fetch_persisted_child(child_process_instance_id) do
+        {:ok, %{state: "running"} = child} ->
+          fatal_dead_instance(child, crash_reason, shell_flow_node, root_process_instance_id)
+
+        _not_running ->
+          :ok
+      end
+
+    {:fatal, crash_reason}
+  end
+
+  defp fatal_dead_instance(instance, crash_reason, shell_flow_node, root_process_instance_id) do
+    persist_result =
+      PersistenceRetry.with_retry(
+        fn ->
+          PersistenceAdapter.adapter().update_process_instance(instance.id, %{
+            state: "fatal",
+            finished_at: DateTime.utc_now(),
+            error_info: ErrorInfo.build(crash_reason)
+          })
+        end,
+        "crashed child PI fatal #{instance.id}"
+      )
+
+    with :ok <- persist_result do
+      process_model = dead_instance_process_model(instance.process_version_id, shell_flow_node)
+
+      flow_node_instances =
+        fatal_live_flow_node_instances(
+          instance.id,
+          crash_reason,
+          process_model,
+          root_process_instance_id
+        )
+
+      emit_dead_instance_fatal(
+        instance,
+        process_model,
+        flow_node_instances,
+        root_process_instance_id
+      )
+
+      fatal_running_descendants(instance.id, process_model, root_process_instance_id)
+    end
+  end
+
+  defp dead_instance_process_model(process_version_id, %FlowNode{type: :sub_process, id: node_id}) do
+    case ModelCache.fetch_subprocess_model(process_version_id, node_id) do
+      {:ok, process_model, _definitions} -> process_model
+      _error -> nil
+    end
+  end
+
+  defp dead_instance_process_model(process_version_id, %FlowNode{
+         type: :call_activity,
+         type_data: %{called_element: called_element}
+       }) do
+    case ModelCache.fetch(process_version_id) do
+      {:ok, definitions} -> Enum.find(definitions.processes, &(&1.id == called_element))
+      _error -> nil
+    end
+  end
+
+  defp dead_instance_process_model(_process_version_id, _shell_flow_node), do: nil
+
+  defp fatal_live_flow_node_instances(
+         process_instance_id,
+         crash_reason,
+         process_model,
+         root_process_instance_id
+       ) do
+    case PersistenceAdapter.adapter().list_flow_node_instances(process_instance_id) do
+      {:ok, flow_node_instances} ->
+        flow_node_instances
+        |> Enum.filter(&(to_string(&1.state) in ["active", "waiting"]))
+        |> Enum.each(fn flow_node_instance ->
+          FniLifecycle.transition_to_fatal(
+            flow_node_instance.id,
+            process_instance_id,
+            crash_reason,
+            find_model_flow_node(process_model, flow_node_instance.flow_node_id),
+            flow_node_instance.type_properties || %{},
+            flow_node_instance.lane_name,
+            root_process_instance_id
+          )
+        end)
+
+        flow_node_instances
+
+      {:error, _reason} ->
+        []
+    end
+  end
+
+  defp find_model_flow_node(nil, _flow_node_id), do: nil
+
+  defp find_model_flow_node(process_model, flow_node_id),
+    do: Enum.find(process_model.flow_nodes, &(&1.id == flow_node_id))
+
+  defp emit_dead_instance_fatal(
+         instance,
+         process_model,
+         flow_node_instances,
+         root_process_instance_id
+       ) do
+    lane_names = Enum.map(flow_node_instances, & &1.lane_name)
+
+    EngineEventBus.publish(%Event.ProcessInstanceStateChanged{
+      process_instance_id: instance.id,
+      process_model_id: process_model && process_model.id,
+      version: process_model && process_model.version,
+      parent_process_instance_id: instance.parent_process_instance_id,
+      root_process_instance_id: root_process_instance_id,
+      triggerer_flow_node_instance_id: instance.triggerer_flow_node_instance_id,
+      old_state: :running,
+      new_state: :fatal,
+      started_by_id: get_in(instance.started_by || %{}, ["id"]),
+      has_laneless_flow_node: Enum.any?(lane_names, &is_nil/1),
+      lane_names: lane_names |> Enum.reject(&is_nil/1) |> Enum.uniq() |> Enum.sort(),
+      occurred_at: DateTime.utc_now()
+    })
+  end
+
+  # A descendant of a killed instance outlives it: its awaiting handler Task
+  # died with the killed instance's Task.Supervisor.
+  defp fatal_running_descendants(process_instance_id, process_model, root_process_instance_id) do
+    case PersistenceAdapter.adapter().list_child_process_instances(process_instance_id) do
+      {:ok, children} ->
+        children
+        |> Enum.filter(&(&1.state == "running"))
+        |> Enum.each(&fatal_running_descendant(&1, process_model, root_process_instance_id))
+
+      {:error, _reason} ->
+        :ok
+    end
+  end
+
+  defp fatal_running_descendant(child, process_model, root_process_instance_id) do
+    case BfwEngine.Execution.lookup_process_instance(child.id) do
+      {:ok, child_pid} ->
+        force_fatal_descendant(child_pid)
+
+      {:error, :not_found} ->
+        with {:ok, %{state: "running"} = instance} <- fetch_persisted_child(child.id) do
+          fatal_dead_instance(
+            instance,
+            ErrorInfo.process_instance_crashed(child.id, :parent_crashed),
+            descendant_shell_flow_node(child, process_model),
+            root_process_instance_id
+          )
+        end
+    end
+  end
+
+  defp force_fatal_descendant(child_pid) do
+    ProcessInstance.force_fatal(child_pid, %{reason: "parent_fatal"})
+  catch
+    :exit, _reason -> :ok
+  end
+
+  defp descendant_shell_flow_node(%{triggerer_flow_node_instance_id: nil}, _process_model),
+    do: nil
+
+  defp descendant_shell_flow_node(child, process_model) do
+    case PersistenceAdapter.adapter().get_flow_node_instance_by_id(
+           child.triggerer_flow_node_instance_id
+         ) do
+      {:ok, shell} -> find_model_flow_node(process_model, shell.flow_node_id)
+      _error -> nil
     end
   end
 
@@ -191,7 +401,7 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
   """
   @spec persisted_child_outcome(String.t()) ::
           :aborted
-          | {:bpmn_error, term()}
+          | {:bpmn_error, %{error_code: term(), error_message: term()}}
           | {:compensated, [map()]}
           | {:crashed, :noproc | {:child_lookup_failed, term()}}
           | {:fatal, term()}
@@ -222,7 +432,7 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
     do: {:fatal, error_info || "CHILD_FATAL"}
 
   defp child_outcome(%{state: "error", error_info: error_info}, _child_process_instance_id),
-    do: {:bpmn_error, error_info || %{error_code: nil, error_message: nil}}
+    do: {:bpmn_error, live_error_info(error_info)}
 
   defp child_outcome(%{state: "escalated", error_info: error_info}, child_process_instance_id) do
     {:escalation, persisted_escalation_info(error_info),
@@ -237,6 +447,24 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
   end
 
   defp persisted_escalation_info(_error_info), do: %{escalation_code: nil, escalation_name: nil}
+
+  @doc """
+  Turns the persisted `error_info` of a child in state `error` into the live
+  `%{error_code:, error_message:}` shape that Error Boundary and Error Event
+  Subprocess matching reads. The raised values are taken from `detail` (the
+  live map as JSON), because the top-level `error_code` defaults to
+  `bpmn_error` when the Error End Event raised no code.
+  """
+  @spec live_error_info(map() | nil) :: %{error_code: term(), error_message: term()}
+  def live_error_info(%{error_code: _} = error_info), do: error_info
+
+  def live_error_info(%{"detail" => %{"error_code" => error_code} = detail}),
+    do: %{error_code: error_code, error_message: detail["error_message"]}
+
+  def live_error_info(%{} = error_info),
+    do: %{error_code: error_info["error_code"], error_message: error_info["message"]}
+
+  def live_error_info(_error_info), do: %{error_code: nil, error_message: nil}
 
   # ===================================================================
   # §B — Result processing
@@ -987,7 +1215,7 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
     handle_child_bpmn_error(
       flow_node,
       context,
-      error_info || %{error_code: nil, error_message: nil},
+      live_error_info(error_info),
       child_process_instance_id
     )
   end
@@ -1108,15 +1336,39 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
   the shell FNI's persisted `type_properties` and the process instance's
   in-memory entry, so later fatal, abort, and terminate cascades reach the
   new child instead of the id the shell carried before.
+
+  Called before the child is started. When the patch still fails after
+  `PersistenceRetry`, the child is never started: the shell reports its
+  resume settled and returns `{:error, {:child_record_failed, detail}}`,
+  which fatals it.
   """
-  @spec record_fresh_child(HandlerContext.t(), String.t()) :: :ok
+  @spec record_fresh_child(HandlerContext.t(), String.t()) :: :ok | {:error, term()}
   def record_fresh_child(context, child_process_instance_id) do
-    _patch_result =
-      PersistenceAdapter.adapter().patch_fni_type_properties(
-        context.flow_node_instance_id,
-        %{"child_process_instance_id" => child_process_instance_id}
+    patch_result =
+      PersistenceRetry.with_retry(
+        fn ->
+          PersistenceAdapter.adapter().patch_fni_type_properties(
+            context.flow_node_instance_id,
+            %{"child_process_instance_id" => child_process_instance_id}
+          )
+        end,
+        "FNI record fresh child #{context.flow_node_instance_id}"
       )
 
+    case patch_result do
+      :ok ->
+        merge_fresh_child(context, child_process_instance_id)
+
+      {:error, reason} ->
+        send(context.process_instance_pid, {:resume_settled, context.flow_node_instance_id})
+
+        {:error,
+         {:child_record_failed,
+          %{child_process_instance_id: child_process_instance_id, reason: reason}}}
+    end
+  end
+
+  defp merge_fresh_child(context, child_process_instance_id) do
     send(
       context.process_instance_pid,
       {:fni_merge_type_properties, context.flow_node_instance_id,

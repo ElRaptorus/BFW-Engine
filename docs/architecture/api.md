@@ -155,7 +155,7 @@ TypeScript client: `EventClient.triggerEscalation(escalationCode)` in `@elraptor
 | `POST` | `/adhoc-subprocesses/{id}/complete` | Signal completion | `manage_adhoc_subprocess` |
 | `GET` | `/adhoc-subprocesses/{id}/status` | Query runtime status | `manage_adhoc_subprocess` |
 
-The `{id}` path parameter is the **child process instance ID** spawned by the ad-hoc subprocess handler — not the parent PI or the shell FNI ID.
+The `{id}` path parameter is the **child process instance ID** spawned by the ad-hoc subprocess handler — not the parent PI or the shell FNI ID. All four operations also require the child instance to be visible to the caller (starter, lane access, `observe_all`, or `zeeky_boogie_doog`; `authorization.md` §5.1); an invisible instance answers `404 not_found`, the same as a missing one. Plugins (`skip_claims`) skip both checks.
 
 **List activities** returns `{data: [{id, name, type, enabled, performedCount, activeCount}]}`. **Activate** returns `{flowNodeInstanceId: "..."}`. **Complete** returns `{completed: true}`. **Status** returns `{activeCount, performedActivities: [id], enabledActivities: [id], completionSignaled: boolean}`.
 
@@ -455,7 +455,7 @@ Real-time FNI updates use the WebSocket API (Phoenix Channels), not GraphQL subs
 
 #### Retention (no REST purge)
 
-Manual purge is **not** a live REST or GraphQL field. Process-instance trees are hard-deleted by `mix bfw.retention.purge`. Ordinary `DELETE /process-instances/{id}` remains **soft-delete of one PI + its FNIs** and still omits `cancelled`. GraphQL is query-only.
+Manual purge is **not** a live REST or GraphQL field. Process-instance trees are hard-deleted by `mix bfw.retention.purge`. Ordinary `DELETE /process-instances/{id}` remains **soft-delete of one PI + its FNIs** and still omits `cancelled`. A child PI (non-nil `parent_process_instance_id`) is refused with 409 `active_instances_exist` while its root PI (found by walking the parent chain) is not terminal: the running tree may still resume, retry, or compensate into it. The walk cannot read a deleted ancestor, so a child whose intermediate parent was deleted (possible only while the root was terminal, before a retry made it live again) skips the root check (accepted limitation). GraphQL is query-only.
 
 See [configuration.md](./configuration.md) and [database.md](../guides/operations/database.md).
 
@@ -537,7 +537,7 @@ Retries a terminal (fatal, aborted, or error) process instance. The Api facade (
 | 422 | `retry_checkpoint_is_join_gateway` | Checkpoint FNI is a parallel/inclusive join gateway — retry at the fork or upstream instead |
 | 422 | `retry_checkpoint_is_non_retryable` | Checkpoint FNI was interrupted by a BPMN flow mechanism (boundary cancellation, EBG, Terminate/Error End Event) — retry without a checkpoint or select a different flow node |
 | 503 | `engine_at_capacity` | `BFE_MAX_CONCURRENT_PIS` limit reached |
-| 503 | `engine_shutting_down` | The engine is shutting down (`prep_stop` stopped the PI supervisor); checked before any row is reset. `Retry-After: 5` |
+| 503 | `engine_shutting_down` | The engine is shutting down (`prep_stop` stopped the PI supervisor); checked before any row is reset. When the supervisor stops during the final start, the reset tree stays `running` and resumes on the next boot. `Retry-After: 5` |
 | 503 | `service_unavailable` | The PI row (or an ancestor row) could not be read because the database failed after `PersistenceRetry`; a missing row stays `404`. `Retry-After: 5` |
 
 **Version resolution flow:** The Api layer resolves the version using `CalledElementResolver`:

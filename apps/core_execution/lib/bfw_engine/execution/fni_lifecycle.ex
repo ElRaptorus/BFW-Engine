@@ -144,7 +144,8 @@ defmodule BfwEngine.Execution.FniLifecycle do
   Record the subscription a resumed message or signal handler registered:
   patches `subscription_id` into the persisted `type_properties` and merges
   it into the process instance's entry, replacing the id from before the
-  restart. Call before `{:resume_settled, id}`.
+  restart. A row that turned terminal in the meantime is left as it is.
+  Call before `{:resume_settled, id}`.
   """
   @spec record_resumed_subscription(HandlerContext.t(), String.t()) :: :ok
   def record_resumed_subscription(context, subscription_id) do

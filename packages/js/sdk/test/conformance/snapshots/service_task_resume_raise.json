@@ -1,0 +1,176 @@
+{
+  "definitionsId": "Definitions_ServiceTaskResumeRaise",
+  "errors": [
+    {
+      "errorCode": "handler_resume_raised",
+      "id": "Error_ResumeRaised",
+      "name": "Resume Raised"
+    }
+  ],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "associations": [],
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "dataStoreReferences": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": ["Boundary_Error"],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "ServiceTask_Resume",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Raises On Resume",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "service_task",
+          "typeData": {
+            "httpAuthHeader": null,
+            "httpBody": null,
+            "httpMethod": null,
+            "httpResponseHeaders": null,
+            "httpUrl": null,
+            "implementation": "resume_raising",
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Done",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Done",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Boundary_Error",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Resume Raised",
+          "outgoing": ["Flow_Failed"],
+          "standardLoop": null,
+          "type": "boundary_event",
+          "typeData": {
+            "attachedToRef": "ServiceTask_Resume",
+            "cancelActivity": true,
+            "compensationHandlerId": null,
+            "eventDefinition": {
+              "errorCode": null,
+              "errorMessage": null,
+              "errorRef": "Error_ResumeRaised"
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Failed",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Failed",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "ServiceTaskResumeRaise",
+      "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
+      "isExecutable": true,
+      "isTransactionScope": false,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_1", "ServiceTask_Resume", "End_Done", "Boundary_Error", "End_Failed"],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "Service Task Resume Raise",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "ServiceTask_Resume"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "ServiceTask_Resume",
+          "targetRef": "End_Done"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Failed",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Boundary_Error",
+          "targetRef": "End_Failed"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

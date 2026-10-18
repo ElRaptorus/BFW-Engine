@@ -1695,7 +1695,7 @@ defmodule BfwEngine.BPMN.ValidatorTest do
     end
 
     test "accepts a timeDate with an offset and a FEEL timeDate expression" do
-      for time_date <- ["2026-06-17T10:00:00+02:00", "date and time(token.fireAt)"] do
+      for time_date <- ["2026-06-17T10:00:00+02:00", "2026-06-17", "date and time(token.fireAt)"] do
         definitions =
           minimal_valid_definitions(
             extra_nodes: [timer_catch_node("ICE1", %EventDefinition.Timer{time_date: time_date})],
@@ -1705,6 +1705,42 @@ defmodule BfwEngine.BPMN.ValidatorTest do
         assert {:ok, _} = Validator.validate(definitions)
       end
     end
+
+    test "rejects a static timeCycle that does not parse or has a zero interval" do
+      for time_cycle <- ["R3/PT0S", "R/P", "R0/PT1H", "R2/not-a-date/PT1H"] do
+        assert {:error, violations} = Validator.validate(timer_start_definitions(time_cycle))
+
+        {_, message} = Enum.find(violations, fn {code, _} -> code == :timer_cycle_invalid end)
+        assert message =~ "StartEvent 'Start_1' has an invalid timeCycle '#{time_cycle}'"
+      end
+    end
+
+    test "accepts a valid static timeCycle and a FEEL timeCycle expression" do
+      for time_cycle <- ["R3/PT1H", "R/2026-06-01T10:00:00Z/P1M", "token.cycle"] do
+        assert {:ok, _} = Validator.validate(timer_start_definitions(time_cycle))
+      end
+    end
+  end
+
+  defp timer_start_definitions(time_cycle) do
+    parse_fixture_from_xml("""
+    <?xml version="1.0" encoding="UTF-8"?>
+    <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                      xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+                      id="Defs_1">
+      <bpmn:process id="P1" name="Cycle Timer" isExecutable="true">
+        <bpmn:extensionElements><bfw:version>1.0.0</bfw:version></bpmn:extensionElements>
+        <bpmn:startEvent id="Start_1" name="Cycle">
+          <bpmn:timerEventDefinition>
+            <bpmn:timeCycle>#{time_cycle}</bpmn:timeCycle>
+          </bpmn:timerEventDefinition>
+          <bpmn:outgoing>F1</bpmn:outgoing>
+        </bpmn:startEvent>
+        <bpmn:endEvent id="End_1"><bpmn:incoming>F1</bpmn:incoming></bpmn:endEvent>
+        <bpmn:sequenceFlow id="F1" sourceRef="Start_1" targetRef="End_1"/>
+      </bpmn:process>
+    </bpmn:definitions>
+    """)
   end
 
   defp timer_catch_node(id, timer_definition) do

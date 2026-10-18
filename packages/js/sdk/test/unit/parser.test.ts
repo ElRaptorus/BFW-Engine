@@ -556,6 +556,24 @@ describe('parseBpmn', () => {
       expect(typeData.payloadContract).toEqual({ type: 'object', required: ['payload'] });
     });
 
+    it('parses correlationRetrievalExpression on send task at flow-node level', () => {
+      const xml = wrap(`
+        <bpmn:message id="Msg_1" name="test"/>
+        <bpmn:process id="P" isExecutable="true">
+          <bpmn:extensionElements><bfw:version>1.0.0</bfw:version></bpmn:extensionElements>
+          <bpmn:sendTask id="ST1" messageRef="Msg_1">
+            <bpmn:extensionElements>
+              <bfw:correlationRetrievalExpression>token.orderId</bfw:correlationRetrievalExpression>
+            </bpmn:extensionElements>
+          </bpmn:sendTask>
+        </bpmn:process>
+      `);
+
+      const result = parseBpmn(xml);
+      const typeData = result.processes[0]!.flowNodes[0]!.typeData as SendTaskTypeData;
+      expect(typeData.correlationRetrievalExpression).toBe('token.orderId');
+    });
+
     it('parses resultContract on receive task at flow-node level', () => {
       const xml = wrap(`
         <bpmn:message id="Msg_1" name="test"/>

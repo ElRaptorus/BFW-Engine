@@ -6,7 +6,8 @@ defmodule BfwEngine.Events.MessagePublisher do
 
   1. Insert `messages` audit row (via persistence adapter)
   2. ETS lookup for matching subscriptions; subscriptions whose `via_pid` is
-     dead are pruned and never counted as deliveries
+     dead or whose flow node instance is cancelled (`CancelledFlowNodeInstances`)
+     are pruned and never counted as deliveries
   3. Deliver `MessageArrived` to each matching PI via `send(via_pid, {:message_arrived, ...})`
   4. Catch-wins-over-Start gating (Phase D — if no subscriptions, check for Message Start Events)
   5. Pending on zero-match (insert `pending_messages` row with TTL)
@@ -14,6 +15,7 @@ defmodule BfwEngine.Events.MessagePublisher do
   7. Return `{:ok, %PublishResult{...}}`
   """
 
+  alias BfwEngine.Events.CancelledFlowNodeInstances
   alias BfwEngine.Events.EngineEventBus
   alias BfwEngine.Events.MessagePersistence
   alias BfwEngine.Events.MessageSubscriptions
@@ -84,7 +86,7 @@ defmodule BfwEngine.Events.MessagePublisher do
     {all_subscriptions, dead_subscriptions} =
       message_name
       |> MessageSubscriptions.lookup(ets_correlation)
-      |> Enum.split_with(&Process.alive?(&1.via_pid))
+      |> Enum.split_with(&deliverable?/1)
 
     MessageSubscriptions.prune(dead_subscriptions)
 
@@ -456,5 +458,10 @@ defmodule BfwEngine.Events.MessagePublisher do
 
       "#{a}-#{b}-#{c}-#{d}-#{e}"
     end)
+  end
+
+  defp deliverable?(subscription) do
+    Process.alive?(subscription.via_pid) and
+      not CancelledFlowNodeInstances.cancelled?(subscription.flow_node_instance_id)
   end
 end

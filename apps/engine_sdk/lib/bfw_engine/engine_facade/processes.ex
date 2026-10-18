@@ -6,6 +6,12 @@ defmodule BfwEngine.EngineFacade.Processes do
   deleting, and starting processes. The `Loader` wires each closure to
   the corresponding `BfwEngine.Api` function with the plugin's
   synthetic identity pre-injected.
+
+  `start` accepts a keyword list or map and forwards only the public start
+  options: `:process_instance_id`, `:process_version_id`, `:start_event_id`,
+  `:payload`, `:context`, `:identity` (defaults to the plugin identity), and
+  `:business_key`. Internal execution options such as a parent instance or a
+  subprocess node are dropped.
   """
 
   @type t :: %__MODULE__{
@@ -17,7 +23,8 @@ defmodule BfwEngine.EngineFacade.Processes do
           disable: (String.t() -> {:ok, struct()} | {:error, term()}),
           delete_version: (String.t(), String.t() -> {:ok, struct()} | {:error, term()}),
           undeploy: (String.t() -> :ok | {:error, term()}),
-          start: (keyword() -> {:ok, String.t()} | {:error, term()})
+          start: (keyword() | map() ->
+                    {:ok, pid()} | {:error, term()} | {:error, atom(), term()})
         }
 
   defstruct list: &__MODULE__.noop_0/0,

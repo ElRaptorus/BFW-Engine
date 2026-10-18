@@ -42,6 +42,17 @@ defmodule BfwEngine.Execution.MappingHelper do
   end
 
   @doc """
+  Build a throw-side outgoing token: the published body merged over the input
+  token. When either value is not a map, the outgoing token is the published body.
+  """
+  @spec merge_over_input(term(), term()) :: term()
+  def merge_over_input(input_payload, published_payload)
+      when is_map(input_payload) and is_map(published_payload),
+      do: Map.merge(input_payload, published_payload)
+
+  def merge_over_input(_input_payload, published_payload), do: published_payload
+
+  @doc """
   Validate a payload against a JSON Schema contract.
 
   Returns `:ok` when the contract is nil (no validation) or when the

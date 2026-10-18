@@ -41,6 +41,18 @@ defmodule BfwEngine.Timers.SchedulerFireNowTest do
       assert 0 == Scheduler.fire_now_for_target(self())
     end
 
+    test "does not count a fire whose target is not running, and removes the entry" do
+      {:ok, _timer_ref} =
+        Scheduler.schedule(%{
+          fire_at: future(60_000),
+          target: :fire_now_target_not_running,
+          metadata: %{}
+        })
+
+      assert 0 == Scheduler.fire_now_for_target(:fire_now_target_not_running)
+      assert 0 == Scheduler.armed_count()
+    end
+
     test "delivers {:timer_fired, timer_ref, metadata} messages to the target" do
       metadata = %{manual_trigger: true, flow_node_instance_id: "fni-123"}
 

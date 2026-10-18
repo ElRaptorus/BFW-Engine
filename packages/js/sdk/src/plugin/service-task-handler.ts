@@ -12,8 +12,10 @@ import type { EngineFacade } from './engine-facade.js';
  * engine-internal computation that completes immediately.
  *
  * `finishAsync` / `failAsync` may be called before `handleEnter` has
- * resolved: the engine holds the call until the flow node instance is
- * parked in `waiting`, then answers it.
+ * resolved: the engine accepts the call at once and applies the result when
+ * the flow node instance is parked in `waiting`. If the task ends another way
+ * first (for example `handleEnter` returns an error), the result is dropped.
+ * A second early call for the same task is rejected with `fni_not_waiting`.
  *
  * **Engine restart:** background work does not survive a restart. When a
  * process instance resumes, each of its Service Task flow node instances that
@@ -26,10 +28,15 @@ export interface ServiceTaskHandler {
   handleEnter(input: ServiceTaskInput, facade: EngineFacade): Promise<ServiceTaskResult>;
 
   /**
-   * Optional. Called once for each resumed Service Task flow node instance
-   * that is still `waiting` after an engine restart. Its result is ignored; a
-   * rejection is logged and leaves the task `waiting`. Without this method the
-   * task stays `waiting` until something completes it.
+   * Optional. A TypeScript plugin host (BFW-Engine-Lite) calls it once after
+   * a restart for each Service Task flow node instance that is still
+   * `waiting` on this handler's async work. The handler re-attaches (polls
+   * the external job again, resends the request) or ends the task with
+   * `finishAsync` / `failAsync`. Its result is ignored; a rejection fails the
+   * task with error code `handler_resume_raised`, which Error Boundaries can
+   * catch. Without this method the task stays `waiting` until something
+   * completes it. The Elixir Engine calls the Elixir `handle_resume/2`
+   * callback instead.
    */
   handleResume?(input: ServiceTaskResumeInput, facade: EngineFacade): Promise<void>;
 }
@@ -41,6 +48,12 @@ export interface ServiceTaskInput {
   flowNodeId: string;
   inputToken: Record<string, unknown>;
   typeProperties: Record<string, unknown>;
+  /**
+   * `true` when the engine enters the task again after a restart because its
+   * flow node instance was still `active` (its start had not been parked).
+   * Use it to make the start idempotent.
+   */
+  resumed?: boolean;
 }
 
 /** What a resumed Service Task was parked with. */

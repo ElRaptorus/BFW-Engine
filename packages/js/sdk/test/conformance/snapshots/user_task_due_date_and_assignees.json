@@ -172,6 +172,81 @@
           "dataInputAssociations": [],
           "dataOutputAssociations": [],
           "documentation": null,
+          "id": "UserTask_OffsetLiteral",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "File (offset literal due date)",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "user_task",
+          "typeData": {
+            "assigneesExpression": null,
+            "dueDate": "2026-12-31T23:59:59+02:00",
+            "formActions": null,
+            "formFields": null,
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "priority": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "UserTask_MinutePrecision",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Report (minute-precision due date)",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "user_task",
+          "typeData": {
+            "assigneesExpression": null,
+            "dueDate": "2026-12-31T23:59",
+            "formActions": null,
+            "formFields": null,
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "priority": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "UserTask_SpaceSeparator",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Notify (space-separated due date)",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "user_task",
+          "typeData": {
+            "assigneesExpression": null,
+            "dueDate": "2026-12-31 23:59+02:00",
+            "formActions": null,
+            "formFields": null,
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "priority": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
           "id": "End_1",
           "incoming": [],
           "isForCompensation": false,
@@ -201,6 +276,9 @@
             "UserTask_DateOnly",
             "UserTask_OffsetLess",
             "UserTask_FeelOffsetLess",
+            "UserTask_OffsetLiteral",
+            "UserTask_MinutePrecision",
+            "UserTask_SpaceSeparator",
             "End_1"
           ],
           "id": "Lane_default",
@@ -255,6 +333,30 @@
           "isDefault": false,
           "name": null,
           "sourceRef": "UserTask_FeelOffsetLess",
+          "targetRef": "UserTask_OffsetLiteral"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_7",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "UserTask_OffsetLiteral",
+          "targetRef": "UserTask_MinutePrecision"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_8",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "UserTask_MinutePrecision",
+          "targetRef": "UserTask_SpaceSeparator"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_9",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "UserTask_SpaceSeparator",
           "targetRef": "End_1"
         }
       ],

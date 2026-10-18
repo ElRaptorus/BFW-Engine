@@ -75,11 +75,8 @@ defmodule BfwEngine.Execution do
           | {:error, :engine_at_capacity, engine_capacity_info()}
   def start_process_instance(opts) do
     with :ok <- validate_subprocess_parent(opts),
-         :ok <- check_capacity(opts) do
-      case DynamicSupervisor.start_child(
-             BfwEngine.Execution.Supervisor,
-             {ProcessInstance, opts}
-           ) do
+         :ok <- catch_supervisor_shutdown(fn -> check_capacity(opts) end) do
+      case start_supervised_instance(opts) do
         {:ok, pid} ->
           {:ok, pid}
 
@@ -93,8 +90,24 @@ defmodule BfwEngine.Execution do
           error
       end
     end
+  end
+
+  defp start_supervised_instance(start_opts) do
+    catch_supervisor_shutdown(fn ->
+      DynamicSupervisor.start_child(BfwEngine.Execution.Supervisor, {ProcessInstance, start_opts})
+    end)
+  end
+
+  # The supervisor stops while a call to it is in flight: prep_stop, or the
+  # node shutting down. Both mean no instance can start now.
+  defp catch_supervisor_shutdown(supervisor_call) do
+    supervisor_call.()
   catch
-    :exit, {:noproc, _call} -> {:error, :engine_shutting_down}
+    :exit, {reason, _call} when reason in [:noproc, :shutdown] ->
+      {:error, :engine_shutting_down}
+
+    :exit, {{:shutdown, _reason}, _call} ->
+      {:error, :engine_shutting_down}
   end
 
   # The cap limits new top-level work. A child (Call Activity, subprocess,
@@ -252,6 +265,8 @@ defmodule BfwEngine.Execution do
 
   Called by plugins via `engine_facade.finish_async_service_task/2`.
   The PI process is found via the FNI's registration in the Execution Registry.
+  An instance that stops for an engine shutdown while the call is in flight
+  answers `{:error, :engine_shutting_down}`.
   """
   @spec finish_async_service_task(String.t(), term()) :: :ok | {:error, term()}
   def finish_async_service_task(flow_node_instance_id, result) do
@@ -264,7 +279,7 @@ defmodule BfwEngine.Execution do
       )
     end
   catch
-    :exit, _ -> {:error, :process_instance_not_found}
+    :exit, exit_reason -> {:error, stopped_instance_error(exit_reason)}
   end
 
   @doc """
@@ -284,7 +299,20 @@ defmodule BfwEngine.Execution do
       )
     end
   catch
-    :exit, _ -> {:error, :process_instance_not_found}
+    :exit, exit_reason -> {:error, stopped_instance_error(exit_reason)}
+  end
+
+  # The instance stopped while the call was in flight; an engine shutdown stops
+  # it with `:shutdown` (or kills it after the supervisor is gone).
+  defp stopped_instance_error({reason, _call}) when reason in [:shutdown, :killed],
+    do: :engine_shutting_down
+
+  defp stopped_instance_error({{:shutdown, _reason}, _call}), do: :engine_shutting_down
+
+  defp stopped_instance_error(_exit_reason) do
+    if Process.whereis(BfwEngine.Execution.Supervisor),
+      do: :process_instance_not_found,
+      else: :engine_shutting_down
   end
 
   defp lookup_process_instance_for_flow_node_instance(flow_node_instance_id) do
@@ -485,7 +513,7 @@ defmodule BfwEngine.Execution do
            ),
          reset_spec <-
            build_reset_spec(surviving_fnis, deletion_set, pi_data, resolved_version_id, opts),
-         :ok <- check_capacity(),
+         :ok <- catch_supervisor_shutdown(&check_capacity/0),
          {:ok, _reactivation_fnis} <-
            retry_adapter_call(adapter, :execute_retry_reset, [pi_data.id, reset_spec]),
          {:ok, reset_ancestors} <- reset_ancestor_chain(ancestor_chain, adapter),
@@ -499,13 +527,13 @@ defmodule BfwEngine.Execution do
 
       start_opts = build_resume_opts(root_pi_data, root_fnis)
 
-      case DynamicSupervisor.start_child(
-             BfwEngine.Execution.Supervisor,
-             {ProcessInstance, start_opts}
-           ) do
+      case start_supervised_instance(start_opts) do
         {:ok, _pid} ->
           emit_retry_event(root_pi_data, pi_data, resolved_version_id, identity, opts, root_fnis)
           :ok
+
+        {:error, :engine_shutting_down} ->
+          {:error, :engine_shutting_down}
 
         {:error, {:already_started, _existing_pid}} ->
           revert_tree_retry(all_resets, adapter)

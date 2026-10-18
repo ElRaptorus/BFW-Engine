@@ -12,6 +12,12 @@ export interface NamedScriptInput {
   flowNodeId: string;
   inputPayload: Record<string, unknown>;
   context: Record<string, unknown>;
+  /**
+   * `true` when the engine runs the script again after a restart because its
+   * flow node instance was still `active`. Use it to make side effects
+   * idempotent.
+   */
+  resumed?: boolean;
 }
 
 /** Result returned by a named script handler. */

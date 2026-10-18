@@ -30,7 +30,12 @@ defmodule BfwEngine.Execution.FlowNodes.SignalEndEvent do
            MappingHelper.apply_in_mappings(in_mappings, raw_payload, context),
          {:ok, signal_name} <-
            SignalEventHelper.resolve_signal_name(flow_node, context.definitions) do
-      publish_and_finish(flow_node, context, signal_name, Map.merge(raw_payload, mapped_payload))
+      publish_and_finish(
+        flow_node,
+        context,
+        signal_name,
+        MappingHelper.merge_over_input(raw_payload, mapped_payload)
+      )
     end
   end
 

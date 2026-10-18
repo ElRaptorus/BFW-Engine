@@ -82,6 +82,16 @@ defmodule BfwEngine.Auth.ProviderRegistryTest do
       end
     end
 
+    test "rejects an identity using the reserved system: prefix" do
+      ProviderRegistry.register_provider(FakeProvider)
+
+      for token <- ["valid-custom-system:timer-start", "valid-custom-system:"] do
+        assert {:error, :reserved_subject} = ProviderRegistry.verify_and_resolve(token)
+      end
+
+      assert {:ok, _identity} = ProviderRegistry.verify_and_resolve("valid-custom-systematic")
+    end
+
     test "normalises nil claims to an empty map and non-list roles and groups to empty lists" do
       ProviderRegistry.register_provider(FakeProvider)
 

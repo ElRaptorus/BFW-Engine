@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  id="Definitions_Resume_Child_Error_Code"
+                  targetNamespace="https://bifrostforge.world/schema/bpmn">
+  <bpmn:error id="Err_Boom" name="Boom" errorCode="BOOM" />
+  <bpmn:error id="Err_Other" name="Other" errorCode="OTHER" />
+  <bpmn:signal id="Sig_Go" name="resume-esp-error-go" />
+
+  <bpmn:process id="ResumeErrorCodeChild" name="Resume Error Code Child" isExecutable="true">
+    <bpmn:extensionElements>
+      <bfw:version>1.0.0</bfw:version>
+    </bpmn:extensionElements>
+    <bpmn:startEvent id="Start_Child" />
+    <bpmn:userTask id="UT_Child" name="Child Work" />
+    <bpmn:endEvent id="ErrorEnd_Child">
+      <bpmn:errorEventDefinition errorRef="Err_Boom" />
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_Child_1" sourceRef="Start_Child" targetRef="UT_Child" />
+    <bpmn:sequenceFlow id="Flow_Child_2" sourceRef="UT_Child" targetRef="ErrorEnd_Child" />
+  </bpmn:process>
+
+  <bpmn:process id="ResumeErrorCodeParent" name="Resume Error Code Parent" isExecutable="true">
+    <bpmn:extensionElements>
+      <bfw:version>1.0.0</bfw:version>
+    </bpmn:extensionElements>
+    <bpmn:startEvent id="Start_Parent" />
+    <bpmn:callActivity id="CA_Child" name="Call Child" calledElement="ResumeErrorCodeChild" />
+    <bpmn:endEvent id="End_Parent_Normal" />
+    <bpmn:boundaryEvent id="BE_Other" attachedToRef="CA_Child">
+      <bpmn:errorEventDefinition errorRef="Err_Other" />
+    </bpmn:boundaryEvent>
+    <bpmn:endEvent id="End_Parent_Other" />
+    <bpmn:boundaryEvent id="BE_Boom" attachedToRef="CA_Child">
+      <bpmn:errorEventDefinition errorRef="Err_Boom" />
+    </bpmn:boundaryEvent>
+    <bpmn:endEvent id="End_Parent_Caught" />
+    <bpmn:sequenceFlow id="Flow_Parent_1" sourceRef="Start_Parent" targetRef="CA_Child" />
+    <bpmn:sequenceFlow id="Flow_Parent_2" sourceRef="CA_Child" targetRef="End_Parent_Normal" />
+    <bpmn:sequenceFlow id="Flow_Parent_3" sourceRef="BE_Other" targetRef="End_Parent_Other" />
+    <bpmn:sequenceFlow id="Flow_Parent_4" sourceRef="BE_Boom" targetRef="End_Parent_Caught" />
+  </bpmn:process>
+
+  <bpmn:process id="ResumeEspErrorCode" name="Resume ESP Error Code" isExecutable="true">
+    <bpmn:extensionElements>
+      <bfw:version>1.0.0</bfw:version>
+    </bpmn:extensionElements>
+    <bpmn:startEvent id="Start_Esp_Host" />
+    <bpmn:subProcess id="Sub_Host" name="Host">
+      <bpmn:startEvent id="Start_Sub" />
+      <bpmn:userTask id="UT_Sub" name="Sub Work" />
+      <bpmn:endEvent id="End_Sub" />
+      <bpmn:sequenceFlow id="Flow_Sub_1" sourceRef="Start_Sub" targetRef="UT_Sub" />
+      <bpmn:sequenceFlow id="Flow_Sub_2" sourceRef="UT_Sub" targetRef="End_Sub" />
+      <bpmn:subProcess id="Esp_Signal" name="On Signal" triggeredByEvent="true">
+        <bpmn:startEvent id="Start_Esp_Signal" isInterrupting="false">
+          <bpmn:signalEventDefinition signalRef="Sig_Go" />
+        </bpmn:startEvent>
+        <bpmn:userTask id="UT_Esp" name="ESP Work" />
+        <bpmn:endEvent id="ErrorEnd_Esp">
+          <bpmn:errorEventDefinition errorRef="Err_Boom" />
+        </bpmn:endEvent>
+        <bpmn:sequenceFlow id="Flow_Esp_1" sourceRef="Start_Esp_Signal" targetRef="UT_Esp" />
+        <bpmn:sequenceFlow id="Flow_Esp_2" sourceRef="UT_Esp" targetRef="ErrorEnd_Esp" />
+      </bpmn:subProcess>
+    </bpmn:subProcess>
+    <bpmn:endEvent id="End_Esp_Host_Normal" />
+    <bpmn:boundaryEvent id="BE_Host_Other" attachedToRef="Sub_Host">
+      <bpmn:errorEventDefinition errorRef="Err_Other" />
+    </bpmn:boundaryEvent>
+    <bpmn:endEvent id="End_Esp_Host_Other" />
+    <bpmn:boundaryEvent id="BE_Host_Boom" attachedToRef="Sub_Host">
+      <bpmn:errorEventDefinition errorRef="Err_Boom" />
+    </bpmn:boundaryEvent>
+    <bpmn:endEvent id="End_Esp_Host_Caught" />
+    <bpmn:sequenceFlow id="Flow_Host_1" sourceRef="Start_Esp_Host" targetRef="Sub_Host" />
+    <bpmn:sequenceFlow id="Flow_Host_2" sourceRef="Sub_Host" targetRef="End_Esp_Host_Normal" />
+    <bpmn:sequenceFlow id="Flow_Host_3" sourceRef="BE_Host_Other" targetRef="End_Esp_Host_Other" />
+    <bpmn:sequenceFlow id="Flow_Host_4" sourceRef="BE_Host_Boom" targetRef="End_Esp_Host_Caught" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="ResumeErrorCodeChild">
+      <bpmndi:BPMNShape id="Shape_Start_Child" bpmnElement="Start_Child">
+        <dc:Bounds x="162" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_UT_Child" bpmnElement="UT_Child">
+        <dc:Bounds x="290" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ErrorEnd_Child" bpmnElement="ErrorEnd_Child">
+        <dc:Bounds x="482" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_Child_1" bpmnElement="Flow_Child_1">
+        <di:waypoint x="198" y="200" />
+        <di:waypoint x="290" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Child_2" bpmnElement="Flow_Child_2">
+        <di:waypoint x="390" y="200" />
+        <di:waypoint x="482" y="200" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_2">
+    <bpmndi:BPMNPlane id="BPMNPlane_2" bpmnElement="ResumeErrorCodeParent">
+      <bpmndi:BPMNShape id="Shape_Start_Parent" bpmnElement="Start_Parent">
+        <dc:Bounds x="162" y="342" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_CA_Child" bpmnElement="CA_Child">
+        <dc:Bounds x="290" y="320" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Parent_Normal" bpmnElement="End_Parent_Normal">
+        <dc:Bounds x="482" y="442" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BE_Other" bpmnElement="BE_Other">
+        <dc:Bounds x="305" y="382" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Parent_Other" bpmnElement="End_Parent_Other">
+        <dc:Bounds x="482" y="242" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BE_Boom" bpmnElement="BE_Boom">
+        <dc:Bounds x="338" y="382" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Parent_Caught" bpmnElement="End_Parent_Caught">
+        <dc:Bounds x="482" y="342" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_Parent_1" bpmnElement="Flow_Parent_1">
+        <di:waypoint x="198" y="360" />
+        <di:waypoint x="290" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Parent_2" bpmnElement="Flow_Parent_2">
+        <di:waypoint x="390" y="360" />
+        <di:waypoint x="436" y="360" />
+        <di:waypoint x="436" y="460" />
+        <di:waypoint x="482" y="460" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Parent_3" bpmnElement="Flow_Parent_3">
+        <di:waypoint x="323" y="418" />
+        <di:waypoint x="402" y="418" />
+        <di:waypoint x="402" y="260" />
+        <di:waypoint x="482" y="260" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Parent_4" bpmnElement="Flow_Parent_4">
+        <di:waypoint x="356" y="418" />
+        <di:waypoint x="419" y="418" />
+        <di:waypoint x="419" y="360" />
+        <di:waypoint x="482" y="360" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_3">
+    <bpmndi:BPMNPlane id="BPMNPlane_3" bpmnElement="ResumeEspErrorCode">
+      <bpmndi:BPMNShape id="Shape_Start_Esp_Host" bpmnElement="Start_Esp_Host">
+        <dc:Bounds x="162" y="580" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Sub_Host" bpmnElement="Sub_Host">
+        <dc:Bounds x="290" y="558" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Esp_Host_Normal" bpmnElement="End_Esp_Host_Normal">
+        <dc:Bounds x="482" y="580" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BE_Host_Other" bpmnElement="BE_Host_Other">
+        <dc:Bounds x="305" y="620" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Esp_Host_Other" bpmnElement="End_Esp_Host_Other">
+        <dc:Bounds x="482" y="680" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BE_Host_Boom" bpmnElement="BE_Host_Boom">
+        <dc:Bounds x="338" y="620" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Esp_Host_Caught" bpmnElement="End_Esp_Host_Caught">
+        <dc:Bounds x="482" y="480" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_Host_1" bpmnElement="Flow_Host_1">
+        <di:waypoint x="198" y="598" />
+        <di:waypoint x="290" y="598" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Host_2" bpmnElement="Flow_Host_2">
+        <di:waypoint x="390" y="598" />
+        <di:waypoint x="482" y="598" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Host_3" bpmnElement="Flow_Host_3">
+        <di:waypoint x="323" y="656" />
+        <di:waypoint x="402" y="656" />
+        <di:waypoint x="402" y="698" />
+        <di:waypoint x="482" y="698" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Host_4" bpmnElement="Flow_Host_4">
+        <di:waypoint x="356" y="656" />
+        <di:waypoint x="419" y="656" />
+        <di:waypoint x="419" y="498" />
+        <di:waypoint x="482" y="498" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

@@ -26,11 +26,15 @@ defmodule BfwEngine.Plugin.ServiceTaskHandler do
   boundary and prevents confusion with Script Tasks, which are the
   correct element for local, synchronous computation.
 
-  `finish_async` / `fail_async` may be called from another process before
-  `handle_enter/3` has returned: the engine holds the call until the flow
-  node instance is parked in `waiting`, then answers it. A call made by
-  `handle_enter/3` itself, in its own process, is answered
-  `{:error, :fni_not_waiting}`.
+  `finish_async` / `fail_async` may be called before `handle_enter/3` has
+  returned, also from `handle_enter/3` itself: the call is answered `:ok` at
+  once and its result is applied when the flow node instance is parked in
+  `waiting`. If the task ends any other way first, the result is dropped with
+  a warning. A second such call for the same task is answered
+  `{:error, :fni_not_waiting}`. The stored result is not persisted: after an
+  engine restart the handler runs again with `resumed: true`.
+  A call that meets an instance stopping for an engine shutdown is answered
+  `{:error, :engine_shutting_down}`.
 
   If your work is conceptually synchronous (e.g. a fast API call), spawn
   a `Task` that performs the work and calls `finish_async` on completion:
@@ -64,7 +68,12 @@ defmodule BfwEngine.Plugin.ServiceTaskHandler do
   `handle_resume/2`, the engine then calls it in a separate process with the
   `t:resume_input/0` and the handler context. The handler decides: re-issue
   the work, or end the task with `finish_async` / `fail_async`. Its return
-  value is ignored; a raise is logged and leaves the task `waiting`.
+  value is ignored; a raise, exit, or throw fails the task with error code
+  `handler_resume_raised`, which Error Boundaries can catch.
+
+  A Service Task flow node instance that was still `active` (its start had
+  not been parked) runs `handle_enter/3` again, with `resumed: true` in the
+  handler context, so the handler can make its start idempotent.
   """
 
   @typedoc """

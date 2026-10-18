@@ -10,6 +10,18 @@ defmodule BfwEngine.Plugins.FacadeBuilder do
 
   require Logger
 
+  # Internal execution options (parent instance, subprocess node, triggerer)
+  # would bypass the capacity and orphan-start checks.
+  @public_start_option_keys [
+    :process_instance_id,
+    :process_version_id,
+    :start_event_id,
+    :payload,
+    :context,
+    :identity,
+    :business_key
+  ]
+
   @spec build(String.t()) :: EngineFacade.t()
   def build(plugin_name) do
     identity = plugin_identity(plugin_name)
@@ -119,7 +131,11 @@ defmodule BfwEngine.Plugins.FacadeBuilder do
         )
       end,
       start: fn start_opts ->
-        BfwEngine.Api.start_process_instance(start_opts, identity, skip_claims: true)
+        start_opts
+        |> Map.new()
+        |> Map.take(@public_start_option_keys)
+        |> Map.put_new(:identity, identity)
+        |> BfwEngine.Api.start_process_instance(identity, skip_claims: true)
       end
     }
   end

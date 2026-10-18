@@ -46,10 +46,46 @@ defmodule BfwEngine.Integration.Execution.TaskRobustnessTest do
       poll_pi_state(parent_process_instance_id, "finished")
       assert find_fni_by_flow_node_id(parent_process_instance_id, "CA_1").state == "finished"
     end
+
+    test "an Embedded SubProcess starts its child at the cap" do
+      {201, _} = http_deploy("embedded_subprocess_user_task.bpmn")
+
+      Application.put_env(:core_execution, :max_concurrent_process_instances, Execution.count_active() + 1)
+
+      {201, body} = http_start("EmbeddedSubprocessUserTask")
+      parent_process_instance_id = body["processInstanceId"]
+
+      [child_process_instance_id] = await_child_process_instance_ids(parent_process_instance_id)
+      child_user_task = poll_fni_state(child_process_instance_id, "user_task", "waiting")
+
+      {204, _} = http_finish_user_task(child_user_task.id)
+
+      poll_pi_state(parent_process_instance_id, "finished")
+      assert find_fni_by_flow_node_id(parent_process_instance_id, "SubProcess_1").state == "finished"
+    end
+
+    test "an Event Subprocess starts its child at the cap" do
+      {201, _} = http_deploy("event_subprocess_message_non_interrupting.bpmn")
+
+      Application.put_env(:core_execution, :max_concurrent_process_instances, Execution.count_active() + 1)
+
+      {201, body} = http_start("EventSubprocessMessageNonInterrupting")
+      process_instance_id = body["processInstanceId"]
+      main_user_task = poll_fni_state(process_instance_id, "user_task", "waiting")
+
+      {status, _} = http_trigger_message("esp-message-ni")
+      assert status in 200..299
+
+      [event_subprocess_child_id] = await_child_process_instance_ids(process_instance_id)
+      poll_pi_state(event_subprocess_child_id, "finished")
+
+      {204, _} = http_finish_user_task(main_user_task.id)
+      poll_pi_state(process_instance_id, "finished")
+    end
   end
 
   describe "E9 / E10: User Task due date and assignees" do
-    test "a FEEL dueDate and the assignees use the mapped input; literals are kept, completed to UTC when needed" do
+    test "a FEEL dueDate and the assignees use the mapped input; literals are kept, completed to UTC and seconds when needed" do
       process_instance_id =
         http_deploy_and_start("user_task_due_date_and_assignees.bpmn", "UserTaskDueDateAndAssignees", %{
           "payload" => %{"requester" => "alice", "deadline" => "2027-01-15T09:00:00Z"},
@@ -75,6 +111,21 @@ defmodule BfwEngine.Integration.Execution.TaskRobustnessTest do
         finish_and_await_next(process_instance_id, offset_less_task, "UserTask_FeelOffsetLess")
 
       assert feel_offset_less_task.type_properties["due_date"] == "2027-03-01T08:00:00Z"
+
+      offset_literal_task =
+        finish_and_await_next(process_instance_id, feel_offset_less_task, "UserTask_OffsetLiteral")
+
+      assert offset_literal_task.type_properties["due_date"] == "2026-12-31T23:59:59+02:00"
+
+      minute_precision_task =
+        finish_and_await_next(process_instance_id, offset_literal_task, "UserTask_MinutePrecision")
+
+      assert minute_precision_task.type_properties["due_date"] == "2026-12-31T23:59:00Z"
+
+      space_separator_task =
+        finish_and_await_next(process_instance_id, minute_precision_task, "UserTask_SpaceSeparator")
+
+      assert space_separator_task.type_properties["due_date"] == "2026-12-31T23:59:00+02:00"
     end
 
     test "a dueDate that is neither an ISO 8601 date-time nor yields one fatals with a diagnostic" do
@@ -84,12 +135,12 @@ defmodule BfwEngine.Integration.Execution.TaskRobustnessTest do
       assert_due_date_failed(process_instance_id, "UserTask_BadDueDate", ~s("next week"))
     end
 
-    test "a FEEL dueDate yielding null, a bare duration, or a misspelled variable fails the task, never drops the date" do
+    test "a FEEL dueDate yielding null, a duration, or a misspelled variable fails the task, never drops the date" do
       {201, _} = http_deploy("user_task_due_date_invalid.bpmn")
 
       for {due_date_case, flow_node_id, expression} <- [
             {"null", "UserTask_NullDueDate", "null"},
-            {"duration", "UserTask_DurationDueDate", "PT1H"},
+            {"duration", "UserTask_DurationDueDate", ~s{duration("PT1H")}},
             {"misspelled", "UserTask_MisspelledDueDate", "token.dedline"}
           ] do
         {201, body} = http_start("UserTaskDueDateInvalid", %{"payload" => %{"case" => due_date_case}})

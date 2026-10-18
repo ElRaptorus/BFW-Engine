@@ -394,7 +394,9 @@ JSON array of form fields (`id`, `type`, `label`, `required`), passed through to
 The task's due date, always stored as an ISO 8601 date-time string. A literal
 date-time with an offset is stored as written; an offset-less literal
 date-time is read as UTC and a date-only literal (`2025-12-01`) as midnight
-UTC (`2025-12-01T00:00:00Z`). Anything else is a FEEL expression, evaluated
+UTC (`2025-12-01T00:00:00Z`). A literal date-time may use a space instead of
+`T` and may omit the seconds (`2026-12-31 23:59`); it is stored with `T` and
+`:00` seconds. Anything else is a FEEL expression, evaluated
 with `token` bound to the input after `bfw:inputMapping`; it must yield a
 date-time, a date, or a string in one of the literal forms, stored as ISO 8601
 UTC (offset-less → UTC, date → midnight UTC). Any other result — including
@@ -474,7 +476,7 @@ XML is ignored). Receive Task and catch-side message events consume
 `bfw:resultContract` + `bfw:outputMapping` only (`inputMapping` in XML is
 ignored). Do not apply the unused side at runtime. On the throw side the
 published body is the mapping result and the outgoing token is that result
-merged over the input token (unmapped fields stay); Signal Throw and Signal
+merged over the input token (unmapped fields stay; a non-map value is not merged, the outgoing token is then the published body); Signal Throw and Signal
 End Events build their outgoing token the same way.
 
 ### Signal Event Extensions
@@ -559,7 +561,7 @@ A `<bpmn:boundaryEvent>` with `<bpmn:compensateEventDefinition>` and `cancelActi
 
 - No `activityRef` → broadcast: all completed activities with compensation handlers are compensated in LIFO order
 - `activityRef="Task_Book"` → targeted: only the specified activity's handler fires
-- A completed embedded subprocess without its own handler is compensated inside (its completed compensable activities), a completed loop activity per iteration; a Call Activity only through its own handler. Inner handlers run in the subprocess's own (finished) instance and scope: its Data Objects, its lane. Each activity is compensated at most once. See [`docs/architecture/execution.md`](docs/architecture/execution.md) §Compensation Resolution and §Compensation scope run
+- A completed embedded subprocess without its own handler is compensated inside (its completed compensable activities), a completed loop activity per iteration; a completed Call Activity without its own handler inside its child instance. Inner handlers run in the subprocess's (or called process's) own (finished) instance and scope: its Data Objects, its lane. Each activity is compensated at most once. See [`docs/architecture/execution.md`](docs/architecture/execution.md) §Compensation Resolution and §Compensation scope run
 - `waitForCompletion` (standard BPMN attribute on `<bpmn:compensateEventDefinition>`): default `true`. The engine always executes compensation synchronously (handlers run to completion before the token proceeds). `waitForCompletion="false"` is parsed but treated as `true` — asynchronous fire-and-forget compensation is not supported.
 
 ```xml
@@ -955,7 +957,7 @@ standard BPMN attributes and one `bfw:*` extension.
 | Property | XML location | Description |
 |----------|-------------|-------------|
 | `testBefore` | XML attribute | `true` = while-do (check before first iteration); `false` (default) = do-while |
-| `loopMaximum` | XML attribute | Optional hard cap on iteration count |
+| `loopMaximum` | XML attribute | Optional hard cap on iteration count; without it, a loop whose condition never turns `false` runs until the instance is aborted |
 | `<bpmn:loopCondition>` | Child element | FEEL expression; loop continues while `true` |
 
 **Engine extension:**
@@ -1168,6 +1170,7 @@ Timer-specific checks (any event position):
 | `:incomplete_event_definition` | None of `timeDate`, `timeDuration`, `timeCycle` is set |
 | `:timer_multiple_specs` | More than one of `timeDate`, `timeDuration`, `timeCycle` is set |
 | `:timer_cycle_on_intermediate_catch` | A timer Intermediate Catch Event has a `timeCycle` |
+| `:timer_cycle_invalid` | A static `timeCycle` (text starting with `R<n>/`) does not parse or has a zero or negative interval; FEEL expressions are resolved at runtime and not checked |
 | `:timer_date_missing_offset` | A static `timeDate` date-time has no UTC offset (`Z` or `±hh:mm`); FEEL expressions are resolved at runtime and not checked |
 
 ### Reference integrity
@@ -1576,7 +1579,7 @@ is the user's emergency stop, not a modeled business error.
 
 | | Abort | Fatal | Error |
 |---|---|---|---|
-| Trigger | User/API kill switch | Engine crash | Error End Event (BPMN) |
+| Trigger | User/API kill switch | Engine failure, or the instance process crashed | Error End Event (BPMN) |
 | PI state | `:aborted` | `:fatal` | `:error` |
 | FNI state | `:aborted` | `:fatal` | `:error` |
 | Upward cascade | Yes (`:abort_cascade`) | No | Yes (`{:child_pi_bpmn_error, ...}`) |
@@ -1595,7 +1598,7 @@ For implementation details see
 | `:escalated` | PI finished after an uncaught escalation propagated to root — business outcome | No |
 | `:cancelled` | Transaction subprocess PI cancelled via Cancel End Event — business outcome | No |
 | `:error` | Error End Event (modeled BPMN error) — may be retried | Yes |
-| `:fatal` | Engine crash / unhandled failure — may be retried | Yes |
+| `:fatal` | Unhandled engine failure, or the instance process crashed (`process_instance_crashed`) — may be retried | Yes |
 | `:aborted` | User/API kill switch (tree-wide) — may be retried | Yes |
 
 > `:compensated`, `:escalated`, and `:cancelled` are **terminal-but-handled** states. They represent intentional business outcomes, not failures. They are not retryable — there is nothing to fix. Only `:error`, `:fatal`, and `:aborted` indicate something went wrong and may be retried.
@@ -1835,6 +1838,13 @@ handlers translate BPMN semantics into Scheduler registrations.
 | IntermediateCatchEvent | **Not supported** (rejected at deploy: `:timer_cycle_on_intermediate_catch`). | Blocks FNI until datetime. Past date = immediate complete. | Blocks FNI for duration. |
 | BoundaryEvent (interrupting) | Fires once (first cycle iteration), interrupts host, siblings cancelled. | Fires at datetime, interrupts host. Past date = immediate fire. | Fires after duration, interrupts host. |
 | BoundaryEvent (non-interrupting) | Loops: each fire spawns a parallel branch via `{:boundary_cycle_fire, ...}`. Final fire finishes the boundary FNI. | Fires at datetime, spawns parallel branch. Host continues. | Fires after duration, spawns parallel branch. Host continues. |
+
+**Timer text:** text shaped like an ISO 8601 value of its kind (a date or
+date-time for `timeDate`, `P…` for `timeDuration`, `R<n>/…` for
+`timeCycle`) is static; a date-only `timeDate` is midnight UTC. Any other
+text is FEEL. A FEEL evaluation error fails the FNI with
+`timer_expression_failed` and the FEEL message; an unusable result or an
+invalid static value fails it with `timer_resolution_failed`.
 
 ### Boundary Event Trigger Models
 

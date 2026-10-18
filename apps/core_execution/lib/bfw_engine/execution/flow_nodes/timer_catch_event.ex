@@ -136,7 +136,7 @@ defmodule BfwEngine.Execution.FlowNodes.TimerCatchEvent do
         do_schedule_and_wait(flow_node, token, context, fire_at)
 
       {:error, reason} ->
-        {:error, %{reason: :timer_resolution_failed, detail: reason}}
+        {:error, TimerSpecResolver.failure(reason)}
     end
   end
 
@@ -150,7 +150,7 @@ defmodule BfwEngine.Execution.FlowNodes.TimerCatchEvent do
 
     case FniLifecycle.park_async(context, type_properties) do
       :ok ->
-        continuation = build_timer_continuation(flow_node, token, context, timer_ref)
+        continuation = build_timer_continuation(flow_node, token, context, timer_ref, fire_at)
 
         {:async, context.flow_node_instance_id, continuation,
          Map.put(type_properties, :persisted, true)}
@@ -160,13 +160,11 @@ defmodule BfwEngine.Execution.FlowNodes.TimerCatchEvent do
     end
   end
 
-  defp build_timer_continuation(flow_node, token, context, timer_ref) do
+  defp build_timer_continuation(flow_node, token, context, timer_ref, fire_at) do
     fn ->
-      receive do
-        {:timer_fired, ^timer_ref, _metadata} ->
-          emit_timer_fired_event(context, flow_node, timer_ref)
-          finish_after_timer(flow_node, token.payload, context)
-      end
+      fired_timer_ref = await_timer(flow_node, context, timer_ref, fire_at)
+      emit_timer_fired_event(context, flow_node, fired_timer_ref)
+      finish_after_timer(flow_node, token.payload, context)
     end
   end
 
@@ -188,21 +186,18 @@ defmodule BfwEngine.Execution.FlowNodes.TimerCatchEvent do
 
   defp resume_schedule_and_wait(flow_node, entry, context, fire_at) do
     {:ok, timer_ref} = schedule_timer(flow_node, context, fire_at)
+    fired_timer_ref = await_timer(flow_node, context, timer_ref, fire_at)
+    emit_timer_fired_event(context, flow_node, fired_timer_ref)
 
-    receive do
-      {:timer_fired, ^timer_ref, _metadata} ->
-        emit_timer_fired_event(context, flow_node, timer_ref)
-
-        with {:ok, next_ids} <- resolve_outgoing(flow_node, context),
-             {:ok, lifecycle_result} <-
-               FniLifecycle.finish(context, flow_node, entry.token.payload, %{}) do
-          {:ok,
-           %FlowNodeResult{
-             output_payload: entry.token.payload,
-             next_flow_node_ids: next_ids,
-             metadata: %{persisted: true, lifecycle: lifecycle_result}
-           }}
-        end
+    with {:ok, next_ids} <- resolve_outgoing(flow_node, context),
+         {:ok, lifecycle_result} <-
+           FniLifecycle.finish(context, flow_node, entry.token.payload, %{}) do
+      {:ok,
+       %FlowNodeResult{
+         output_payload: entry.token.payload,
+         next_flow_node_ids: next_ids,
+         metadata: %{persisted: true, lifecycle: lifecycle_result}
+       }}
     end
   end
 
@@ -236,6 +231,10 @@ defmodule BfwEngine.Execution.FlowNodes.TimerCatchEvent do
         flow_node_id: flow_node.id
       }
     })
+  end
+
+  defp await_timer(flow_node, context, timer_ref, fire_at) do
+    Scheduler.await_fire(timer_ref, fn -> schedule_timer(flow_node, context, fire_at) end)
   end
 
   defp cancel_timer_from_entry(entry) do

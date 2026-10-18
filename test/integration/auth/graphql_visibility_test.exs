@@ -82,6 +82,15 @@ defmodule BfwEngine.Integration.Auth.GraphqlVisibilityTest do
   }
   """
 
+  @get_pi_final_tokens_query """
+  query GetProcessInstanceFinalTokens($id: ID!) {
+    getProcessInstance(id: $id) {
+      id
+      finalTokens
+    }
+  }
+  """
+
   @two_lane_starter_claims %{"sub" => "two-lane-starter"}
   @lane_a_reader_claims %{"sub" => "lane-a-reader", "lane:LaneA" => "read"}
 
@@ -148,6 +157,13 @@ defmodule BfwEngine.Integration.Auth.GraphqlVisibilityTest do
     body["data"]["getProcessInstance"]["flowNodeInstances"]
     |> Enum.map(& &1["flowNodeId"])
     |> MapSet.new()
+  end
+
+  defp final_tokens(process_instance_id, claims) do
+    {200, body} =
+      http_graphql(@get_pi_final_tokens_query, %{"id" => process_instance_id}, claims)
+
+    Enum.map(body["data"]["getProcessInstance"]["finalTokens"], &Jason.decode!/1)
   end
 
   defp all_flow_node_ids(process_instance_id) do
@@ -420,6 +436,24 @@ defmodule BfwEngine.Integration.Auth.GraphqlVisibilityTest do
       assert MapSet.equal?(starter_visible, all_flow_node_ids(process_instance_id))
     end
 
+    test "finalTokens omits End Event tokens on lanes the reader cannot read" do
+      {201, _} = http_deploy("lane_visibility_end_event_lane.bpmn")
+
+      {201, body} =
+        http_start("LaneVisibilityEndEventLane", %{}, @two_lane_starter_claims)
+
+      process_instance_id = body["processInstanceId"]
+      wait_for_process_instance(process_instance_id)
+
+      assert final_tokens(process_instance_id, @lane_a_reader_claims) == []
+
+      assert [%{"endEventId" => "EndEvent_B"}] =
+               final_tokens(process_instance_id, @two_lane_starter_claims)
+
+      assert [%{"endEventId" => "EndEvent_B"}] =
+               final_tokens(process_instance_id, %{"sub" => "lane-b-reader", "lane:LaneB" => "read"})
+    end
+
     test "observe_all sees every FNI of a foreign instance" do
       {process_instance_id, _lane_b_task} = start_two_lane_process()
 
@@ -430,6 +464,24 @@ defmodule BfwEngine.Integration.Auth.GraphqlVisibilityTest do
         })
 
       assert MapSet.equal?(visible, all_flow_node_ids(process_instance_id))
+    end
+
+    test "a Call Activity child follows the row-level rule; the root's starter sees every child FNI" do
+      {201, _} = http_deploy("lane_visibility_two_lanes.bpmn")
+      {201, _} = http_deploy("lane_visibility_call_activity_parent.bpmn")
+
+      {201, body} = http_start("LaneVisibilityCallActivityParent", %{}, @two_lane_starter_claims)
+      [child_process_instance_id] = await_child_process_instance_ids(body["processInstanceId"])
+
+      {:ok, _} = await_waiting_fni_by_node_id(child_process_instance_id, "UserTask_A")
+      {:ok, _} = await_waiting_fni_by_node_id(child_process_instance_id, "UserTask_B")
+
+      lane_a_visible = list_two_lane_flow_node_ids(child_process_instance_id, @lane_a_reader_claims)
+      assert MapSet.member?(lane_a_visible, "UserTask_A")
+      refute MapSet.member?(lane_a_visible, "UserTask_B")
+
+      starter_visible = list_two_lane_flow_node_ids(child_process_instance_id, @two_lane_starter_claims)
+      assert MapSet.equal?(starter_visible, all_flow_node_ids(child_process_instance_id))
     end
   end
 end

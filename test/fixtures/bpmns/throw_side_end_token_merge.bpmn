@@ -3,7 +3,10 @@
   xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
   xmlns:bfw="https://bifrostforge.world/schema/bpmn"
   targetNamespace="https://bifrostforge.world/schema/bpmn"
-  id="Definitions_ThrowSideEndTokenMerge">
+  id="Definitions_ThrowSideEndTokenMerge"
+  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+  xmlns:di="http://www.omg.org/spec/DD/20100524/DI">
 
   <bpmn:message id="Msg_end_notice" name="order-end-notice-merge" />
   <bpmn:signal id="Sig_end_stamp" name="order-end-stamped-merge" />
@@ -52,4 +55,42 @@
     <bpmn:sequenceFlow id="Flow_Message" sourceRef="Fork" targetRef="End_Message" />
     <bpmn:sequenceFlow id="Flow_Signal" sourceRef="Fork" targetRef="End_Signal" />
   </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_1" bpmnElement="Participant_1" isHorizontal="true">
+        <dc:Bounds x="82" y="102" width="486" height="196" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="112" y="102" width="456" height="196" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Fork" bpmnElement="Fork">
+        <dc:Bounds x="315" y="175" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Message" bpmnElement="End_Message">
+        <dc:Bounds x="482" y="132" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Signal" bpmnElement="End_Signal">
+        <dc:Bounds x="482" y="232" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="198" y="200" />
+        <di:waypoint x="315" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Message" bpmnElement="Flow_Message">
+        <di:waypoint x="365" y="200" />
+        <di:waypoint x="423" y="200" />
+        <di:waypoint x="423" y="150" />
+        <di:waypoint x="482" y="150" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Signal" bpmnElement="Flow_Signal">
+        <di:waypoint x="365" y="200" />
+        <di:waypoint x="423" y="200" />
+        <di:waypoint x="423" y="250" />
+        <di:waypoint x="482" y="250" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
 </bpmn:definitions>

@@ -1,0 +1,213 @@
+{
+  "definitionsId": "Definitions_MiParallelTerminate",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "associations": [],
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "dataStoreReferences": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["Flow_1"],
+          "standardLoop": null,
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Fork",
+          "incoming": ["Flow_1"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Fork",
+          "outgoing": ["Flow_Gate", "Flow_Work"],
+          "standardLoop": null,
+          "type": "parallel_gateway",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Task_Park",
+          "incoming": ["Flow_Work"],
+          "isForCompensation": false,
+          "multiInstance": {
+            "collectionExpression": "token.items",
+            "compiledCollection": null,
+            "compiledCompletionCondition": null,
+            "compiledLoopBreakCondition": null,
+            "compiledOutputCollection": null,
+            "completionCondition": null,
+            "elementVariable": "item",
+            "isSequential": false,
+            "loopBreakCondition": null,
+            "loopCardinality": null,
+            "loopInterval": null,
+            "maxIterations": null,
+            "outputCollection": null,
+            "outputElementVariable": null
+          },
+          "name": "Park Item",
+          "outgoing": ["Flow_Work_End"],
+          "standardLoop": null,
+          "type": "service_task",
+          "typeData": {
+            "httpAuthHeader": null,
+            "httpBody": null,
+            "httpMethod": null,
+            "httpResponseHeaders": null,
+            "httpUrl": null,
+            "implementation": "async_park",
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Work",
+          "incoming": ["Flow_Work_End"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Work Done",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Gate",
+          "incoming": ["Flow_Gate"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Wait",
+          "outgoing": ["Flow_Terminate"],
+          "standardLoop": null,
+          "type": "intermediate_catch_event",
+          "typeData": {
+            "eventDefinition": {
+              "timeCycle": null,
+              "timeDate": null,
+              "timeDuration": "PT1H"
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Terminate",
+          "incoming": ["Flow_Terminate"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Terminate",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "MiParallelTerminate",
+      "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
+      "isExecutable": true,
+      "isTransactionScope": false,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_1", "Fork", "Task_Park", "End_Work", "Gate", "End_Terminate"],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "MI Parallel Terminate",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "Fork"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Work",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Fork",
+          "targetRef": "Task_Park"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Gate",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Fork",
+          "targetRef": "Gate"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Work_End",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Task_Park",
+          "targetRef": "End_Work"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Terminate",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Gate",
+          "targetRef": "End_Terminate"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

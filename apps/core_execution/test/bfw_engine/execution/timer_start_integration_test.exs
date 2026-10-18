@@ -203,6 +203,29 @@ defmodule BfwEngine.Execution.TimerStartIntegrationTest do
       assert reason in [:normal, :noproc]
     end
 
+    test "a FEEL duration timer start completes the PI" do
+      definitions = BpmnFactory.timer_start_event_process(time_duration: ~s|duration("PT0S")|)
+      version_id = "version-#{System.unique_integer([:positive])}"
+      ModelCache.put_new(version_id, definitions)
+
+      opts = %{
+        process_instance_id: "pi-#{System.unique_integer([:positive])}",
+        process_version_id: version_id,
+        start_event_id: "TimerStart_1",
+        payload: %{},
+        identity: %BfwEngine.Types.Identity{id: "test", roles: ["admin"], groups: ["all"]},
+        notify_pid: self()
+      }
+
+      {:ok, pid} =
+        DynamicSupervisor.start_child(
+          BfwEngine.Execution.Supervisor,
+          {BfwEngine.Execution.ProcessInstance, opts}
+        )
+
+      assert_receive {:child_pi_finished, ^pid, _final_tokens}, 3_000
+    end
+
     test "duration timer start is NOT registered in StartEventManager" do
       definitions = BpmnFactory.timer_start_event_process(time_duration: "PT1H")
       version_id = "version-#{System.unique_integer([:positive])}"

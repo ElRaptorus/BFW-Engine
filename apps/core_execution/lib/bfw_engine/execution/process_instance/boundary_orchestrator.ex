@@ -25,7 +25,7 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
   alias BfwEngine.Types.Event
   alias BfwEngine.Types.Token
 
-  @fni_state_finished "finished"
+  @flow_node_instance_state_finished "finished"
 
   @type dispatch_target :: {FlowNode.t(), Token.t(), [String.t()]}
 
@@ -33,11 +33,11 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
   Handles a boundary catch result from a subscription-model or activity-model
   boundary handler.
 
-  Returns `{updated_data, host_fni_id, cancel_activity, dispatch_targets}`.
+  Returns `{updated_data, host_flow_node_instance_id, cancel_activity, dispatch_targets}`.
   The caller must invoke `handle_fni_interrupted/3` when `cancel_activity` is
   true, then reduce over `dispatch_targets` with `dispatch_flow_node_instance/4`.
 
-  `triggerer_fni_id` is the FNI ID of the throwing event (message/signal/escalation
+  `triggerer_flow_node_instance_id` is the FNI ID of the throwing event (message/signal/escalation
   thrower) that triggered this boundary catch, or `nil` when unknown.
   """
   @spec handle_boundary_catch(
@@ -54,45 +54,68 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
         boundary_node_id,
         payload,
         cancel_activity,
-        triggerer_fni_id
+        triggerer_flow_node_instance_id
       ) do
-    host_fni_id = resolve_host_fni_id(data, flow_node_instance_id)
-    is_subscription_model = host_fni_id != flow_node_instance_id
+    host_flow_node_instance_id = resolve_host_fni_id(data, flow_node_instance_id)
+    is_subscription_model = host_flow_node_instance_id != flow_node_instance_id
 
-    {data, boundary_fni_id} =
+    {data, boundary_flow_node_instance_id} =
       if is_subscription_model do
-        {finish_boundary_fni(data, flow_node_instance_id, triggerer_fni_id),
-         flow_node_instance_id}
+        {finish_boundary_flow_node_instance(
+           data,
+           flow_node_instance_id,
+           triggerer_flow_node_instance_id
+         ), flow_node_instance_id}
       else
-        case find_prespawned_boundary_fni_id(data, boundary_node_id, host_fni_id) do
+        case find_prespawned_boundary_flow_node_instance_id(
+               data,
+               boundary_node_id,
+               host_flow_node_instance_id
+             ) do
           nil ->
             Logger.warning(
               "No pre-spawned boundary FNI found for #{boundary_node_id}; " <>
                 "this should not happen with correct pre-spawning"
             )
 
-            create_and_finish_error_boundary_fni(data, boundary_node_id, host_fni_id, payload)
+            create_and_finish_error_boundary_flow_node_instance(
+              data,
+              boundary_node_id,
+              host_flow_node_instance_id,
+              payload
+            )
 
-          prespawned_fni_id ->
-            {finish_boundary_fni(data, prespawned_fni_id, triggerer_fni_id), prespawned_fni_id}
+          prespawned_flow_node_instance_id ->
+            {finish_boundary_flow_node_instance(
+               data,
+               prespawned_flow_node_instance_id,
+               triggerer_flow_node_instance_id
+             ), prespawned_flow_node_instance_id}
         end
       end
 
     data =
       if cancel_activity do
-        cancel_sibling_boundary_fnis(data, host_fni_id, boundary_fni_id)
+        cancel_sibling_boundary_fnis(
+          data,
+          host_flow_node_instance_id,
+          boundary_flow_node_instance_id
+        )
       else
         data
       end
 
     boundary_node = FlowNodeLookup.find_flow_node(data, boundary_node_id)
-    token_payload = boundary_token_payload(data, boundary_node, boundary_fni_id, payload)
-    new_token = build_boundary_token(data, boundary_fni_id, token_payload)
+
+    token_payload =
+      boundary_token_payload(data, boundary_node, boundary_flow_node_instance_id, payload)
+
+    new_token = build_boundary_token(data, boundary_flow_node_instance_id, token_payload)
 
     dispatch_targets =
-      build_dispatch_targets(data, boundary_node, new_token, boundary_fni_id)
+      build_dispatch_targets(data, boundary_node, new_token, boundary_flow_node_instance_id)
 
-    {data, host_fni_id, cancel_activity, dispatch_targets}
+    {data, host_flow_node_instance_id, cancel_activity, dispatch_targets}
   end
 
   @doc """
@@ -114,13 +137,13 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
         boundary_node_id,
         payload,
         cancel_activity,
-        _triggerer_fni_id
+        _triggerer_flow_node_instance_id
       ) do
-    host_fni_id = resolve_host_fni_id(data, flow_node_instance_id)
+    host_flow_node_instance_id = resolve_host_fni_id(data, flow_node_instance_id)
 
     data =
       if cancel_activity do
-        cancel_sibling_boundary_fnis(data, host_fni_id, flow_node_instance_id)
+        cancel_sibling_boundary_fnis(data, host_flow_node_instance_id, flow_node_instance_id)
       else
         data
       end
@@ -132,7 +155,7 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
     dispatch_targets =
       build_dispatch_targets(data, boundary_node, new_token, flow_node_instance_id)
 
-    {data, host_fni_id, cancel_activity, dispatch_targets}
+    {data, host_flow_node_instance_id, cancel_activity, dispatch_targets}
   end
 
   @doc """
@@ -181,23 +204,23 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
     data.flow_node_instance_states
     |> Enum.filter(fn {_id, entry} ->
       entry.state in [:active, :waiting] and
-        boundary_fni_for_host?(entry, host_flow_node_instance_id)
+        boundary_flow_node_instance_for_host?(entry, host_flow_node_instance_id)
     end)
-    |> Enum.reduce(data, fn {boundary_fni_id, entry}, accumulator ->
+    |> Enum.reduce(data, fn {boundary_flow_node_instance_id, entry}, accumulator ->
       remaining_pid = stop_boundary_handler(entry)
 
       flow_node = FlowNodeLookup.find_flow_node(accumulator, entry.flow_node_id)
 
       InstanceHandlerDispatch.release_handler(
         flow_node,
-        boundary_fni_id,
+        boundary_flow_node_instance_id,
         :handle_aborted,
         entry
       )
 
       _persist_result =
         FniLifecycle.transition_to_interrupted(
-          boundary_fni_id,
+          boundary_flow_node_instance_id,
           accumulator.process_instance_id,
           "host_completed",
           flow_node,
@@ -212,10 +235,11 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
       accumulator =
         %{
           accumulator
-          | conditional_waiters: Map.delete(accumulator.conditional_waiters, boundary_fni_id)
+          | conditional_waiters:
+              Map.delete(accumulator.conditional_waiters, boundary_flow_node_instance_id)
         }
 
-      put_in(accumulator.flow_node_instance_states[boundary_fni_id], %{
+      put_in(accumulator.flow_node_instance_states[boundary_flow_node_instance_id], %{
         entry
         | state: :interrupted,
           pid: remaining_pid
@@ -225,28 +249,32 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
 
   @doc "Interrupts sibling boundary FNIs when one boundary fires on the same host."
   @spec cancel_sibling_boundary_fnis(struct(), String.t(), String.t()) :: struct()
-  def cancel_sibling_boundary_fnis(data, host_fni_id, triggering_boundary_fni_id) do
+  def cancel_sibling_boundary_fnis(
+        data,
+        host_flow_node_instance_id,
+        triggering_boundary_flow_node_instance_id
+      ) do
     data.flow_node_instance_states
     |> Enum.filter(fn {id, entry} ->
-      id != triggering_boundary_fni_id and
+      id != triggering_boundary_flow_node_instance_id and
         entry.state in [:active, :waiting] and
-        boundary_fni_for_host?(entry, host_fni_id)
+        boundary_flow_node_instance_for_host?(entry, host_flow_node_instance_id)
     end)
-    |> Enum.reduce(data, fn {sibling_fni_id, entry}, accumulator ->
+    |> Enum.reduce(data, fn {sibling_flow_node_instance_id, entry}, accumulator ->
       remaining_pid = stop_boundary_handler(entry)
 
       flow_node = FlowNodeLookup.find_flow_node(accumulator, entry.flow_node_id)
 
       InstanceHandlerDispatch.release_handler(
         flow_node,
-        sibling_fni_id,
+        sibling_flow_node_instance_id,
         :handle_aborted,
         entry
       )
 
       _persist_result =
         FniLifecycle.transition_to_interrupted(
-          sibling_fni_id,
+          sibling_flow_node_instance_id,
           accumulator.process_instance_id,
           "sibling_boundary_interrupted",
           flow_node,
@@ -261,10 +289,11 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
       accumulator =
         %{
           accumulator
-          | conditional_waiters: Map.delete(accumulator.conditional_waiters, sibling_fni_id)
+          | conditional_waiters:
+              Map.delete(accumulator.conditional_waiters, sibling_flow_node_instance_id)
         }
 
-      put_in(accumulator.flow_node_instance_states[sibling_fni_id], %{
+      put_in(accumulator.flow_node_instance_states[sibling_flow_node_instance_id], %{
         entry
         | state: :interrupted,
           pid: remaining_pid
@@ -274,27 +303,42 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
 
   @doc "Returns whether any boundary FNIs are attached to the given host FNI."
   @spec has_boundary_fnis?(struct(), String.t()) :: boolean()
-  def has_boundary_fnis?(data, host_fni_id) do
+  def has_boundary_fnis?(data, host_flow_node_instance_id) do
     Enum.any?(data.flow_node_instance_states, fn {_id, entry} ->
-      boundary_fni_for_host?(entry, host_fni_id)
+      boundary_flow_node_instance_for_host?(entry, host_flow_node_instance_id)
     end)
   end
 
-  defp finish_boundary_fni(data, boundary_fni_id, triggerer_fni_id) do
-    case Map.get(data.flow_node_instance_states, boundary_fni_id) do
+  defp finish_boundary_flow_node_instance(
+         data,
+         boundary_flow_node_instance_id,
+         triggerer_flow_node_instance_id
+       ) do
+    case Map.get(data.flow_node_instance_states, boundary_flow_node_instance_id) do
       nil ->
         data
 
       entry ->
         remaining_pid = stop_boundary_handler(entry)
         flow_node = FlowNodeLookup.find_flow_node(data, entry.flow_node_id)
-        persist_result = persist_boundary_fni_finished(boundary_fni_id, triggerer_fni_id)
+
+        persist_result =
+          persist_boundary_flow_node_instance_finished(
+            boundary_flow_node_instance_id,
+            triggerer_flow_node_instance_id
+          )
 
         if not match?({:error, _reason}, persist_result) do
-          publish_finished_boundary(data, boundary_fni_id, triggerer_fni_id, entry, flow_node)
+          publish_finished_boundary(
+            data,
+            boundary_flow_node_instance_id,
+            triggerer_flow_node_instance_id,
+            entry,
+            flow_node
+          )
         end
 
-        put_in(data.flow_node_instance_states[boundary_fni_id], %{
+        put_in(data.flow_node_instance_states[boundary_flow_node_instance_id], %{
           entry
           | state: :finished,
             pid: remaining_pid
@@ -315,10 +359,16 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
 
   defp stop_boundary_handler(_entry), do: nil
 
-  defp publish_finished_boundary(data, boundary_fni_id, triggerer_fni_id, entry, flow_node) do
+  defp publish_finished_boundary(
+         data,
+         boundary_flow_node_instance_id,
+         triggerer_flow_node_instance_id,
+         entry,
+         flow_node
+       ) do
     TaskInboxEvents.publish_flow_node_instance_finished(
       %Event.FlowNodeInstanceFinished{
-        flow_node_instance_id: boundary_fni_id,
+        flow_node_instance_id: boundary_flow_node_instance_id,
         process_instance_id: data.process_instance_id,
         root_process_instance_id: data.root_process_instance_id,
         flow_node_id: flow_node.id,
@@ -326,7 +376,7 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
         event_type: FlowNodeLookup.extract_event_type(flow_node),
         lane_name: LaneResolution.resolve_lane_name(data.process_model, flow_node),
         terminal_state: :finished,
-        triggerer_flow_node_instance_id: triggerer_fni_id,
+        triggerer_flow_node_instance_id: triggerer_flow_node_instance_id,
         type_properties: %{},
         multi_instance_id: Map.get(entry, :multi_instance_id),
         iteration_index: Map.get(entry, :iteration_index),
@@ -339,7 +389,7 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
       [:bfw_engine, :flow_node_instance, :state_change],
       %{system_time: System.system_time()},
       %{
-        flow_node_instance_id: boundary_fni_id,
+        flow_node_instance_id: boundary_flow_node_instance_id,
         process_instance_id: data.process_instance_id,
         flow_node_type: flow_node.type,
         terminal_state: :finished
@@ -347,27 +397,32 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
     )
   end
 
-  defp create_and_finish_error_boundary_fni(data, boundary_node_id, host_fni_id, payload) do
+  defp create_and_finish_error_boundary_flow_node_instance(
+         data,
+         boundary_node_id,
+         host_flow_node_instance_id,
+         payload
+       ) do
     boundary_node = FlowNodeLookup.find_flow_node(data, boundary_node_id)
-    boundary_fni_id = UuidV7.generate()
+    boundary_flow_node_instance_id = UuidV7.generate()
     lane_name = LaneResolution.resolve_lane_name(data.process_model, boundary_node)
     now = DateTime.utc_now()
     event_type = FlowNodeLookup.extract_event_type(boundary_node)
 
     type_properties = %{"boundary_fired" => true, "error_info" => payload}
 
-    persist_error_boundary_fni(
+    persist_error_boundary_flow_node_instance(
       data,
-      boundary_fni_id,
+      boundary_flow_node_instance_id,
       boundary_node,
-      host_fni_id,
+      host_flow_node_instance_id,
       lane_name,
       type_properties,
       now
     )
 
     EngineEventBus.publish(%Event.FlowNodeInstanceStarted{
-      flow_node_instance_id: boundary_fni_id,
+      flow_node_instance_id: boundary_flow_node_instance_id,
       process_instance_id: data.process_instance_id,
       root_process_instance_id: data.root_process_instance_id,
       flow_node_id: boundary_node.id,
@@ -381,17 +436,17 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
       [:bfw_engine, :flow_node_instance, :started],
       %{system_time: System.system_time()},
       %{
-        flow_node_instance_id: boundary_fni_id,
+        flow_node_instance_id: boundary_flow_node_instance_id,
         flow_node_type: boundary_node.type,
-        previous_flow_node_instance_ids: [host_fni_id]
+        previous_flow_node_instance_ids: [host_flow_node_instance_id]
       }
     )
 
-    host_entry = Map.get(data.flow_node_instance_states, host_fni_id)
+    host_entry = Map.get(data.flow_node_instance_states, host_flow_node_instance_id)
 
     TaskInboxEvents.publish_flow_node_instance_finished(
       %Event.FlowNodeInstanceFinished{
-        flow_node_instance_id: boundary_fni_id,
+        flow_node_instance_id: boundary_flow_node_instance_id,
         process_instance_id: data.process_instance_id,
         root_process_instance_id: data.root_process_instance_id,
         flow_node_id: boundary_node.id,
@@ -412,7 +467,7 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
       [:bfw_engine, :flow_node_instance, :state_change],
       %{system_time: System.system_time()},
       %{
-        flow_node_instance_id: boundary_fni_id,
+        flow_node_instance_id: boundary_flow_node_instance_id,
         process_instance_id: data.process_instance_id,
         flow_node_type: boundary_node.type,
         terminal_state: :finished
@@ -426,19 +481,20 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
       event_type: event_type,
       state: :finished,
       token: nil,
-      previous_flow_node_instance_ids: [host_fni_id],
-      type_properties: %{host_flow_node_instance_id: host_fni_id},
+      previous_flow_node_instance_ids: [host_flow_node_instance_id],
+      type_properties: %{host_flow_node_instance_id: host_flow_node_instance_id},
       next_flow_node_ids: []
     }
 
-    {put_in(data.flow_node_instance_states[boundary_fni_id], entry), boundary_fni_id}
+    {put_in(data.flow_node_instance_states[boundary_flow_node_instance_id], entry),
+     boundary_flow_node_instance_id}
   end
 
-  defp persist_error_boundary_fni(
+  defp persist_error_boundary_flow_node_instance(
          data,
-         boundary_fni_id,
+         boundary_flow_node_instance_id,
          boundary_node,
-         host_fni_id,
+         host_flow_node_instance_id,
          lane_name,
          type_properties,
          now
@@ -446,44 +502,47 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
     adapter = PersistenceAdapter.adapter()
 
     attributes = %{
-      id: boundary_fni_id,
+      id: boundary_flow_node_instance_id,
       process_instance_id: data.process_instance_id,
       flow_node_id: boundary_node.id,
       flow_node_type: Atom.to_string(boundary_node.type),
       event_type: FlowNodeLookup.extract_event_type(boundary_node),
       lane_name: lane_name,
-      state: @fni_state_finished,
+      state: @flow_node_instance_state_finished,
       started_at: now,
       finished_at: now,
       input_token: nil,
       output_token: nil,
       type_properties: type_properties,
-      previous_flow_node_instance_ids: [host_fni_id]
+      previous_flow_node_instance_ids: [host_flow_node_instance_id]
     }
 
-    log_fni_persist_error(
+    log_flow_node_instance_persist_error(
       PersistenceRetry.with_retry(
         fn -> adapter.create_flow_node_instance(attributes) end,
-        "Error boundary FNI create #{boundary_fni_id}"
+        "Error boundary FNI create #{boundary_flow_node_instance_id}"
       ),
       "Error boundary FNI create",
-      boundary_fni_id
+      boundary_flow_node_instance_id
     )
   end
 
-  defp persist_boundary_fni_finished(flow_node_instance_id, triggerer_fni_id) do
+  defp persist_boundary_flow_node_instance_finished(
+         flow_node_instance_id,
+         triggerer_flow_node_instance_id
+       ) do
     adapter = PersistenceAdapter.adapter()
 
     changes = %{
-      state: @fni_state_finished,
+      state: @flow_node_instance_state_finished,
       finished_at: DateTime.utc_now(),
       output_token: nil,
       type_properties: %{"boundary_fired" => true}
     }
 
     changes =
-      if triggerer_fni_id do
-        Map.put(changes, :triggerer_flow_node_instance_id, triggerer_fni_id)
+      if triggerer_flow_node_instance_id do
+        Map.put(changes, :triggerer_flow_node_instance_id, triggerer_flow_node_instance_id)
       else
         changes
       end
@@ -496,7 +555,12 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
         "Boundary FNI finished #{flow_node_instance_id}"
       )
 
-    log_fni_persist_error(persist_result, "Boundary FNI finished", flow_node_instance_id)
+    log_flow_node_instance_persist_error(
+      persist_result,
+      "Boundary FNI finished",
+      flow_node_instance_id
+    )
+
     persist_result
   end
 
@@ -505,17 +569,18 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
   defp boundary_token_payload(
          data,
          %FlowNode{type_data: %FlowNodeData.BoundaryEvent{event_definition: %definition_type{}}},
-         boundary_fni_id,
+         boundary_flow_node_instance_id,
          _payload
        )
        when definition_type in [EventDefinition.Timer, EventDefinition.Conditional] do
-    case Map.get(data.flow_node_instance_states, boundary_fni_id) do
+    case Map.get(data.flow_node_instance_states, boundary_flow_node_instance_id) do
       %{token: %Token{payload: payload}} when is_map(payload) -> payload
       _no_token -> %{}
     end
   end
 
-  defp boundary_token_payload(_data, _boundary_node, _boundary_fni_id, payload), do: payload
+  defp boundary_token_payload(_data, _boundary_node, _boundary_flow_node_instance_id, payload),
+    do: payload
 
   defp build_boundary_token(data, flow_node_instance_id, payload) do
     %Token{
@@ -527,14 +592,14 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
     }
   end
 
-  defp build_dispatch_targets(data, boundary_node, token, source_fni_id) do
+  defp build_dispatch_targets(data, boundary_node, token, source_flow_node_instance_id) do
     node_index = Map.new(data.process_model.flow_nodes, &{&1.id, &1})
     outgoing_flows = fetch_outgoing_flows_for_node(boundary_node, data.process_model)
 
     outgoing_flows
     |> Enum.map(&Map.get(node_index, &1.target_ref))
     |> Enum.reject(&is_nil/1)
-    |> Enum.map(fn target_node -> {target_node, token, [source_fni_id]} end)
+    |> Enum.map(fn target_node -> {target_node, token, [source_flow_node_instance_id]} end)
   end
 
   defp fetch_outgoing_flows_for_node(node, process_model) do
@@ -551,47 +616,60 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
     end
   end
 
-  defp find_prespawned_boundary_fni_id(data, boundary_node_id, host_fni_id) do
-    Enum.find_value(data.flow_node_instance_states, fn {fni_id, entry} ->
+  defp find_prespawned_boundary_flow_node_instance_id(
+         data,
+         boundary_node_id,
+         host_flow_node_instance_id
+       ) do
+    Enum.find_value(data.flow_node_instance_states, fn {candidate_flow_node_instance_id, entry} ->
       if entry.flow_node_id == boundary_node_id and entry.state in [:active, :waiting] and
-           boundary_fni_for_host?(entry, host_fni_id) do
-        fni_id
+           boundary_flow_node_instance_for_host?(entry, host_flow_node_instance_id) do
+        candidate_flow_node_instance_id
       end
     end)
   end
 
-  defp log_fni_persist_error(:ok, _what, _id), do: :ok
-  defp log_fni_persist_error({:ok, _}, _what, _id), do: :ok
-  defp log_fni_persist_error({:error, :already_terminal}, _what, _id), do: :ok
+  defp log_flow_node_instance_persist_error(:ok, _what, _id), do: :ok
+  defp log_flow_node_instance_persist_error({:ok, _}, _what, _id), do: :ok
+  defp log_flow_node_instance_persist_error({:error, :already_terminal}, _what, _id), do: :ok
 
-  defp log_fni_persist_error({:error, reason}, what, flow_node_instance_id) do
+  defp log_flow_node_instance_persist_error({:error, reason}, what, flow_node_instance_id) do
     Logger.error("Failed to persist #{what} for FNI #{flow_node_instance_id}: #{inspect(reason)}")
 
     :ok
   end
 
   @spec resolve_host_fni_id(struct(), String.t()) :: String.t()
-  def resolve_host_fni_id(data, boundary_fni_id) do
-    case Map.get(data.flow_node_instance_states, boundary_fni_id) do
-      %{type_properties: %{host_flow_node_instance_id: host_id}} when is_binary(host_id) ->
-        host_id
-
-      %{type_properties: %{"host_flow_node_instance_id" => host_id}} when is_binary(host_id) ->
-        host_id
+  def resolve_host_fni_id(data, boundary_flow_node_instance_id) do
+    case Map.get(data.flow_node_instance_states, boundary_flow_node_instance_id) do
+      %{flow_node_type: :boundary_event} = entry ->
+        host_flow_node_instance_id(entry) || boundary_flow_node_instance_id
 
       _ ->
-        boundary_fni_id
+        boundary_flow_node_instance_id
     end
   end
 
-  @spec boundary_fni_for_host?(map(), String.t()) :: boolean()
-  def boundary_fni_for_host?(entry, host_fni_id) do
-    type_props = entry.type_properties || %{}
+  @spec boundary_flow_node_instance_for_host?(map(), String.t()) :: boolean()
+  def boundary_flow_node_instance_for_host?(
+        %{flow_node_type: :boundary_event} = entry,
+        host_flow_node_instance_id
+      ),
+      do: host_flow_node_instance_id(entry) == host_flow_node_instance_id
 
-    host_ref =
-      Map.get(type_props, :host_flow_node_instance_id) ||
-        Map.get(type_props, "host_flow_node_instance_id")
+  def boundary_flow_node_instance_for_host?(_entry, _host_flow_node_instance_id), do: false
 
-    host_ref == host_fni_id
+  @doc """
+  The host FNI id of a boundary entry. Rows created before boundary rows
+  stored `host_flow_node_instance_id` at create time carry it only after their
+  first park; for those the single predecessor is the host.
+  """
+  @spec host_flow_node_instance_id(map()) :: String.t() | nil
+  def host_flow_node_instance_id(entry) do
+    type_properties = Map.get(entry, :type_properties) || %{}
+
+    Map.get(type_properties, :host_flow_node_instance_id) ||
+      Map.get(type_properties, "host_flow_node_instance_id") ||
+      List.first(Map.get(entry, :previous_flow_node_instance_ids) || [])
   end
 end

@@ -1,0 +1,374 @@
+{
+  "definitionsId": "Definitions_TimerFeelDurationBoundaryEsp",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "associations": [],
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "dataStoreReferences": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Boundary_Start",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["Boundary_Flow_1"],
+          "standardLoop": null,
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": ["Boundary_Timer"],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Boundary_UserTask",
+          "incoming": ["Boundary_Flow_1"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Wait",
+          "outgoing": ["Boundary_Flow_2"],
+          "standardLoop": null,
+          "type": "user_task",
+          "typeData": {
+            "assigneesExpression": null,
+            "dueDate": null,
+            "formActions": null,
+            "formFields": null,
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "priority": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Boundary_Timer",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "FEEL Duration",
+          "outgoing": ["Boundary_Flow_3"],
+          "standardLoop": null,
+          "type": "boundary_event",
+          "typeData": {
+            "attachedToRef": "Boundary_UserTask",
+            "cancelActivity": true,
+            "compensationHandlerId": null,
+            "eventDefinition": {
+              "timeCycle": null,
+              "timeDate": null,
+              "timeDuration": "duration(\"PT1S\")"
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Boundary_End",
+          "incoming": ["Boundary_Flow_2"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Done",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Boundary_Timeout_End",
+          "incoming": ["Boundary_Flow_3"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Timed Out",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "TimerBoundaryFeelDuration",
+      "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
+      "isExecutable": true,
+      "isTransactionScope": false,
+      "lanes": [
+        {
+          "flowNodeRefs": [
+            "Boundary_Start",
+            "Boundary_UserTask",
+            "Boundary_Timer",
+            "Boundary_End",
+            "Boundary_Timeout_End"
+          ],
+          "id": "Lane_default_Boundary",
+          "name": "default"
+        }
+      ],
+      "name": "Timer Boundary FEEL Duration",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Boundary_Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Boundary_Start",
+          "targetRef": "Boundary_UserTask"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Boundary_Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Boundary_UserTask",
+          "targetRef": "Boundary_End"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Boundary_Flow_3",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Boundary_Timer",
+          "targetRef": "Boundary_Timeout_End"
+        }
+      ],
+      "version": "1.0.0"
+    },
+    {
+      "associations": [],
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "dataStoreReferences": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "EventSubprocess_Main_Start",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["EventSubprocess_Main_Flow_1"],
+          "standardLoop": null,
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "EventSubprocess_Main_UserTask",
+          "incoming": ["EventSubprocess_Main_Flow_1"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Wait",
+          "outgoing": ["EventSubprocess_Main_Flow_2"],
+          "standardLoop": null,
+          "type": "user_task",
+          "typeData": {
+            "assigneesExpression": null,
+            "dueDate": null,
+            "formActions": null,
+            "formFields": null,
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "priority": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "EventSubprocess_Main_End",
+          "incoming": ["EventSubprocess_Main_Flow_2"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Done",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "EventSubprocess_Timer",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "FEEL Duration Event Subprocess",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "sub_process",
+          "typeData": {
+            "activeElementsCompiled": null,
+            "activeElementsExpression": null,
+            "adhocCompletionCondition": null,
+            "adhocCompletionConditionCompiled": null,
+            "adhocOrdering": "parallel",
+            "cancelRemainingInstances": true,
+            "dataObjectReferences": [],
+            "dataObjects": [],
+            "dataStoreReferences": [],
+            "flowNodes": [
+              {
+                "boundaryEventRefs": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "EventSubprocess_Start",
+                "incoming": [],
+                "isForCompensation": false,
+                "multiInstance": null,
+                "name": "FEEL Duration",
+                "outgoing": ["EventSubprocess_Flow_1"],
+                "standardLoop": null,
+                "type": "start_event",
+                "typeData": {
+                  "eventDefinition": {
+                    "timeCycle": null,
+                    "timeDate": null,
+                    "timeDuration": "duration(\"PT1S\")"
+                  },
+                  "isInterrupting": true,
+                  "resultContract": null
+                }
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "EventSubprocess_End",
+                "incoming": ["EventSubprocess_Flow_1"],
+                "isForCompensation": false,
+                "multiInstance": null,
+                "name": "Timed Out",
+                "outgoing": [],
+                "standardLoop": null,
+                "type": "end_event",
+                "typeData": {
+                  "eventDefinition": {},
+                  "inMappings": [],
+                  "payloadContract": null
+                }
+              }
+            ],
+            "implementation": null,
+            "inMappings": [],
+            "isAdHoc": false,
+            "isTransaction": false,
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": null,
+            "sequenceFlows": [
+              {
+                "conditionExpression": null,
+                "id": "EventSubprocess_Flow_1",
+                "isDefault": false,
+                "name": null,
+                "sourceRef": "EventSubprocess_Start",
+                "targetRef": "EventSubprocess_End"
+              }
+            ],
+            "transactionMethod": null,
+            "triggeredByEvent": true
+          }
+        }
+      ],
+      "id": "TimerEventSubprocessFeelDuration",
+      "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
+      "isExecutable": true,
+      "isTransactionScope": false,
+      "lanes": [
+        {
+          "flowNodeRefs": [
+            "EventSubprocess_Main_Start",
+            "EventSubprocess_Main_UserTask",
+            "EventSubprocess_Main_End",
+            "EventSubprocess_Timer"
+          ],
+          "id": "Lane_default_EventSubprocess",
+          "name": "default"
+        }
+      ],
+      "name": "Timer Event Subprocess FEEL Duration",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "EventSubprocess_Main_Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "EventSubprocess_Main_Start",
+          "targetRef": "EventSubprocess_Main_UserTask"
+        },
+        {
+          "conditionExpression": null,
+          "id": "EventSubprocess_Main_Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "EventSubprocess_Main_UserTask",
+          "targetRef": "EventSubprocess_Main_End"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

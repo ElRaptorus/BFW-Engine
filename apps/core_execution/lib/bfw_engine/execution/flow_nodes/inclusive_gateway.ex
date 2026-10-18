@@ -220,13 +220,14 @@ defmodule BfwEngine.Execution.FlowNodes.InclusiveGateway do
 
   defp handle_split_and_finish(flow_node, token, context, outgoing_flows) do
     case handle_split(flow_node, token, context, outgoing_flows) do
-      {:selected, output_payload, next_ids} ->
+      {:selected, output_payload, sequence_flows} ->
         case FniLifecycle.finish(context, flow_node, output_payload, %{}) do
           {:ok, lifecycle_result} ->
             {:ok,
              %FlowNodeResult{
                output_payload: output_payload,
-               next_flow_node_ids: next_ids,
+               next_flow_node_ids: Enum.map(sequence_flows, & &1.target_ref),
+               taken_sequence_flow_ids: Enum.map(sequence_flows, & &1.id),
                metadata: %{persisted: true, lifecycle: lifecycle_result}
              }}
 
@@ -300,12 +301,10 @@ defmodule BfwEngine.Execution.FlowNodes.InclusiveGateway do
          }}
 
       {[], [default_flow | _]} ->
-        {:selected, token.payload, [default_flow.target_ref]}
+        {:selected, token.payload, [default_flow]}
 
       {truthy, _defaults} ->
-        all_activated = truthy ++ unconditional
-        target_ids = all_activated |> Enum.map(& &1.target_ref) |> Enum.uniq()
-        {:selected, token.payload, target_ids}
+        {:selected, token.payload, Enum.uniq_by(truthy ++ unconditional, & &1.target_ref)}
     end
   end
 

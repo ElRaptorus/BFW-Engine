@@ -48,6 +48,10 @@ defmodule BfwEngine.Plugin.NamedScript do
   `script_format`, `script`, etc.), the current token payload
   (post input-mapping), and the handler context.
 
+  A script whose flow node instance was still `active` at an engine restart
+  runs again after the resume; its handler context then carries
+  `resumed: true`, so side effects can be made idempotent.
+
   Must return `{:ok, result_map}` or `{:error, reason}`.
   """
   @callback handle_enter(

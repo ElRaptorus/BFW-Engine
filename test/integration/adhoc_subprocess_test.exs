@@ -360,6 +360,34 @@ defmodule BfwEngine.Integration.AdHocSubprocessTest do
       cleanup_pi(parent_pi_id)
     end
 
+    test "ad-hoc endpoints answer 404 for an instance the caller cannot see" do
+      ensure_deployed("adhoc_with_user_tasks.bpmn")
+
+      {201, body} = http_start("AdHocWithUserTasks")
+      parent_pi_id = body["processInstanceId"]
+
+      child_pi_id = await_child_pi(parent_pi_id)
+
+      stranger = %{"sub" => "adhoc-stranger", "lane:default" => nil}
+      {404, _} = http_adhoc_list_activities(child_pi_id, stranger)
+      {404, _} = http_adhoc_status(child_pi_id, stranger)
+      {404, _} = http_adhoc_activate(child_pi_id, "UserTask_Review", stranger)
+      {404, _} = http_adhoc_complete(child_pi_id, stranger)
+
+      lane_reader = %{"sub" => "adhoc-lane-reader", "lane:default" => "read"}
+      {200, _} = http_adhoc_status(child_pi_id, lane_reader)
+
+      observer = %{"sub" => "adhoc-observer", "lane:default" => nil, "observe_all" => true}
+      {200, _} = http_adhoc_list_activities(child_pi_id, observer)
+
+      plugin_identity = %BfwEngine.Types.Identity{id: "plugin:adhoc-test"}
+
+      assert {:ok, _status} =
+               BfwEngine.Api.get_adhoc_status(child_pi_id, plugin_identity, skip_claims: true)
+
+      cleanup_pi(parent_pi_id)
+    end
+
     test "ad-hoc endpoints work with admin override claim" do
       ensure_deployed("adhoc_with_user_tasks.bpmn")
 

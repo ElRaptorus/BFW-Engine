@@ -176,15 +176,18 @@ defmodule BfwEngine.Execution.FlowNodes.UserTask do
        when due_date in [nil, ""],
        do: {:ok, nil}
 
-  # A literal date-time with an offset is stored as written; any other
-  # literal or FEEL result is stored as ISO 8601 UTC.
+  # A literal date-time with an offset is stored as written (with a `T`
+  # separator and seconds); any other literal or FEEL result is stored as
+  # ISO 8601 UTC.
   defp resolve_due_date(
          %FlowNode{id: flow_node_id, type_data: %{due_date: due_date}},
          mapped_input,
          context
        ) do
-    case {DateTime.from_iso8601(due_date), utc_date_time(due_date)} do
-      {{:ok, _datetime, _offset}, _utc} -> {:ok, due_date}
+    literal = complete_date_time_text(due_date)
+
+    case {DateTime.from_iso8601(literal), utc_date_time(literal)} do
+      {{:ok, _datetime, _offset}, _utc} -> {:ok, literal}
       {_with_offset, {:ok, datetime}} -> {:ok, DateTime.to_iso8601(datetime)}
       _not_a_literal -> evaluate_due_date(flow_node_id, due_date, mapped_input, context)
     end
@@ -211,10 +214,17 @@ defmodule BfwEngine.Execution.FlowNodes.UserTask do
   defp due_date_from_value(value), do: Expressions.to_datetime(value)
 
   defp date_value_as_utc(text, value) do
-    case utc_date_time(text) do
+    case text |> complete_date_time_text() |> utc_date_time() do
       {:ok, datetime} -> {:ok, datetime}
       {:error, _reason} -> {:error, {:not_a_date_time, value}}
     end
+  end
+
+  # A space separator and a time without seconds (`HH:MM`) are accepted.
+  defp complete_date_time_text(text) do
+    text
+    |> String.replace(~r/^(\d{4}-\d{2}-\d{2}) (?=\d{2}:\d{2})/, "\\1T")
+    |> String.replace(~r/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2})(?=$|Z|[+-]\d{2}:\d{2}$)/, "\\1:00")
   end
 
   # An offset-less date-time is read as UTC, a date as midnight UTC.

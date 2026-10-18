@@ -33,6 +33,11 @@ defmodule BfwEngine.Execution.HandlerContext do
   relationship to the host for cleanup and the PI to manage
   host-boundary lifecycle (interruption, sibling cancellation).
 
+  `resumed` is `true` when the engine re-runs `handle_enter/3` after a
+  restart for a flow node instance that was still `active` (for example a
+  named script or a Service Task whose start had not been parked). A plugin
+  uses it to make side effects of its start idempotent.
+
   `user_task_action_id` is set only while a User Task finish is dispatched.
   It is `nil` for every other handler, including Manual Task confirm and
   async Service Task completion.
@@ -57,7 +62,8 @@ defmodule BfwEngine.Execution.HandlerContext do
           iteration_index: non_neg_integer() | nil,
           host_flow_node_instance_id: String.t() | nil,
           join_metadata: map() | nil,
-          user_task_action_id: String.t() | nil
+          user_task_action_id: String.t() | nil,
+          resumed: boolean()
         }
 
   defstruct flow_node_instance_id: nil,
@@ -78,5 +84,6 @@ defmodule BfwEngine.Execution.HandlerContext do
             iteration_index: nil,
             host_flow_node_instance_id: nil,
             join_metadata: nil,
-            user_task_action_id: nil
+            user_task_action_id: nil,
+            resumed: false
 end

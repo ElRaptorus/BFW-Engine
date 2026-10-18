@@ -29,7 +29,7 @@ Specs also accept FEEL expressions, resolved when the timer is armed:
 | `timeDate` | A FEEL date and time, or an ISO 8601 date-time string with an offset |
 | `timeCycle` | An ISO 8601 cycle string (`"R3/PT1H"`) |
 
-A FEEL date and time without an offset (`date and time("2026-12-01T10:00:00")`) is read as **UTC**. FEEL `now()` returns the server's local clock time without an offset, so expressions built on `now()` are only correct when the engine runs in UTC (the Docker image does). Date-times with a zone name (`@Europe/Berlin`) are not supported. A spec that cannot be resolved fails the element with `timer_resolution_failed`.
+A FEEL date and time without an offset (`date and time("2026-12-01T10:00:00")`) is read as **UTC**. FEEL `now()` returns the server's local clock time without an offset, so expressions built on `now()` are only correct when the engine runs in UTC (the Docker image does). Date-times with a zone name (`@Europe/Berlin`) are not supported. Text that already looks like an ISO 8601 value (`2026-12-01T10:00:00Z`, `PT5M`, `R3/PT1H`) is read as is, not as FEEL; a date without a time (`2026-12-01`) is midnight UTC. A FEEL expression that fails to evaluate fails the element with `timer_expression_failed`; a result or static value that is not a usable timer fails it with `timer_resolution_failed`.
 
 ## Intermediate Timer Catch Events
 

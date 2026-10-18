@@ -18,7 +18,13 @@ defmodule BfwEngine.Plugins.Integration.ServiceTaskPluginRobustnessTest do
 
   setup do
     previous_dispatch = Application.fetch_env(:core_execution, :service_task_dispatch)
-    Application.put_env(:core_execution, :service_task_dispatch, BfwEngine.Plugins.RegistryDispatch)
+
+    Application.put_env(
+      :core_execution,
+      :service_task_dispatch,
+      BfwEngine.Plugins.RegistryDispatch
+    )
+
     facade = FacadeBuilder.build(@plugin_name)
     ExamplePlugin.on_load(facade)
 
@@ -40,11 +46,15 @@ defmodule BfwEngine.Plugins.Integration.ServiceTaskPluginRobustnessTest do
       :ok
     end
 
-    test "an early finish_async is held until the task is parked, then applied once" do
+    test "an early finish_async is answered at once and applied once the task is parked" do
       process_instance_id =
-        http_deploy_and_start("service_task_early_completion.bpmn", "ServiceTaskEarlyCompletion", %{
-          "payload" => %{"order" => 7}
-        })
+        http_deploy_and_start(
+          "service_task_early_completion.bpmn",
+          "ServiceTaskEarlyCompletion",
+          %{
+            "payload" => %{"order" => 7}
+          }
+        )
 
       assert_receive {:early_completion_result, flow_node_instance_id, :ok}, 5_000
 
@@ -56,14 +66,22 @@ defmodule BfwEngine.Plugins.Integration.ServiceTaskPluginRobustnessTest do
       assert service_task.output_token == %{"early" => true, "input" => %{"order" => 7}}
       assert find_fni_by_flow_node_id(process_instance_id, "End_Done").state == "finished"
       assert find_fni_by_flow_node_id(process_instance_id, "End_Failed") == nil
-      assert Enum.count(fetch_flow_node_instances(process_instance_id), &(&1.flow_node_id == "End_Done")) == 1
+
+      assert Enum.count(
+               fetch_flow_node_instances(process_instance_id),
+               &(&1.flow_node_id == "End_Done")
+             ) == 1
     end
 
-    test "an early fail_async is held until the task is parked, then reaches the error boundary" do
+    test "an early fail_async is applied once the task is parked and reaches the error boundary" do
       process_instance_id =
-        http_deploy_and_start("service_task_early_completion.bpmn", "ServiceTaskEarlyCompletion", %{
-          "payload" => %{"fail" => true}
-        })
+        http_deploy_and_start(
+          "service_task_early_completion.bpmn",
+          "ServiceTaskEarlyCompletion",
+          %{
+            "payload" => %{"fail" => true}
+          }
+        )
 
       assert_receive {:early_completion_result, _flow_node_instance_id, :ok}, 5_000
 
@@ -72,29 +90,111 @@ defmodule BfwEngine.Plugins.Integration.ServiceTaskPluginRobustnessTest do
       assert find_fni_by_flow_node_id(process_instance_id, "End_Done") == nil
     end
 
-    test "a held completion is answered with the task's terminal state when the instance stops" do
+    test "a stored early completion is dropped when the handler returns an error" do
       process_instance_id =
-        http_deploy_and_start("service_task_early_completion.bpmn", "ServiceTaskEarlyCompletion", %{
-          "payload" => %{"then_fail" => true}
-        })
+        http_deploy_and_start(
+          "service_task_early_completion.bpmn",
+          "ServiceTaskEarlyCompletion",
+          %{
+            "payload" => %{"then_fail" => true}
+          }
+        )
 
-      assert_receive {:early_completion_result, _flow_node_instance_id, {:error, :fni_already_fatal}}, 5_000
+      assert_receive {:early_completion_result, flow_node_instance_id, :ok}, 5_000
 
       poll_pi_state(process_instance_id, "fatal")
-      assert find_fni_by_flow_node_id(process_instance_id, "ServiceTask_Early").state == "fatal"
+      service_task = find_fni_by_flow_node_id(process_instance_id, "ServiceTask_Early")
+      assert service_task.id == flow_node_instance_id
+      assert service_task.state == "fatal"
+      assert find_fni_by_flow_node_id(process_instance_id, "End_Done") == nil
     end
 
-    test "a completion from a Task the handler awaits is refused at once, not held" do
+    test "an early finish_async that violates the result contract fails the parked task" do
       process_instance_id =
-        http_deploy_and_start("service_task_early_completion.bpmn", "ServiceTaskEarlyCompletion", %{
-          "payload" => %{"nested" => true}
-        })
+        http_deploy_and_start(
+          "service_task_early_completion_contract.bpmn",
+          "ServiceTaskEarlyContractFatal"
+        )
 
-      assert_receive {:early_completion_result, flow_node_instance_id, {:error, :fni_not_waiting}}, 3_000
+      assert_receive {:early_completion_result, flow_node_instance_id, :ok}, 5_000
 
-      poll_fni_state(process_instance_id, "service_task", "waiting")
-      assert :ok = Execution.finish_async_service_task(flow_node_instance_id, %{"late" => true})
+      poll_pi_state(process_instance_id, "fatal")
+      service_task = find_fni_by_flow_node_id(process_instance_id, "ServiceTask_Fatal")
+      assert service_task.id == flow_node_instance_id
+      assert service_task.state == "fatal"
+      assert service_task.error_info["error_code"] == "service_task_contract_violation"
+      assert find_fni_by_flow_node_id(process_instance_id, "End_Fatal") == nil
+    end
+
+    test "an early finish_async that violates the result contract reaches a catch-all error boundary" do
+      process_instance_id =
+        http_deploy_and_start(
+          "service_task_early_completion_contract.bpmn",
+          "ServiceTaskEarlyContractBoundary"
+        )
+
+      assert_receive {:early_completion_result, _flow_node_instance_id, :ok}, 5_000
+
       poll_pi_state(process_instance_id, "finished")
+      assert find_fni_by_flow_node_id(process_instance_id, "End_Failed").state == "finished"
+      assert find_fni_by_flow_node_id(process_instance_id, "End_Done") == nil
+    end
+
+    test "a completion from a Task the handler awaits is answered at once and applied after the park" do
+      process_instance_id =
+        http_deploy_and_start(
+          "service_task_early_completion.bpmn",
+          "ServiceTaskEarlyCompletion",
+          %{
+            "payload" => %{"nested" => true}
+          }
+        )
+
+      assert_receive {:early_completion_result, flow_node_instance_id, :ok}, 3_000
+
+      poll_pi_state(process_instance_id, "finished")
+      service_task = find_fni_by_flow_node_id(process_instance_id, "ServiceTask_Early")
+      assert service_task.id == flow_node_instance_id
+      assert service_task.output_token == %{"early" => true, "input" => %{"nested" => true}}
+    end
+
+    test "a second early completion of the same task is rejected" do
+      process_instance_id =
+        http_deploy_and_start(
+          "service_task_early_completion.bpmn",
+          "ServiceTaskEarlyCompletion",
+          %{
+            "payload" => %{"twice" => true}
+          }
+        )
+
+      assert_receive {:early_completion_result, _flow_node_instance_id,
+                      {:ok, {:error, :fni_not_waiting}}},
+                     3_000
+
+      poll_pi_state(process_instance_id, "finished")
+    end
+
+    test "early completions of parallel Multi-Instance iterations are applied after each park" do
+      process_instance_id =
+        http_deploy_and_start(
+          "mi_parallel_service_task_early_completion.bpmn",
+          "MiParallelServiceTaskEarlyCompletion",
+          %{"payload" => %{"items" => [1, 2]}}
+        )
+
+      assert_receive {:early_completion_result, _first_iteration_id, :ok}, 5_000
+      assert_receive {:early_completion_result, _second_iteration_id, :ok}, 5_000
+
+      poll_pi_state(process_instance_id, "finished")
+
+      iterations =
+        process_instance_id
+        |> fetch_flow_node_instances()
+        |> Enum.filter(&(&1.flow_node_id == "ServiceTask_Early" and &1.multi_instance_id != nil))
+
+      assert length(iterations) == 2
+      assert Enum.all?(iterations, &(&1.state == "finished" and &1.output_token["early"] == true))
     end
 
     test "an early finish_async on a Service Task compensation handler is held and applied" do
@@ -116,18 +216,25 @@ defmodule BfwEngine.Plugins.Integration.ServiceTaskPluginRobustnessTest do
   describe "E5: a raising or exiting plugin handler (handler_raised)" do
     test "a Named Script exit reaches a catch-all boundary and a Service Task raise a handler_raised boundary" do
       process_instance_id =
-        http_deploy_and_start("plugin_handler_raise_boundaries.bpmn", "PluginHandlerRaiseBoundaries")
+        http_deploy_and_start(
+          "plugin_handler_raise_boundaries.bpmn",
+          "PluginHandlerRaiseBoundaries"
+        )
 
       poll_pi_state(process_instance_id, "finished")
 
       assert find_fni_by_flow_node_id(process_instance_id, "End_Caught").state == "finished"
 
-      script_error = inspect(find_fni_by_flow_node_id(process_instance_id, "ServiceTask_Raise").input_token)
+      script_error =
+        inspect(find_fni_by_flow_node_id(process_instance_id, "ServiceTask_Raise").input_token)
+
       assert script_error =~ "handler_raised"
       assert script_error =~ "exited (a :deliberate_script_exit tuple)"
       refute script_error =~ "never in a message"
 
-      service_error = inspect(find_fni_by_flow_node_id(process_instance_id, "End_Caught").input_token)
+      service_error =
+        inspect(find_fni_by_flow_node_id(process_instance_id, "End_Caught").input_token)
+
       assert service_error =~ "handler_raised"
       assert service_error =~ "deliberate handler failure"
     end
@@ -169,7 +276,10 @@ defmodule BfwEngine.Plugins.Integration.ServiceTaskPluginRobustnessTest do
       assert :ok = Execution.finish_async_service_task(handler.id, %{"undone" => true})
 
       poll_pi_state(process_instance_id, "finished")
-      assert find_fni_by_flow_node_id(process_instance_id, "Throw_Compensation").state == "finished"
+
+      assert find_fni_by_flow_node_id(process_instance_id, "Throw_Compensation").state ==
+               "finished"
+
       assert find_fni_by_flow_node_id(process_instance_id, "End_1").state == "finished"
     end
 
@@ -194,10 +304,28 @@ defmodule BfwEngine.Plugins.Integration.ServiceTaskPluginRobustnessTest do
     end
   end
 
+  describe "a completion reaching a stopping instance" do
+    test "is answered engine_shutting_down when the instance stops for a shutdown" do
+      process_instance_id =
+        http_deploy_and_start("service_task_async_park.bpmn", "ServiceTaskAsyncPark")
+
+      service_task = poll_fni_state(process_instance_id, "service_task", "waiting")
+      {:ok, process_instance_pid} = poll_pi_alive(process_instance_id)
+
+      :ok = :sys.suspend(process_instance_pid)
+      completion = Task.async(fn -> Execution.finish_async_service_task(service_task.id, %{}) end)
+      await_queued_message(process_instance_pid)
+      :ok = :sys.terminate(process_instance_pid, :shutdown)
+
+      assert Task.await(completion) == {:error, :engine_shutting_down}
+    end
+  end
+
   describe "Multi-Instance shells take no plugin completion" do
     test "fail_async with the shell's id finds no instance; the iteration still completes the task",
          %{facade: facade} do
-      _registration = facade.register_service_task_handler.("test", ExamplePlugin.AsyncParkHandler)
+      _registration =
+        facade.register_service_task_handler.("test", ExamplePlugin.AsyncParkHandler)
 
       process_instance_id =
         http_deploy_and_start("mi_sequential_service_task.bpmn", "mi-sequential-service-task", %{
@@ -212,6 +340,28 @@ defmodule BfwEngine.Plugins.Integration.ServiceTaskPluginRobustnessTest do
 
       assert :ok = Execution.finish_async_service_task(iteration.id, %{"done" => true})
       poll_pi_state(process_instance_id, "finished")
+    end
+  end
+
+  describe "a raising handle_resume" do
+    test "fails the task with handler_resume_raised, which its error boundary catches" do
+      process_instance_id =
+        http_deploy_and_start("service_task_resume_raise.bpmn", "ServiceTaskResumeRaise")
+
+      poll_fni_state(process_instance_id, "service_task", "waiting")
+
+      stop_process_instance(process_instance_id)
+      {:ok, _resumed_count} = ResumeRunner.resume_all()
+
+      poll_pi_state(process_instance_id, "finished")
+      assert find_fni_by_flow_node_id(process_instance_id, "End_Done") == nil
+      caught_token = find_fni_by_flow_node_id(process_instance_id, "End_Failed").input_token
+      assert inspect(caught_token) =~ "handler_resume_raised"
+
+      assert inspect(caught_token) =~
+               "The handle_resume/2 callback of the plugin handler for implementation 'resume_raising' " <>
+                 "of flow node 'ServiceTask_Resume' raised an exception instead of returning a result: " <>
+                 "deliberate resume failure"
     end
   end
 
@@ -249,7 +399,11 @@ defmodule BfwEngine.Plugins.Integration.ServiceTaskPluginRobustnessTest do
       _registration = facade.register_service_task_handler.("http", HttpServiceTaskHandler)
       previous_options = Application.get_env(:engine_plugins, :http_req_options)
 
-      Application.put_env(:engine_plugins, :http_req_options, plug: {Req.Test, __MODULE__}, retry: false)
+      Application.put_env(:engine_plugins, :http_req_options,
+        plug: {Req.Test, __MODULE__},
+        retry: false
+      )
+
       Req.Test.set_req_test_to_shared()
 
       on_exit(fn ->
@@ -291,7 +445,9 @@ defmodule BfwEngine.Plugins.Integration.ServiceTaskPluginRobustnessTest do
       assert find_fni_by_flow_node_id(process_instance_id, "End_Interrupted").state == "finished"
       assert find_fni_by_flow_node_id(process_instance_id, "End_Done") == nil
 
-      caught_token = inspect(find_fni_by_flow_node_id(process_instance_id, "End_Interrupted").input_token)
+      caught_token =
+        inspect(find_fni_by_flow_node_id(process_instance_id, "End_Interrupted").input_token)
+
       assert caught_token =~ "HTTP_INTERRUPTED"
       assert caught_token =~ "http://slow.test.local/api"
     end
@@ -323,5 +479,16 @@ defmodule BfwEngine.Plugins.Integration.ServiceTaskPluginRobustnessTest do
       fetch_flow_node_instances(process_instance_id),
       &(&1.flow_node_id == "Task_1" and is_nil(&1.multi_instance_id))
     )
+  end
+
+  defp await_queued_message(pid) do
+    case Process.info(pid, :message_queue_len) do
+      {:message_queue_len, 0} ->
+        Process.sleep(5)
+        await_queued_message(pid)
+
+      {:message_queue_len, _count} ->
+        :ok
+    end
   end
 end

@@ -1,0 +1,132 @@
+{
+  "definitionsId": "Definitions_MiParallelServiceTaskEarlyCompletion",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "associations": [],
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "dataStoreReferences": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["Flow_1"],
+          "standardLoop": null,
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "ServiceTask_Early",
+          "incoming": ["Flow_1"],
+          "isForCompensation": false,
+          "multiInstance": {
+            "collectionExpression": "token.items",
+            "compiledCollection": null,
+            "compiledCompletionCondition": null,
+            "compiledLoopBreakCondition": null,
+            "compiledOutputCollection": null,
+            "completionCondition": null,
+            "elementVariable": "item",
+            "isSequential": false,
+            "loopBreakCondition": null,
+            "loopCardinality": null,
+            "loopInterval": null,
+            "maxIterations": null,
+            "outputCollection": null,
+            "outputElementVariable": null
+          },
+          "name": "Completes Early",
+          "outgoing": ["Flow_2"],
+          "standardLoop": null,
+          "type": "service_task",
+          "typeData": {
+            "httpAuthHeader": null,
+            "httpBody": null,
+            "httpMethod": null,
+            "httpResponseHeaders": null,
+            "httpUrl": null,
+            "implementation": "early_completion",
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Done",
+          "incoming": ["Flow_2"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Done",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "MiParallelServiceTaskEarlyCompletion",
+      "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
+      "isExecutable": true,
+      "isTransactionScope": false,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_1", "ServiceTask_Early", "End_Done"],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "Parallel MI Service Task Early Completion",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "ServiceTask_Early"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "ServiceTask_Early",
+          "targetRef": "End_Done"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

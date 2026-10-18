@@ -145,7 +145,8 @@ defmodule BfwEngine.Execution.ProcessInstance.CompensationOrchestrator do
 
   An activity is compensable when a Compensation Boundary Event links it to a
   handler, or when it is an embedded subprocess (also a transaction or
-  ad-hoc subprocess) whose inner activities may be compensable. A
+  ad-hoc subprocess) or a Call Activity whose inner activities may be
+  compensable. A
   Multi-Instance or Standard Loop iteration and a compensation handler
   never get an entry of their own; the loop shell stands for its
   iterations. `entry.token.payload` is the activity output.
@@ -220,9 +221,11 @@ defmodule BfwEngine.Execution.ProcessInstance.CompensationOrchestrator do
   one a target of its own. An embedded subprocess (also a transaction or
   ad-hoc subprocess) without a handler is one scope target (`kind: :scope`)
   naming its child instance: that instance compensates its inner activities
-  in its own scope (BPMN 2.0 §13.5.5, `start_scope_run/2`). Iterations are
-  read from persistence, so the expansion is the same before and after a
-  restart. A Call Activity without a handler expands into nothing.
+  in its own scope (BPMN 2.0 §13.5.5, `start_scope_run/2`). A Call Activity
+  without a handler is a scope target the same way: its child instance
+  compensates the called process's activities under that process's own
+  top-level model (`subprocess_node_id: nil`). Iterations are read from
+  persistence, so the expansion is the same before and after a restart.
   """
   @spec expand_targets(map(), [compensation_target()]) :: [compensation_target()]
   def expand_targets(data, registry_entries) do
@@ -248,7 +251,7 @@ defmodule BfwEngine.Execution.ProcessInstance.CompensationOrchestrator do
   Starts the compensation run of a compensation scope instance
   (`data.compensation_scope.request`): its registry in LIFO order, expanded, minus
   claimed targets, with the target of an in-flight handler first. The run is
-  stored under the request's `anchor_fni_id`. Without an in-flight handler
+  stored under the request's `anchor_flow_node_instance_id`. Without an in-flight handler
   the first target is dispatched at once; an empty run replies to the
   requester at once.
   """
@@ -264,7 +267,7 @@ defmodule BfwEngine.Execution.ProcessInstance.CompensationOrchestrator do
     run =
       build_resumed_run(
         data,
-        request.anchor_fni_id,
+        request.anchor_flow_node_instance_id,
         targets,
         in_flight_target_id,
         :scope,
@@ -272,10 +275,10 @@ defmodule BfwEngine.Execution.ProcessInstance.CompensationOrchestrator do
         %{}
       )
 
-    data = put_in(data.compensation_runs[request.anchor_fni_id], run)
+    data = put_in(data.compensation_runs[request.anchor_flow_node_instance_id], run)
 
     if in_flight_target_id == nil do
-      dispatch_next_handler(data, request.anchor_fni_id, runtime)
+      dispatch_next_handler(data, request.anchor_flow_node_instance_id, runtime)
     else
       data
     end
@@ -530,7 +533,7 @@ defmodule BfwEngine.Execution.ProcessInstance.CompensationOrchestrator do
   def start_scope_target(data, run_key, target, runtime) do
     if waits_for?(data, %{run_key: run_key, target: target}) do
       request = %{
-        anchor_fni_id: run_key,
+        anchor_flow_node_instance_id: run_key,
         scope_target_id: target.completed_fni_id,
         subprocess_node_id: target.subprocess_node_id,
         root_process_instance_id: data.root_process_instance_id,
@@ -716,8 +719,20 @@ defmodule BfwEngine.Execution.ProcessInstance.CompensationOrchestrator do
           "Compensation: failed to persist handler FNI #{flow_node_instance_id}: #{inspect(reason)}"
         )
 
-        data
+        report_dispatch_failure(data, throw_fni_id, handler_node, reason)
     end
+  end
+
+  # Handled by the instance as its next message, so a dispatch inside
+  # `init/1` on resume fails the run the same way.
+  defp report_dispatch_failure(data, throw_flow_node_instance_id, handler_node, reason) do
+    send(
+      self(),
+      {:compensation_handler_dispatch_failed, throw_flow_node_instance_id, handler_node.id,
+       reason}
+    )
+
+    data
   end
 
   defp persist_handler_fni(
@@ -761,6 +776,18 @@ defmodule BfwEngine.Execution.ProcessInstance.CompensationOrchestrator do
        ) do
     process_instance_pid = self()
 
+    entry = %{
+      pid: nil,
+      flow_node_id: handler_node.id,
+      flow_node_type: handler_node.type,
+      event_type: nil,
+      state: :active,
+      token: token,
+      previous_flow_node_instance_ids: [throw_fni_id],
+      type_properties: extra_type_properties,
+      next_flow_node_ids: []
+    }
+
     with {:ok, handler_module} <- HandlerDispatch.handler_for(handler_node),
          handler_context =
            InstanceHandlerDispatch.build_handler_context(
@@ -793,19 +820,7 @@ defmodule BfwEngine.Execution.ProcessInstance.CompensationOrchestrator do
            end) do
       Process.monitor(task_pid)
 
-      entry = %{
-        pid: task_pid,
-        flow_node_id: handler_node.id,
-        flow_node_type: handler_node.type,
-        event_type: nil,
-        state: :active,
-        token: token,
-        previous_flow_node_instance_ids: [throw_fni_id],
-        type_properties: extra_type_properties,
-        next_flow_node_ids: []
-      }
-
-      put_in(data.flow_node_instance_states[flow_node_instance_id], entry)
+      put_in(data.flow_node_instance_states[flow_node_instance_id], %{entry | pid: task_pid})
     else
       {:error, reason} ->
         Logger.error(
@@ -813,7 +828,8 @@ defmodule BfwEngine.Execution.ProcessInstance.CompensationOrchestrator do
             "(FNI #{flow_node_instance_id}): #{inspect(reason)}"
         )
 
-        data
+        put_in(data.flow_node_instance_states[flow_node_instance_id], entry)
+        |> report_dispatch_failure(throw_fni_id, handler_node, reason)
     end
   end
 
@@ -908,7 +924,7 @@ defmodule BfwEngine.Execution.ProcessInstance.CompensationOrchestrator do
           completed_fni_id: instance.id,
           flow_node_id: instance.flow_node_id,
           child_process_instance_id: child_process_instance_id,
-          subprocess_node_id: flow_node.id,
+          subprocess_node_id: scope_subprocess_node_id(flow_node),
           handler_activity_id: nil,
           token_snapshot: instance.output_token || %{},
           completion_order: Map.get(instance, :completion_order, 0)
@@ -920,6 +936,10 @@ defmodule BfwEngine.Execution.ProcessInstance.CompensationOrchestrator do
   end
 
   defp scope_targets(_instance, nil), do: []
+
+  # A Call Activity child runs the called process's own top-level model.
+  defp scope_subprocess_node_id(%FlowNode{type: :call_activity}), do: nil
+  defp scope_subprocess_node_id(%FlowNode{id: id}), do: id
 
   defp persisted_instances(process_instance_id) do
     case PersistenceRetry.with_retry(
@@ -962,6 +982,8 @@ defmodule BfwEngine.Execution.ProcessInstance.CompensationOrchestrator do
          type_data: %FlowNodeData.SubProcess{triggered_by_event: false}
        }),
        do: true
+
+  defp propagating_subprocess?(%FlowNode{type: :call_activity}), do: true
 
   defp propagating_subprocess?(_flow_node), do: false
 

@@ -217,9 +217,9 @@ defmodule BfwEngine.Execution.FlowNodes.CallActivity do
   defp run_fresh_lifecycle(flow_node, entry, context, _process_instance_pid) do
     process_instance_pid = context.process_instance_pid
     child_process_instance_id = UuidV7.generate()
-    :ok = ChildLifecycle.record_fresh_child(context, child_process_instance_id)
 
-    with {:ok, next_ids} <- ChildLifecycle.resolve_outgoing(flow_node, context),
+    with :ok <- ChildLifecycle.record_fresh_child(context, child_process_instance_id),
+         {:ok, next_ids} <- ChildLifecycle.resolve_outgoing(flow_node, context),
          {:ok, resolved} <- resolve_called_version(flow_node),
          {:ok, input_payload} <-
            ChildLifecycle.resolve_input_payload(flow_node, entry.token, context) do

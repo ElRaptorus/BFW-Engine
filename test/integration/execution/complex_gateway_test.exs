@@ -20,6 +20,7 @@ defmodule BfwEngine.Integration.Execution.ComplexGatewayTest do
 
   alias BfwEngine.Execution
   alias BfwEngine.Execution.ResumeRunner
+  alias BfwEngine.Persistence.Repo
   alias BfwEngine.Persistence.Resources.GatewayPendingArrival
 
   require Ash.Query
@@ -246,6 +247,48 @@ defmodule BfwEngine.Integration.Execution.ComplexGatewayTest do
       assert outer_join.state == "finished"
 
       assert_no_running_fnis!(process_instance_id)
+    end
+  end
+
+  describe "C218: region cancel of an FNI whose finish is already committed" do
+    @tag :integration
+    test "the cancelled FNI keeps its persisted finished state in memory and in the row" do
+      process_instance_id =
+        http_deploy_and_start(
+          "complex_gateway_nested_regions.bpmn",
+          "ComplexGatewayNestedRegions",
+          %{
+            "payload" => %{
+              "outer_left" => true,
+              "outer_right" => true,
+              "inner_a" => true,
+              "inner_b" => true
+            }
+          }
+        )
+
+      {:ok, user_inner_a} =
+        await_waiting_fni_by_node_id(process_instance_id, "UserTask_InnerA", timeout: 10_000)
+
+      {:ok, user_inner_b} =
+        await_waiting_fni_by_node_id(process_instance_id, "UserTask_InnerB", timeout: 10_000)
+
+      {:ok, _user_outer} =
+        await_waiting_fni_by_node_id(process_instance_id, "UserTask_Outer", timeout: 10_000)
+
+      Repo.query!(
+        "UPDATE flow_node_instances SET state = 'finished', finished_at = now() WHERE id = $1",
+        [Ecto.UUID.dump!(user_inner_b.id)]
+      )
+
+      {204, _} = http_finish_user_task(user_inner_a.id, %{"done" => true})
+      poll_flow_node_state(process_instance_id, "InnerJoin", "finished", 10_000)
+
+      {:ok, process_instance_pid} = Execution.lookup_process_instance(process_instance_id)
+      {_state_name, data} = :sys.get_state(process_instance_pid)
+
+      assert %{state: :finished, pid: nil} = data.flow_node_instance_states[user_inner_b.id]
+      assert find_fni_by_flow_node_id(process_instance_id, "UserTask_InnerB").state == "finished"
     end
   end
 

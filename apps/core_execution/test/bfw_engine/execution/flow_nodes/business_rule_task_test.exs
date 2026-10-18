@@ -317,6 +317,26 @@ defmodule BfwEngine.Execution.FlowNodes.BusinessRuleTaskTest do
                FlowNodes.BusinessRuleTask.handle_enter(node, token, context)
     end
 
+    test "an evaluator exception message is cut to 500 characters" do
+      raising_decisions =
+        Stream.map([:decision], fn _decision -> raise String.duplicate("x", 2_000) end)
+
+      :ok =
+        ModelCache.put_new(
+          "test-dmn-version-id",
+          %BfwEngine.DMN.Model.Definitions{raw_xml: "", decisions: raising_decisions}
+        )
+
+      node = brt_node(implementation: "dmn", decision_ref: "definitions_discount")
+      {node, context} = make_context(node)
+
+      assert {:error, {:dmn_evaluation_failed, message}} =
+               FlowNodes.BusinessRuleTask.handle_enter(node, make_token(%{"age" => 25}), context)
+
+      assert message ==
+               "the DMN evaluator raised an exception: " <> String.duplicate("x", 500)
+    end
+
     test "decision disabled — resolver returns :decision_disabled" do
       DecisionResolver.set_error("disabled_ref", :decision_disabled)
 

@@ -720,6 +720,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+        "409":
+          description: >-
+            The process instance is a child (Call Activity or subprocess) whose
+            root process instance has not ended yet.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActiveInstancesExistError"
         "422":
           description: Process instance is not in a terminal state
           content:

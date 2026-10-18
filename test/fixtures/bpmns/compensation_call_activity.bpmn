@@ -1,0 +1,269 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions
+  xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+  targetNamespace="https://bifrostforge.world/schema/bpmn"
+  id="Definitions_CompensationCallActivity">
+
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_Parent" name="Parent" processRef="CompensationCallActivity" />
+    <bpmn:participant id="Participant_Booking" name="Booking" processRef="CompensationCallActivityBooking" />
+    <bpmn:participant id="Participant_Car" name="Car" processRef="CompensationCallActivityCar" />
+  </bpmn:collaboration>
+
+  <bpmn:process id="CompensationCallActivity" name="Compensation Call Activity" isExecutable="true">
+    <bpmn:extensionElements>
+      <bfw:version>1.0.0</bfw:version>
+    </bpmn:extensionElements>
+
+    <bpmn:laneSet id="LaneSet_Parent">
+      <bpmn:lane id="Lane_default_Parent" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Call_Booking</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Call_Handled</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BE_Comp_Handled</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>UT_Undo_Handled</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Throw_Comp</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_1</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:startEvent id="Start_1" name="Start">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:callActivity id="Call_Booking" name="Booking" calledElement="CompensationCallActivityBooking">
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_2</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <bpmn:callActivity id="Call_Handled" name="Rent Car Handled" calledElement="CompensationCallActivityCar">
+      <bpmn:incoming>Flow_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_3</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <bpmn:boundaryEvent id="BE_Comp_Handled" name="Compensate Car Call" attachedToRef="Call_Handled" cancelActivity="false">
+      <bpmn:compensateEventDefinition />
+    </bpmn:boundaryEvent>
+
+    <bpmn:userTask id="UT_Undo_Handled" name="Undo Car Call" isForCompensation="true" />
+
+    <bpmn:intermediateThrowEvent id="Throw_Comp" name="Compensate">
+      <bpmn:incoming>Flow_3</bpmn:incoming>
+      <bpmn:outgoing>Flow_4</bpmn:outgoing>
+      <bpmn:compensateEventDefinition />
+    </bpmn:intermediateThrowEvent>
+
+    <bpmn:endEvent id="End_1" name="End">
+      <bpmn:incoming>Flow_4</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="Call_Booking" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="Call_Booking" targetRef="Call_Handled" />
+    <bpmn:sequenceFlow id="Flow_3" sourceRef="Call_Handled" targetRef="Throw_Comp" />
+    <bpmn:sequenceFlow id="Flow_4" sourceRef="Throw_Comp" targetRef="End_1" />
+
+    <bpmn:association id="Assoc_Comp_Handled" sourceRef="BE_Comp_Handled" targetRef="UT_Undo_Handled" associationDirection="One" />
+  </bpmn:process>
+
+  <bpmn:process id="CompensationCallActivityBooking" name="Compensation Call Activity Booking" isExecutable="true">
+    <bpmn:extensionElements>
+      <bfw:version>1.0.0</bfw:version>
+    </bpmn:extensionElements>
+
+    <bpmn:laneSet id="LaneSet_Booking">
+      <bpmn:lane id="Lane_default_Booking" name="default">
+        <bpmn:flowNodeRef>Booking_Start</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Hotel</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BE_Comp_Hotel</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>UT_Undo_Hotel</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Call_Car</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Booking_End</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:startEvent id="Booking_Start" name="Booking Start">
+      <bpmn:outgoing>Booking_Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:task id="Task_Hotel" name="Book Hotel">
+      <bpmn:incoming>Booking_Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Booking_Flow_2</bpmn:outgoing>
+    </bpmn:task>
+
+    <bpmn:boundaryEvent id="BE_Comp_Hotel" name="Compensate Hotel" attachedToRef="Task_Hotel" cancelActivity="false">
+      <bpmn:compensateEventDefinition />
+    </bpmn:boundaryEvent>
+
+    <bpmn:userTask id="UT_Undo_Hotel" name="Cancel Hotel" isForCompensation="true" />
+
+    <bpmn:callActivity id="Call_Car" name="Rent Car" calledElement="CompensationCallActivityCar">
+      <bpmn:incoming>Booking_Flow_2</bpmn:incoming>
+      <bpmn:outgoing>Booking_Flow_3</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <bpmn:endEvent id="Booking_End" name="Booking End">
+      <bpmn:incoming>Booking_Flow_3</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Booking_Flow_1" sourceRef="Booking_Start" targetRef="Task_Hotel" />
+    <bpmn:sequenceFlow id="Booking_Flow_2" sourceRef="Task_Hotel" targetRef="Call_Car" />
+    <bpmn:sequenceFlow id="Booking_Flow_3" sourceRef="Call_Car" targetRef="Booking_End" />
+
+    <bpmn:association id="Assoc_Comp_Hotel" sourceRef="BE_Comp_Hotel" targetRef="UT_Undo_Hotel" associationDirection="One" />
+  </bpmn:process>
+
+  <bpmn:process id="CompensationCallActivityCar" name="Compensation Call Activity Car" isExecutable="true">
+    <bpmn:extensionElements>
+      <bfw:version>1.0.0</bfw:version>
+    </bpmn:extensionElements>
+
+    <bpmn:laneSet id="LaneSet_Car">
+      <bpmn:lane id="Lane_default_Car" name="default">
+        <bpmn:flowNodeRef>Car_Start</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Car</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BE_Comp_Car</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>UT_Undo_Car</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Car_End</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:startEvent id="Car_Start" name="Car Start">
+      <bpmn:outgoing>Car_Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:task id="Task_Car" name="Rent Car">
+      <bpmn:incoming>Car_Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Car_Flow_2</bpmn:outgoing>
+    </bpmn:task>
+
+    <bpmn:boundaryEvent id="BE_Comp_Car" name="Compensate Car" attachedToRef="Task_Car" cancelActivity="false">
+      <bpmn:compensateEventDefinition />
+    </bpmn:boundaryEvent>
+
+    <bpmn:userTask id="UT_Undo_Car" name="Return Car" isForCompensation="true" />
+
+    <bpmn:endEvent id="Car_End" name="Car End">
+      <bpmn:incoming>Car_Flow_2</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Car_Flow_1" sourceRef="Car_Start" targetRef="Task_Car" />
+    <bpmn:sequenceFlow id="Car_Flow_2" sourceRef="Task_Car" targetRef="Car_End" />
+
+    <bpmn:association id="Assoc_Comp_Car" sourceRef="BE_Comp_Car" targetRef="UT_Undo_Car" associationDirection="One" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="CompensationCallActivity">
+      <bpmndi:BPMNShape id="Shape_Lane_default_Parent" bpmnElement="Lane_default_Parent" isHorizontal="true">
+        <dc:Bounds x="80" y="80" width="808" height="258" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="232" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Call_Booking" bpmnElement="Call_Booking">
+        <dc:Bounds x="290" y="210" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Call_Handled" bpmnElement="Call_Handled">
+        <dc:Bounds x="450" y="210" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BE_Comp_Handled" bpmnElement="BE_Comp_Handled">
+        <dc:Bounds x="482" y="272" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_UT_Undo_Handled" bpmnElement="UT_Undo_Handled">
+        <dc:Bounds x="130" y="110" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Throw_Comp" bpmnElement="Throw_Comp">
+        <dc:Bounds x="642" y="232" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_1" bpmnElement="End_1">
+        <dc:Bounds x="802" y="232" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="198" y="250" />
+        <di:waypoint x="290" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_2" bpmnElement="Flow_2">
+        <di:waypoint x="390" y="250" />
+        <di:waypoint x="450" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_3" bpmnElement="Flow_3">
+        <di:waypoint x="550" y="250" />
+        <di:waypoint x="642" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_4" bpmnElement="Flow_4">
+        <di:waypoint x="678" y="250" />
+        <di:waypoint x="802" y="250" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_2">
+    <bpmndi:BPMNPlane id="BPMNPlane_2" bpmnElement="CompensationCallActivityBooking">
+      <bpmndi:BPMNShape id="Shape_Lane_default_Booking" bpmnElement="Lane_default_Booking" isHorizontal="true">
+        <dc:Bounds x="80" y="308" width="648" height="258" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Booking_Start" bpmnElement="Booking_Start">
+        <dc:Bounds x="162" y="460" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Hotel" bpmnElement="Task_Hotel">
+        <dc:Bounds x="290" y="438" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BE_Comp_Hotel" bpmnElement="BE_Comp_Hotel">
+        <dc:Bounds x="322" y="500" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_UT_Undo_Hotel" bpmnElement="UT_Undo_Hotel">
+        <dc:Bounds x="130" y="338" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Call_Car" bpmnElement="Call_Car">
+        <dc:Bounds x="450" y="438" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Booking_End" bpmnElement="Booking_End">
+        <dc:Bounds x="642" y="460" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Booking_Flow_1" bpmnElement="Booking_Flow_1">
+        <di:waypoint x="198" y="478" />
+        <di:waypoint x="290" y="478" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Booking_Flow_2" bpmnElement="Booking_Flow_2">
+        <di:waypoint x="390" y="478" />
+        <di:waypoint x="450" y="478" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Booking_Flow_3" bpmnElement="Booking_Flow_3">
+        <di:waypoint x="550" y="478" />
+        <di:waypoint x="642" y="478" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_3">
+    <bpmndi:BPMNPlane id="BPMNPlane_3" bpmnElement="CompensationCallActivityCar">
+      <bpmndi:BPMNShape id="Shape_Lane_default_Car" bpmnElement="Lane_default_Car" isHorizontal="true">
+        <dc:Bounds x="80" y="536" width="488" height="258" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Car_Start" bpmnElement="Car_Start">
+        <dc:Bounds x="162" y="688" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Car" bpmnElement="Task_Car">
+        <dc:Bounds x="290" y="666" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BE_Comp_Car" bpmnElement="BE_Comp_Car">
+        <dc:Bounds x="322" y="728" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_UT_Undo_Car" bpmnElement="UT_Undo_Car">
+        <dc:Bounds x="130" y="566" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Car_End" bpmnElement="Car_End">
+        <dc:Bounds x="482" y="688" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Car_Flow_1" bpmnElement="Car_Flow_1">
+        <di:waypoint x="198" y="706" />
+        <di:waypoint x="290" y="706" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Car_Flow_2" bpmnElement="Car_Flow_2">
+        <di:waypoint x="390" y="706" />
+        <di:waypoint x="482" y="706" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

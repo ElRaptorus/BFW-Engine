@@ -75,7 +75,7 @@ facade.service_tasks.finish_async.(flow_node_instance_id, %{"result" => "success
 facade.service_tasks.fail_async.(flow_node_instance_id, "TIMEOUT", "External service did not respond")
 ```
 
-The completion may arrive before the handler's `handle_enter` has returned; the engine holds it until the FNI is `waiting` and then applies it. A `fail_async` code is matched against Error Boundary Events first, then against Error Event Subprocess starts. A handler that raises instead of returning fails the task with error code `handler_raised`, which the same catchers can handle.
+The completion may arrive before the handler's `handle_enter` has returned; the engine answers it at once and applies it when the FNI is `waiting` (it is dropped with a warning if the task ends otherwise first). A `fail_async` code is matched against Error Boundary Events first, then against Error Event Subprocess starts. A handler that raises instead of returning fails the task with error code `handler_raised`, which the same catchers can handle.
 
 There is no dedicated REST endpoint for async completion — it is plugin-side only via the engine facade. GraphQL is query-only and has no mutation equivalent.
 

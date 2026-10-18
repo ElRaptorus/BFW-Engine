@@ -41,6 +41,54 @@ defmodule BfwEngine.Execution.ProcessInstance.ErrorInfo do
   end
 
   @doc """
+  Same as `handler_raised/3` for a Service Task handler whose optional
+  `handle_resume/2` raised, exited, or threw after an engine restart:
+  `%{error_code: "handler_resume_raised", error_message: sentence}`. The task is
+  failed with it, so Error Boundaries can catch the code.
+  """
+  @spec handler_resume_raised(
+          %{flow_node_id: String.t(), handler_type: String.t(), handler_key: String.t()},
+          :error | :exit | :throw,
+          term()
+        ) :: %{error_code: String.t(), error_message: String.t()}
+  def handler_resume_raised(
+        %{flow_node_id: flow_node_id, handler_type: handler_type, handler_key: handler_key},
+        kind,
+        value
+      ) do
+    %{
+      error_code: "handler_resume_raised",
+      error_message:
+        "The handle_resume/2 callback of the plugin handler for #{handler_type} '#{handler_key}' " <>
+          "of flow node '#{flow_node_id}' " <> raise_description(kind, value)
+    }
+  end
+
+  @doc """
+  Builds the fatal reason of a process instance whose process stopped with
+  an abnormal exit reason. The description quotes an exception's message,
+  cut to #{@raised_message_max_length} characters; for any other reason it
+  names only the shape of the value.
+  """
+  @spec process_instance_crashed(String.t(), term()) ::
+          {:process_instance_crashed, %{process_instance_id: String.t(), reason: String.t()}}
+  def process_instance_crashed(process_instance_id, {exception, stacktrace})
+      when is_exception(exception) and is_list(stacktrace) do
+    {:process_instance_crashed,
+     %{
+       process_instance_id: process_instance_id,
+       reason:
+         "an exception: " <>
+           String.slice(Exception.message(exception), 0, @raised_message_max_length)
+     }}
+  end
+
+  def process_instance_crashed(process_instance_id, reason) do
+    {:process_instance_crashed,
+     %{process_instance_id: process_instance_id, reason: "exit reason #{term_shape(reason)}"}}
+  end
+
+  @doc """
   Build a normalized error_info map with a consistent schema:
 
     %{"error_code" => ..., "message" => ..., "detail" => ...}
@@ -520,6 +568,10 @@ defmodule BfwEngine.Execution.ProcessInstance.ErrorInfo do
     "The timer definition could not be resolved to a fire time: #{format_detail(detail)}."
   end
 
+  defp humanize_error({:timer_expression_failed, %{detail: detail}}) do
+    "The timer definition could not be evaluated: #{format_detail(detail)}."
+  end
+
   defp humanize_error({:resume_timer_failed, %{detail: detail}}) do
     "The timer could not be re-armed after the process instance resumed: #{format_detail(detail)}."
   end
@@ -562,6 +614,23 @@ defmodule BfwEngine.Execution.ProcessInstance.ErrorInfo do
     "After an engine restart, the row of child process instance '#{child_process_instance_id}' " <>
       "could not be read from the database (#{format_detail(reason)}), so the shell neither " <>
       "resumed that child nor started a second one."
+  end
+
+  defp humanize_error(
+         {:process_instance_crashed,
+          %{process_instance_id: process_instance_id, reason: description}}
+       ) do
+    "The process of process instance '#{process_instance_id}' crashed with #{description}, " <>
+      "so the instance and its active flow node instances were set to fatal."
+  end
+
+  defp humanize_error(
+         {:child_record_failed,
+          %{child_process_instance_id: child_process_instance_id, reason: reason}}
+       ) do
+    "After an engine restart, the shell could not record its new child process instance " <>
+      "'#{child_process_instance_id}' in the database (#{format_detail(reason)}), so the " <>
+      "child was not started."
   end
 
   defp humanize_error(
@@ -614,6 +683,26 @@ defmodule BfwEngine.Execution.ProcessInstance.ErrorInfo do
       "'#{child_process_instance_id}' could not be started again: #{format_detail(reason)}."
   end
 
+  defp humanize_error(
+         {:compensation_handler_dispatch_failed,
+          %{handler_activity_id: handler_activity_id, reason: reason}}
+       ) do
+    "Compensation handler '#{handler_activity_id}' could not be started, so the compensation " <>
+      "did not complete: #{format_detail(reason)}."
+  end
+
+  defp humanize_error({:compensation_handler_uncaught_error, error_info}) do
+    "The compensation ended with the uncaught BPMN error " <>
+      "'#{bpmn_code(error_info, :error_code)}', so the compensation of its subprocess did " <>
+      "not complete."
+  end
+
+  defp humanize_error({:compensation_handler_uncaught_escalation, escalation_info}) do
+    "The compensation ended with the uncaught escalation " <>
+      "'#{bpmn_code(escalation_info, :escalation_code)}', so the compensation of its " <>
+      "subprocess did not complete."
+  end
+
   defp humanize_error({:compensation_handler_fatal, handler_activity_id}) do
     "Compensation handler '#{handler_activity_id}' went fatal, so the compensation of its " <>
       "subprocess did not complete."
@@ -642,11 +731,18 @@ defmodule BfwEngine.Execution.ProcessInstance.ErrorInfo do
     |> String.capitalize()
   end
 
+  defp bpmn_code(info, key) do
+    Map.get(info, key) || Map.get(info, Atom.to_string(key)) || "without a code"
+  end
+
   defp format_detail(detail) when is_binary(detail), do: detail
   defp format_detail(detail) when is_atom(detail), do: Atom.to_string(detail)
 
   defp format_detail({:feel_eval_failed, expression, reason}),
     do: "FEEL expression '#{expression}' — #{reason}"
+
+  defp format_detail({:timer_expression_failed, expression, message}),
+    do: "the FEEL expression '#{expression}' failed: #{message}"
 
   defp format_detail({:not_a_date_time, value}),
     do: "the timeDate expression yielded #{feel_value_text(value)}, which is not a date-time"
@@ -670,6 +766,9 @@ defmodule BfwEngine.Execution.ProcessInstance.ErrorInfo do
   defp format_detail({:non_positive_cycle_interval, text}),
     do:
       "the timeCycle interval '#{text}' is not positive; a cycle needs an interval greater than zero"
+
+  defp format_detail({:unsupported_event_definition, %{id: flow_node_id}}),
+    do: "the engine has no handler for the event definition of flow node '#{flow_node_id}'"
 
   defp format_detail(detail) when is_tuple(detail),
     do: detail |> Tuple.to_list() |> Enum.map_join(", ", &format_detail/1)

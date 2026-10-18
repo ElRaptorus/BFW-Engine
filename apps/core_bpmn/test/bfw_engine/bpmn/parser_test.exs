@@ -573,6 +573,31 @@ defmodule BfwEngine.BPMN.ParserTest do
              }
     end
 
+    test "Send Task reads bfw:correlationRetrievalExpression from its own extensionElements" do
+      xml = """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                        xmlns:bfw="https://bifrostforge.world/schema/bpmn" id="D1">
+        <bpmn:message id="Msg_1" name="test-msg"/>
+        <bpmn:process id="P1" isExecutable="true">
+          <bpmn:extensionElements><bfw:version>1.0.0</bfw:version></bpmn:extensionElements>
+          <bpmn:sendTask id="Send_1" messageRef="Msg_1">
+            <bpmn:extensionElements>
+              <bfw:correlationRetrievalExpression>token.orderId</bfw:correlationRetrievalExpression>
+            </bpmn:extensionElements>
+          </bpmn:sendTask>
+        </bpmn:process>
+      </bpmn:definitions>
+      """
+
+      {:ok, definitions} = Parser.parse(xml)
+      [process] = definitions.processes
+      send_node = Enum.find(process.flow_nodes, &(&1.id == "Send_1"))
+
+      assert %FlowNodeData.SendTask{correlation_retrieval_expression: "token.orderId"} =
+               send_node.type_data
+    end
+
     test "EventDefinition.Message does not carry payload_contract" do
       xml = """
       <?xml version="1.0" encoding="UTF-8"?>

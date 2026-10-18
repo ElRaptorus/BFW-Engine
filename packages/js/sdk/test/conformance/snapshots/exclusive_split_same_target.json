@@ -1,0 +1,133 @@
+{
+  "definitionsId": "Definitions_ExclusiveSplitSameTarget",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "associations": [],
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "dataStoreReferences": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": null,
+          "outgoing": ["Flow_Start"],
+          "standardLoop": null,
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Split_1",
+          "incoming": ["Flow_Start"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": null,
+          "outgoing": ["Flow_B", "Flow_A"],
+          "standardLoop": null,
+          "type": "exclusive_gateway",
+          "typeData": {
+            "defaultFlowRef": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Join_1",
+          "incoming": ["Flow_B", "Flow_A"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": null,
+          "outgoing": ["Flow_End"],
+          "standardLoop": null,
+          "type": "parallel_gateway",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_1",
+          "incoming": ["Flow_End"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": null,
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "ExclusiveSplitSameTarget",
+      "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
+      "isExecutable": true,
+      "isTransactionScope": false,
+      "lanes": [],
+      "name": "Exclusive Split Same Target",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_Start",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "Split_1"
+        },
+        {
+          "conditionExpression": "false",
+          "id": "Flow_A",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Split_1",
+          "targetRef": "Join_1"
+        },
+        {
+          "conditionExpression": "true",
+          "id": "Flow_B",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Split_1",
+          "targetRef": "Join_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_End",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Join_1",
+          "targetRef": "End_1"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

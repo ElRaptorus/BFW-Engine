@@ -59,7 +59,7 @@ The `loopMaximum` XML attribute (integer) caps the number of iterations. This is
 </bpmn:standardLoopCharacteristics>
 ```
 
-`loopMaximum` is optional and the validator does not flag its absence — an uncapped loop with a flawed condition runs indefinitely, so set one unless the condition is certain to turn `false`.
+`loopMaximum` is optional and the validator does not flag its absence — an uncapped loop whose condition never turns `false` runs until the instance is aborted, so set one unless the condition is certain to turn `false`. The Studio linter flags uncapped loops.
 
 ## Loop Interval
 

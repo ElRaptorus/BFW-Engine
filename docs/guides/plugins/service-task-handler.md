@@ -42,7 +42,7 @@ The `handler_context` provides everything needed to evaluate [FEEL expressions](
 
 A handler that raises, exits, or throws fails the task with error code `handler_raised`; Error Boundary Events and Error Event Subprocess starts with that code (or without a code) catch it.
 
-The `finish_async` / `fail_async` call may happen in another process before `handle_enter/3` has returned (as in the example below, where the spawned Task can finish first): the engine holds the call until the FNI is `waiting`, then answers it. If the task ends otherwise first, the call is answered with that state (for example `{:error, :fni_already_fatal}`). Do not call them from `handle_enter/3` itself or from a `Task` it awaits — that call is answered `{:error, :fni_not_waiting}`.
+The `finish_async` / `fail_async` call may happen before `handle_enter/3` has returned (as in the example below, where the spawned Task can finish first), also from `handle_enter/3` itself or a `Task` it awaits: the call is answered `:ok` at once, and the result is applied when the FNI is `waiting`. If the task ends otherwise first (for example `handle_enter/3` returns an error), the result is dropped and the engine logs a warning. If applying the result fails (a result contract violation or an oversized payload), the task fails as if you had called `fail_async`: an Error Boundary or Error Event Subprocess start can catch it, otherwise the task and its instance end `fatal`. A second call for the same task before it is `waiting` is answered `{:error, :fni_not_waiting}`. The result is kept in memory only; after an engine restart `handle_enter/3` runs again with `resumed: true`.
 
 ## Registration
 
@@ -143,7 +143,7 @@ Work your handler started does not survive an engine restart. When the process i
 | `flow_node` | The parsed flow node, as `handle_enter/3` received it |
 | `mapped_input` | The input after `bfw:inputMapping` (the token payload `handle_enter/3` received) |
 
-The second argument is the handler context (`flow_node_instance_id` identifies the task). Re-issue the work, or end the task with `finish_async` / `fail_async`; the return value is ignored. Without `handle_resume/2` the FNI waits until something completes it — for example your plugin's `on_ready`, using `facade.service_tasks.list_waiting.(implementations)`. The built-in HTTP handler fails the task with `HTTP_INTERRUPTED` (see [Built-in Plugins](builtin-plugins.md)).
+The second argument is the handler context (`flow_node_instance_id` identifies the task). Re-issue the work, or end the task with `finish_async` / `fail_async`; the return value is ignored. A `handle_resume/2` that raises, exits, or throws fails the task with error code `handler_resume_raised`, which Error Boundaries and Error Event Subprocess starts can catch. Without `handle_resume/2` the FNI waits until something completes it — for example your plugin's `on_ready`, using `facade.service_tasks.list_waiting.(implementations)`. The built-in HTTP handler fails the task with `HTTP_INTERRUPTED` (see [Built-in Plugins](builtin-plugins.md)).
 
 ```elixir
 @impl true

@@ -22,6 +22,8 @@ defmodule BfwEngine.Events.MessageSubscriptions do
 
   use GenServer
 
+  alias BfwEngine.Events.CancelledFlowNodeInstances
+
   require Logger
 
   @table_name :bfw_engine_message_subscriptions
@@ -91,10 +93,20 @@ defmodule BfwEngine.Events.MessageSubscriptions do
   Register a message subscription.
 
   After inserting into ETS, drains any matching pending messages from
-  the persistence layer. Returns `{:ok, subscription_id}`.
+  the persistence layer. Returns `{:ok, subscription_id}`. For a flow node
+  instance marked in `CancelledFlowNodeInstances` nothing is registered or
+  drained, and the returned id names no subscription.
   """
   @spec register(map()) :: {:ok, String.t()}
   def register(params) do
+    if CancelledFlowNodeInstances.cancelled?(params.flow_node_instance_id) do
+      {:ok, generate_id()}
+    else
+      insert_and_drain(params)
+    end
+  end
+
+  defp insert_and_drain(params) do
     subscription = %Subscription{
       subscription_id: generate_id(),
       process_instance_id: params.process_instance_id,
@@ -125,7 +137,12 @@ defmodule BfwEngine.Events.MessageSubscriptions do
         "kind=#{subscription.kind} pi=#{subscription.process_instance_id}"
     )
 
-    drain_pending_messages(subscription)
+    # The mark may land between the check in `register/1` and the insert.
+    if CancelledFlowNodeInstances.cancelled?(subscription.flow_node_instance_id) do
+      unregister(subscription.subscription_id)
+    else
+      drain_pending_messages(subscription)
+    end
 
     {:ok, subscription.subscription_id}
   end
@@ -254,6 +271,16 @@ defmodule BfwEngine.Events.MessageSubscriptions do
   end
 
   @doc """
+  Clears the readiness flag. The execution application calls this at start,
+  so a restarted application refuses message triggers until its resume run
+  calls `mark_ready/0` again.
+  """
+  @spec mark_not_ready() :: :ok
+  def mark_not_ready do
+    GenServer.call(__MODULE__, :mark_not_ready)
+  end
+
+  @doc """
   Block until `mark_ready/0` has been called, at most `timeout` milliseconds.
 
   In-engine publishers call this so a message thrown while the engine is still
@@ -300,6 +327,11 @@ defmodule BfwEngine.Events.MessageSubscriptions do
     :persistent_term.put(@ready_key, true)
     Enum.each(state.ready_waiters, &GenServer.reply(&1, :ok))
     {:reply, :ok, %{state | ready: true, ready_waiters: []}}
+  end
+
+  def handle_call(:mark_not_ready, _from, state) do
+    :persistent_term.erase(@ready_key)
+    {:reply, :ok, %{state | ready: false}}
   end
 
   def handle_call(:await_ready, _from, %{ready: true} = state), do: {:reply, :ok, state}

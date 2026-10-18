@@ -168,7 +168,8 @@ defmodule BfwEngine.Integration.Security.ClaimScopedVisibilityTest do
       {200, eng_result} = http_graphql(@list_pis_query, %{}, @lane_eng_claims)
       eng_ids = Enum.map(eng_result["data"]["processInstances"]["results"], & &1["id"])
       refute laned_pi in eng_ids, "Engineering-lane user should NOT see Management-laned PI"
-      assert default_pi in eng_ids or true, "Default-lane PI visibility depends on lane:default claim"
+      assert default_pi in eng_ids,
+             "A PI with a laneless FNI should be visible to any user with a lane claim"
     end
   end
 

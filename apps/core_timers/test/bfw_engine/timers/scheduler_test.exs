@@ -612,6 +612,36 @@ defmodule BfwEngine.Timers.SchedulerTest do
       assert_receive {:telemetry_cancelled, measurements}, 500
       assert measurements.timer_ref == timer_ref
     end
+
+    test "emits :cancelled telemetry for every timer of cancel_all_for_target" do
+      telemetry_ref = make_ref()
+      test_pid = self()
+
+      :telemetry.attach(
+        "test-cancelled-all-#{inspect(telemetry_ref)}",
+        [:bfw_engine, :timer, :cancelled],
+        fn _event, measurements, _metadata, _config ->
+          send(test_pid, {:telemetry_cancelled, measurements.timer_ref})
+        end,
+        nil
+      )
+
+      on_exit(fn -> :telemetry.detach("test-cancelled-all-#{inspect(telemetry_ref)}") end)
+
+      timer_refs =
+        for _ <- 1..2 do
+          {:ok, timer_ref} =
+            Scheduler.schedule(%{fire_at: future(60_000), target: self(), metadata: %{}})
+
+          timer_ref
+        end
+
+      assert 2 == Scheduler.cancel_all_for_target(self())
+
+      for timer_ref <- timer_refs do
+        assert_receive {:telemetry_cancelled, ^timer_ref}, 500
+      end
+    end
   end
 
   defmodule CycleAdvanceRelay do

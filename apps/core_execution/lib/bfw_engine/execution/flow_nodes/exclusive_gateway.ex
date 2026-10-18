@@ -79,13 +79,14 @@ defmodule BfwEngine.Execution.FlowNodes.ExclusiveGateway do
       end
 
     case routing_result do
-      {:selected, output_payload, next_ids} ->
+      {:selected, output_payload, next_ids, taken_sequence_flow_ids} ->
         case FniLifecycle.finish(context, flow_node, output_payload, %{}) do
           {:ok, lifecycle_result} ->
             {:ok,
              %FlowNodeResult{
                output_payload: output_payload,
                next_flow_node_ids: next_ids,
+               taken_sequence_flow_ids: taken_sequence_flow_ids,
                metadata: %{persisted: true, lifecycle: lifecycle_result}
              }}
 
@@ -110,7 +111,7 @@ defmodule BfwEngine.Execution.FlowNodes.ExclusiveGateway do
 
   defp pass_through_or_evaluate_single_outgoing(flow_node, token, context, single_flow) do
     if blank_condition?(single_flow) do
-      {:selected, token.payload, [single_flow.target_ref]}
+      selected(token.payload, [single_flow])
     else
       evaluate_exclusive_split(flow_node, token, context, [single_flow])
     end
@@ -188,11 +189,11 @@ defmodule BfwEngine.Execution.FlowNodes.ExclusiveGateway do
     case length(truthy_flows) do
       1 ->
         [winner] = truthy_flows
-        {:selected, token.payload, [winner.target_ref]}
+        selected(token.payload, [winner])
 
       0 when defaults != [] ->
         [default_flow | _] = defaults
-        {:selected, token.payload, [default_flow.target_ref]}
+        selected(token.payload, [default_flow])
 
       0 ->
         {:error,
@@ -214,10 +215,15 @@ defmodule BfwEngine.Execution.FlowNodes.ExclusiveGateway do
     end
   end
 
+  defp selected(payload, sequence_flows) do
+    {:selected, payload, Enum.map(sequence_flows, & &1.target_ref),
+     Enum.map(sequence_flows, & &1.id)}
+  end
+
   defp handle_join(flow_node, token, context) do
     case SequenceFlowResolver.resolve(flow_node, context.process_model) do
       {:ok, targets} ->
-        {:selected, token.payload, Enum.map(targets, & &1.id)}
+        {:selected, token.payload, Enum.map(targets, & &1.id), nil}
 
       {:error, reason, meta} ->
         {:error, {reason, meta}}

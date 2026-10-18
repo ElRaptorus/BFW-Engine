@@ -96,6 +96,8 @@ Lane claims follow the pattern `lane:<lane_name>` with value `"read"` or `"write
 - **Process Instance visibility** — GraphQL and WebSocket joins succeed with `"read"`, `"write"`, starter match, or `observe_all`
 - **WebSocket event filtering** — `"read"` and `"write"` both receive FNI events for that lane; `observe_all` receives every envelope
 
+Lanes restrict which flow node instances a caller sees, not which data travels with the token. A step outside the lane (or on a lane the caller can read) may carry values that were produced on a hidden lane. Keep lane-only data out of the token: drop it with `bfw:outputMapping` before the token leaves the lane, or keep it in an external system and pass only a reference. Data Objects do not help here, every caller who sees the instance can read them.
+
 See [Authorization Architecture](../../architecture/authorization.md) for the full specification.
 
 ## Auth Provider Pluggability

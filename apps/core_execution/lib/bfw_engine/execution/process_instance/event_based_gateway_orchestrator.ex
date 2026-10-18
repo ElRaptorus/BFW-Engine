@@ -14,6 +14,7 @@ defmodule BfwEngine.Execution.ProcessInstance.EventBasedGatewayOrchestrator do
   `:interrupted`.
   """
 
+  alias BfwEngine.Events.CancelledFlowNodeInstances
   alias BfwEngine.Events.MessageSubscriptions
   alias BfwEngine.Events.SignalSubscriptions
   alias BfwEngine.Execution.FniLifecycle
@@ -72,17 +73,20 @@ defmodule BfwEngine.Execution.ProcessInstance.EventBasedGatewayOrchestrator do
   Hold the winning catch's successor dispatch until pending-cancel siblings
   have been interrupted.
   """
-  @spec defer_successor_dispatch(struct(), String.t(), term(), [String.t()]) :: struct()
+  @spec defer_successor_dispatch(struct(), String.t(), term(), [String.t()], [String.t()] | nil) ::
+          struct()
   def defer_successor_dispatch(
         data,
         winning_flow_node_instance_id,
         output_payload,
-        next_flow_node_ids
+        next_flow_node_ids,
+        taken_sequence_flow_ids \\ nil
       ) do
     Map.put(data, :event_based_gateway_deferred_dispatch, %{
       winning_flow_node_instance_id: winning_flow_node_instance_id,
       output_payload: output_payload,
-      next_flow_node_ids: next_flow_node_ids
+      next_flow_node_ids: next_flow_node_ids,
+      taken_sequence_flow_ids: taken_sequence_flow_ids
     })
   end
 
@@ -146,6 +150,7 @@ defmodule BfwEngine.Execution.ProcessInstance.EventBasedGatewayOrchestrator do
   # A loser that already subscribed must not take a message or signal while
   # its handler is still entering.
   defp stamp_pending_cancel(data, flow_node_instance_id, entry) do
+    CancelledFlowNodeInstances.mark(flow_node_instance_id)
     MessageSubscriptions.unregister_all_for_flow_node_instance(flow_node_instance_id)
     SignalSubscriptions.unregister_all_for_flow_node_instance(flow_node_instance_id)
 

@@ -406,9 +406,9 @@ defmodule BfwEngine.Execution.FlowNodes.TransactionSubProcess do
   defp run_fresh_lifecycle(flow_node, entry, context, process_instance_pid) do
     type_data = flow_node.type_data
     child_process_instance_id = UuidV7.generate()
-    :ok = ChildLifecycle.record_fresh_child(context, child_process_instance_id)
 
-    with {:ok, next_ids} <- ChildLifecycle.resolve_outgoing(flow_node, context),
+    with :ok <- ChildLifecycle.record_fresh_child(context, child_process_instance_id),
+         {:ok, next_ids} <- ChildLifecycle.resolve_outgoing(flow_node, context),
          {:ok, start_event_id} <- validate_subprocess_contents(flow_node.id, type_data),
          {:ok, input_payload} <-
            ChildLifecycle.resolve_input_payload(flow_node, entry.token, context),

@@ -11,6 +11,10 @@ defmodule BfwEngine.Persistence.Calculations.FinalTokens do
 
   For PIs in any other state: returns `nil`.
 
+  End-Event FNIs are read with the caller's actor, so the row-level
+  FlowNodeInstance lane policy applies: a reader never sees the token of an
+  End Event on a lane they cannot read.
+
   Batches queries by collecting all PI IDs in a single read to avoid N+1.
   See data-model.md §4.2, api.md §10.2.1.1 for the design
   rationale: no `final_token` column exists — the value is always derived
@@ -35,7 +39,7 @@ defmodule BfwEngine.Persistence.Calculations.FinalTokens do
   def load(_query, _opts, _context), do: [:id, :state]
 
   @impl true
-  def calculate(records, _opts, _context) do
+  def calculate(records, _opts, context) do
     finished_process_instance_ids =
       records
       |> Enum.filter(&(&1.state == "finished"))
@@ -58,7 +62,7 @@ defmodule BfwEngine.Persistence.Calculations.FinalTokens do
           :output_token,
           :type_properties
         ])
-        |> Ash.read!(authorize?: false)
+        |> Ash.read!(actor: context.actor, authorize?: context.authorize?)
         |> Enum.group_by(& &1.process_instance_id)
       end
 

@@ -65,4 +65,37 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycleTest do
       send(child_pid, :stop)
     end
   end
+
+  describe "live_error_info/1" do
+    test "reads the raised code and message from the persisted detail" do
+      persisted = %{
+        "error_code" => "BOOM",
+        "message" => "Boom happened",
+        "detail" => %{"error_code" => "BOOM", "error_message" => "Boom happened"}
+      }
+
+      assert ChildLifecycle.live_error_info(persisted) ==
+               %{error_code: "BOOM", error_message: "Boom happened"}
+    end
+
+    test "keeps a nil raised code instead of the bpmn_error default" do
+      persisted = %{
+        "error_code" => "bpmn_error",
+        "message" => "Process ended via Error End Event",
+        "detail" => %{"error_code" => nil, "error_message" => nil}
+      }
+
+      assert ChildLifecycle.live_error_info(persisted) == %{error_code: nil, error_message: nil}
+    end
+
+    test "falls back to the top-level keys without a detail, and passes live maps through" do
+      assert ChildLifecycle.live_error_info(%{"error_code" => "X", "message" => "m"}) ==
+               %{error_code: "X", error_message: "m"}
+
+      assert ChildLifecycle.live_error_info(%{error_code: "Y", error_message: "n"}) ==
+               %{error_code: "Y", error_message: "n"}
+
+      assert ChildLifecycle.live_error_info(nil) == %{error_code: nil, error_message: nil}
+    end
+  end
 end

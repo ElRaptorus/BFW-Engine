@@ -126,6 +126,52 @@ Monitor dirty scheduler utilization with `:recon.scheduler_usage/1` in a
 remote console. See [expressions.md](../../architecture/expressions.md)
 for NIF scheduling behaviour.
 
+## Upgrade Notes
+
+Read these before replacing a release that has running process instances.
+No data migration is needed for them; the engine resumes in-flight
+instances under the new rules.
+
+### In-flight instances
+
+- **Message Event Subprocess correlation.** A message Event Subprocess start
+  evaluates `bfw:correlationKey` with `token` bound to its scope instance's
+  start payload (for a Call Activity or subprocess child: the token passed in
+  after `bfw:inputMapping`). Resumed scopes re-register their message starts
+  under this rule, so a message correlated on the value an older release
+  computed may no longer match.
+- **Boundaries of a finished host.** Boundary events whose host finished
+  before the restart are interrupted on resume, and the token continues from
+  the host.
+- **Boundary rows from an older release.** Boundary flow node instances now
+  record their host when they are created. Rows written by an older release
+  do not; resume finds their host through the boundary's previous flow node
+  instance instead.
+- **Early Service Task completions** are held in memory only. A
+  `finish_async` / `fail_async` accepted before the task parked is lost on a
+  restart; the task is entered again with `resumed: true`.
+
+### Behaviour changes
+
+- **Compensation reaches further.** Compensating a completed Call Activity
+  without its own handler now compensates inside its child instance, and a
+  completed subprocess that contains a compensation Event Subprocess runs
+  that Event Subprocess.
+- **Deleting a child instance** while its root instance is not terminal
+  answers `409 active_instances_exist`.
+- **Deploy rejects invalid cycles.** A static `timeCycle` that does not parse
+  or has a zero or negative interval is rejected with `timer_cycle_invalid`
+  (422). Check existing BPMN files before upgrading.
+- **Reserved subject.** An identity whose subject starts with `system:` is
+  rejected (401).
+- **Crashed instances.** An instance whose process crashes is persisted
+  `fatal` (`process_instance_crashed`, retryable) instead of being resumed on
+  the next boot; a parent instance sees `CHILD_FATAL`.
+- **Early async completion.** A `finish_async` / `fail_async` sent before the
+  task parked is answered `:ok` at once and applied when the task parks; a
+  second early call answers `fni_not_waiting`, and a completion that reaches
+  a stopping instance answers `engine_shutting_down`.
+
 ## Related
 
 - [Database Administration](database.md) -- PostgreSQL, retention, payload cap, compression

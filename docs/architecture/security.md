@@ -51,7 +51,9 @@ quarantined). If no plugin registers a provider, the built-in JWT verifier is
 used. The provider's `verify_and_resolve/1` callback receives the raw bearer
 token and must return `{:ok, %Identity{}}` or `{:error, reason}`.
 `ProviderRegistry.verify_and_resolve/1` rejects an identity without a
-non-blank string `id` (`:missing_subject`) and normalises an accepted one:
+non-blank string `id` (`:missing_subject`), rejects an `id` starting with the
+engine-reserved `system:` prefix used by timer, message, and signal starts
+(`:reserved_subject`, REST `401`), and normalises an accepted one:
 a non-map `claims` becomes `%{}`, non-list `roles` / `groups` become `[]`.
 REST, GraphQL, WebSocket, and the FEEL `identity` binding therefore always
 see a well-formed identity, whichever provider produced it.
@@ -124,7 +126,7 @@ Two enforcement layers guarantee this:
 
 | Layer | Location | Behaviour |
 |-------|----------|-----------|
-| **Public boundary** | `BfwEngineWeb.Http.ProcessController` (private `do_start`) + `BfwEngine.Api.start_process_instance/3` | The public start contract is Model/Version + Start Event + payload/context/businessKey. `subprocess_node_id` is not a public parameter; extraneous request-body params are **ignored** (consistent with every other endpoint), not rejected. The controller builds `start_opts` from only the public request fields plus server-derived `identity`/`process_instance_id`, so internal execution keys are *structurally absent* from the REST path. |
+| **Public boundary** | `BfwEngineWeb.Http.ProcessController` (private `do_start`) + `BfwEngine.Api.start_process_instance/3` | The public start contract is Model/Version + Start Event + payload/context/businessKey. `subprocess_node_id` is not a public parameter; extraneous request-body params are **ignored** (consistent with every other endpoint), not rejected. The controller builds `start_opts` from only the public request fields plus server-derived `identity`/`process_instance_id`, so internal execution keys are *structurally absent* from the REST path. The plugin facade `processes.start` does the same (`FacadeBuilder` keeps only the public keys), so a plugin cannot pass `parent_process_instance_id` to skip the capacity and orphan checks. |
 | **Core chokepoint** | `BfwEngine.Execution.start_process_instance/1` | The authoritative guard: if `subprocess_node_id` is present but `parent_process_instance_id` is not, the call is rejected with `{:error, :orphan_subprocess_start}` before the PI is ever supervised. Every entry point (REST, plugin, Call Activity, SubProcess, ESP) flows through this pipeline. |
 
 Supporting guarantees:

@@ -68,28 +68,58 @@ defmodule BfwEngine.Timers.StartEventManager do
   @doc """
   Unregisters all Timer Start Events for a given process version.
 
-  Cancels each version's Scheduler entries individually, then deletes
-  from persistence.
+  Holding the lock of each of the version's schedules, cancels their
+  Scheduler entries individually, then deletes them from persistence.
+  When the schedules cannot be listed, nothing is cancelled or deleted
+  and `{:error, reason}` is returned.
   """
-  @spec unregister_timer_starts(process_version_id :: String.t(), keyword()) :: :ok
+  @spec unregister_timer_starts(process_version_id :: String.t(), keyword()) ::
+          :ok | {:error, term()}
   def unregister_timer_starts(process_version_id, opts \\ []) do
     scheduler = opts[:scheduler] || Scheduler
 
-    cancel_scheduler_entries_for_version(process_version_id, scheduler)
-    persistence().delete_schedules_for_version(process_version_id)
-  end
-
-  defp cancel_scheduler_entries_for_version(process_version_id, scheduler) do
-    case persistence().list_all_schedules(process_version_id: process_version_id) do
-      {:ok, schedules} ->
-        schedules
-        |> Enum.filter(& &1.scheduler_ref)
-        |> Enum.each(&Scheduler.cancel(&1.scheduler_ref, scheduler))
-
-      _error ->
-        :ok
+    with {:ok, schedules} <- list_version_schedules(process_version_id) do
+      schedules
+      |> Enum.map(& &1.id)
+      |> Enum.sort()
+      |> with_schedule_locks(fn ->
+        cancel_and_delete_version_schedules(process_version_id, scheduler)
+      end)
     end
   end
+
+  # Re-lists under the locks: an enable may have replaced a scheduler_ref meanwhile.
+  defp cancel_and_delete_version_schedules(process_version_id, scheduler) do
+    with {:ok, schedules} <- list_version_schedules(process_version_id) do
+      Enum.each(schedules, &cancel_single_scheduler_entry(&1.scheduler_ref, scheduler))
+      persistence().delete_schedules_for_version(process_version_id)
+    end
+  end
+
+  defp list_version_schedules(process_version_id) do
+    case persistence().list_all_schedules(process_version_id: process_version_id) do
+      {:ok, schedules} ->
+        {:ok, schedules}
+
+      {:error, reason} = error ->
+        Logger.error(
+          "StartEventManager: cannot list the schedules of version #{process_version_id}; " <>
+            "they stay registered: #{inspect(reason)}"
+        )
+
+        error
+    end
+  end
+
+  # Ids are taken in sorted order so that two callers cannot deadlock.
+  defp with_schedule_locks([], fun), do: fun.()
+
+  defp with_schedule_locks([schedule_id | remaining_ids], fun),
+    do: with_schedule_lock(schedule_id, fn -> with_schedule_locks(remaining_ids, fun) end)
+
+  # ponytail: node-local lock; a multi-node deployment needs a database lock per schedule.
+  defp with_schedule_lock(schedule_id, fun),
+    do: :global.trans({{:bfw_timer_schedule, schedule_id}, self()}, fun, [node()])
 
   @doc """
   Enables a previously disabled schedule. Re-evaluates `next_fire_at`
@@ -110,26 +140,28 @@ defmodule BfwEngine.Timers.StartEventManager do
     scheduler = opts[:scheduler] || Scheduler
     now = opts[:reference_time] || DateTime.utc_now()
 
-    with {:ok, schedule} <- persistence().get_schedule(schedule_id),
-         :ok <- require_cycle(schedule) do
-      if schedule.cycle_remaining == 0 do
-        persistence().update_schedule(schedule_id, %{enabled: true})
-      else
-        arm_enabled_schedule(schedule, scheduler, now)
+    with_schedule_lock(schedule_id, fn ->
+      with {:ok, schedule} <- persistence().get_schedule(schedule_id),
+           :ok <- require_cycle(schedule) do
+        enable_cycle_schedule(schedule, scheduler, now)
       end
-    end
+    end)
   end
+
+  defp enable_cycle_schedule(%{cycle_remaining: 0} = schedule, _scheduler, _now),
+    do: persistence().update_schedule(schedule.id, %{enabled: true})
+
+  defp enable_cycle_schedule(schedule, scheduler, now),
+    do: arm_enabled_schedule(schedule, scheduler, now)
 
   defp arm_enabled_schedule(schedule, scheduler, now) do
     with {:ok, {:cycle, cycle_spec}} <- ISO8601.resolve_fire_at(:cycle, schedule.iso_spec, now) do
-      cancel_single_scheduler_entry(schedule.scheduler_ref, scheduler)
       pending_spec = %{cycle_spec | repetitions: schedule.cycle_remaining || :infinite}
+      pending_occurrence = enabled_pending_occurrence(pending_spec, schedule, now)
 
       pending_spec
-      |> ISO8601.skip_missed_occurrences(
-        enabled_pending_occurrence(pending_spec, schedule, now),
-        now
-      )
+      |> anchor_at_start(pending_occurrence)
+      |> ISO8601.skip_missed_occurrences(pending_occurrence, now)
       |> arm_enabled_occurrence(schedule, scheduler)
     end
   end
@@ -147,18 +179,29 @@ defmodule BfwEngine.Timers.StartEventManager do
   defp enabled_pending_occurrence(cycle_spec, _schedule, now),
     do: ISO8601.first_fire_at(cycle_spec, now)
 
+  # The new state is persisted before the old entry is cancelled: a failed write
+  # leaves the schedule as it was.
   defp arm_enabled_occurrence({next_fire_at, cycle_spec}, schedule, scheduler) do
     changes = Map.put(cycle_state_changes(next_fire_at, cycle_spec.repetitions), :enabled, true)
-    {:ok, updated} = persistence().update_schedule(schedule.id, changes)
-    store_scheduler_ref(updated.id, schedule_in_scheduler(updated, scheduler, cycle_spec))
-    {:ok, updated}
+
+    with {:ok, updated} <- persistence().update_schedule(schedule.id, changes) do
+      cancel_single_scheduler_entry(schedule.scheduler_ref, scheduler)
+
+      store_scheduler_ref(
+        updated,
+        schedule_in_scheduler(updated, scheduler, cycle_spec),
+        scheduler
+      )
+    end
   end
 
-  defp arm_enabled_occurrence(nil, schedule, _scheduler) do
-    persistence().update_schedule(
-      schedule.id,
-      Map.put(cycle_state_changes(nil, 0), :enabled, true)
-    )
+  defp arm_enabled_occurrence(nil, schedule, scheduler) do
+    changes = Map.merge(cycle_state_changes(nil, 0), %{enabled: true, scheduler_ref: nil})
+
+    with {:ok, updated} <- persistence().update_schedule(schedule.id, changes) do
+      cancel_single_scheduler_entry(schedule.scheduler_ref, scheduler)
+      {:ok, updated}
+    end
   end
 
   # Decision D-2: due occurrences are skipped, each using up one repetition.
@@ -177,11 +220,13 @@ defmodule BfwEngine.Timers.StartEventManager do
   def disable_schedule(schedule_id, opts \\ []) do
     scheduler = opts[:scheduler] || Scheduler
 
-    with {:ok, schedule} <- persistence().get_schedule(schedule_id),
-         :ok <- require_cycle(schedule) do
-      cancel_single_scheduler_entry(schedule.scheduler_ref, scheduler)
-      persistence().update_schedule(schedule_id, %{enabled: false, scheduler_ref: nil})
-    end
+    with_schedule_lock(schedule_id, fn ->
+      with {:ok, schedule} <- persistence().get_schedule(schedule_id),
+           :ok <- require_cycle(schedule) do
+        cancel_single_scheduler_entry(schedule.scheduler_ref, scheduler)
+        persistence().update_schedule(schedule_id, %{enabled: false, scheduler_ref: nil})
+      end
+    end)
   end
 
   defp cancel_single_scheduler_entry(nil, _scheduler), do: :ok
@@ -189,6 +234,8 @@ defmodule BfwEngine.Timers.StartEventManager do
   defp cancel_single_scheduler_entry(scheduler_ref, scheduler) do
     _cancel_result = Scheduler.cancel(scheduler_ref, scheduler)
     :ok
+  catch
+    :exit, _reason -> :ok
   end
 
   @doc "Lists all Timer Start schedules, optionally filtered."
@@ -224,17 +271,32 @@ defmodule BfwEngine.Timers.StartEventManager do
 
   Updates persistence with the new `next_fire_at` and `cycle_remaining`.
   This is the MFA callback passed to the Scheduler as `on_cycle_advance`.
+
+  Runs under the schedule's lock and writes only while the schedule is
+  enabled and its `scheduler_ref` is the `timer_ref` in `metadata`: an
+  advance queued before a disable, re-enable, or reload is dropped.
   """
   @spec handle_cycle_advance(map(), DateTime.t() | nil, non_neg_integer() | :infinite) :: :ok
-  def handle_cycle_advance(metadata, next_fire_at, remaining) do
-    schedule_id = metadata[:schedule_id]
+  def handle_cycle_advance(
+        %{schedule_id: schedule_id, timer_ref: timer_ref},
+        next_fire_at,
+        remaining
+      )
+      when is_binary(schedule_id) do
+    with_schedule_lock(schedule_id, fn ->
+      case persistence().get_schedule(schedule_id) do
+        {:ok, %{enabled: true, scheduler_ref: ^timer_ref}} ->
+          persistence().update_schedule(schedule_id, cycle_state_changes(next_fire_at, remaining))
 
-    if schedule_id do
-      persistence().update_schedule(schedule_id, cycle_state_changes(next_fire_at, remaining))
-    end
+        _stale_or_missing ->
+          :ok
+      end
+    end)
 
     :ok
   end
+
+  def handle_cycle_advance(_metadata, _next_fire_at, _remaining), do: :ok
 
   @doc """
   Loads all armed cycle schedules from persistence and registers them
@@ -260,12 +322,25 @@ defmodule BfwEngine.Timers.StartEventManager do
 
     with {:ok, schedules} <- persistence().list_armed_schedules() do
       cycle_schedules = Enum.filter(schedules, &(&1.kind == "cycle"))
-      Enum.each(cycle_schedules, &reload_single_schedule(&1, scheduler, now))
+      Enum.each(cycle_schedules, &reload_locked_schedule(&1.id, scheduler, now))
 
       Logger.info(
         "StartEventManager: loaded #{length(cycle_schedules)} armed cycle timer start schedule(s)"
       )
     end
+  end
+
+  # Re-read under the lock: an enable, disable or unregister may have run since the listing.
+  defp reload_locked_schedule(schedule_id, scheduler, now) do
+    with_schedule_lock(schedule_id, fn ->
+      case persistence().get_schedule(schedule_id) do
+        {:ok, %{enabled: true, next_fire_at: %DateTime{}} = schedule} ->
+          reload_single_schedule(schedule, scheduler, now)
+
+        _not_armed ->
+          :ok
+      end
+    end)
   end
 
   defp reload_single_schedule(schedule, scheduler, now) do
@@ -274,6 +349,7 @@ defmodule BfwEngine.Timers.StartEventManager do
         pending_spec = %{cycle_spec | repetitions: schedule.cycle_remaining || :infinite}
 
         pending_spec
+        |> anchor_at_start(schedule.next_fire_at)
         |> ISO8601.skip_missed_occurrences(schedule.next_fire_at, now)
         |> rearm_reloaded_schedule(schedule, scheduler)
 
@@ -286,17 +362,53 @@ defmodule BfwEngine.Timers.StartEventManager do
   end
 
   defp rearm_reloaded_schedule({next_fire_at, cycle_spec}, schedule, scheduler) do
-    cancel_single_scheduler_entry(schedule.scheduler_ref, scheduler)
     changes = cycle_state_changes(next_fire_at, cycle_spec.repetitions)
 
     with {:ok, updated} <- persistence().update_schedule(schedule.id, changes) do
-      store_scheduler_ref(schedule.id, schedule_in_scheduler(updated, scheduler, cycle_spec))
+      cancel_single_scheduler_entry(schedule.scheduler_ref, scheduler)
+
+      store_scheduler_ref(
+        updated,
+        schedule_in_scheduler(updated, scheduler, cycle_spec),
+        scheduler
+      )
     end
   end
 
   defp rearm_reloaded_schedule(nil, schedule, scheduler) do
     cancel_single_scheduler_entry(schedule.scheduler_ref, scheduler)
     persistence().update_schedule(schedule.id, cycle_state_changes(nil, 0))
+  end
+
+  # A calendar interval counts from the spec's explicit start, the occurrence
+  # the persisted one is found from. Without a start, or when the start does
+  # not lead to it, the persisted occurrence becomes the anchor.
+  defp anchor_at_start(
+         %{start_at: %DateTime{} = start_at, interval_duration: interval} = cycle_spec,
+         %DateTime{} = pending_occurrence
+       )
+       when interval.year != 0 or interval.month != 0 do
+    case occurrence_index(interval, start_at, pending_occurrence, 0) do
+      nil -> cycle_spec
+      index -> Map.merge(cycle_spec, %{anchor: start_at, occurrence: index})
+    end
+  end
+
+  defp anchor_at_start(cycle_spec, _pending_occurrence), do: cycle_spec
+
+  defp occurrence_index(interval, start_at, pending_occurrence, index) do
+    occurrence = DateTime.shift(start_at, Duration.multiply(interval, index))
+
+    cond do
+      DateTime.compare(occurrence, pending_occurrence) == :eq ->
+        index
+
+      DateTime.before?(occurrence, pending_occurrence) ->
+        occurrence_index(interval, start_at, pending_occurrence, index + 1)
+
+      true ->
+        nil
+    end
   end
 
   defp cycle_state_changes(next_fire_at, :infinite), do: %{next_fire_at: next_fire_at}
@@ -353,7 +465,13 @@ defmodule BfwEngine.Timers.StartEventManager do
         )
 
       {:ok, record} ->
-        store_scheduler_ref(record.id, schedule_in_scheduler(record, scheduler, cycle_info))
+        with_schedule_lock(record.id, fn ->
+          store_scheduler_ref(
+            record,
+            schedule_in_scheduler(record, scheduler, cycle_info),
+            scheduler
+          )
+        end)
 
       {:error, reason} ->
         Logger.error(
@@ -362,8 +480,26 @@ defmodule BfwEngine.Timers.StartEventManager do
     end
   end
 
-  defp store_scheduler_ref(schedule_id, {:ok, timer_ref}) do
-    persistence().update_schedule(schedule_id, %{scheduler_ref: timer_ref})
+  # An entry whose ref was not persisted could never be cancelled.
+  defp store_scheduler_ref(schedule, {:ok, timer_ref}, scheduler) do
+    case persistence().update_schedule(schedule.id, %{scheduler_ref: timer_ref}) do
+      {:error, _reason} = error ->
+        cancel_single_scheduler_entry(timer_ref, scheduler)
+        error
+
+      stored ->
+        stored
+    end
+  end
+
+  defp store_scheduler_ref(schedule, {:error, reason} = error, _scheduler) do
+    Logger.error("StartEventManager: cannot arm schedule #{schedule.id}: #{inspect(reason)}")
+
+    if schedule.scheduler_ref do
+      _cleared = persistence().update_schedule(schedule.id, %{scheduler_ref: nil})
+    end
+
+    error
   end
 
   defp resolve_next_fire(:date, iso_spec, _now) do
@@ -384,15 +520,23 @@ defmodule BfwEngine.Timers.StartEventManager do
     case ISO8601.resolve_fire_at(:cycle, iso_spec, now) do
       {:ok, {:cycle, cycle_spec}} ->
         case first_future_occurrence(cycle_spec, now) do
-          {first_fire, %{repetitions: :infinite}} -> {:ok, first_fire, cycle_spec, nil}
-          {first_fire, pending_spec} -> {:ok, first_fire, cycle_spec, pending_spec.repetitions}
-          nil -> {:ok, nil, cycle_spec, 0}
+          {first_fire, %{repetitions: :infinite} = pending_spec} ->
+            {:ok, first_fire, with_anchor_of(cycle_spec, pending_spec), nil}
+
+          {first_fire, pending_spec} ->
+            {:ok, first_fire, with_anchor_of(cycle_spec, pending_spec), pending_spec.repetitions}
+
+          nil ->
+            {:ok, nil, cycle_spec, 0}
         end
 
       {:error, _reason} = error ->
         error
     end
   end
+
+  defp with_anchor_of(cycle_spec, pending_spec),
+    do: Map.merge(cycle_spec, Map.take(pending_spec, [:anchor, :occurrence]))
 
   defp schedule_in_scheduler(schedule_record, scheduler, cycle_info) do
     request = %{
@@ -410,13 +554,17 @@ defmodule BfwEngine.Timers.StartEventManager do
       if cycle_info do
         Map.merge(request, %{
           cycle_interval: cycle_info.interval_duration,
-          cycle_remaining: schedule_record.cycle_remaining || :infinite
+          cycle_remaining: schedule_record.cycle_remaining || :infinite,
+          cycle_anchor: Map.get(cycle_info, :anchor),
+          cycle_occurrence: Map.get(cycle_info, :occurrence)
         })
       else
         request
       end
 
     Scheduler.schedule(request, scheduler)
+  catch
+    :exit, reason -> {:error, {:scheduler_unavailable, reason}}
   end
 
   defp extract_cycle_counts(nil), do: {nil, nil}

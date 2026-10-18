@@ -24,9 +24,7 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": null,
-          "outgoing": [
-            "Flow_Start"
-          ],
+          "outgoing": ["Flow_Start"],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -41,16 +39,11 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Gateway_Split",
-          "incoming": [
-            "Flow_Start"
-          ],
+          "incoming": ["Flow_Start"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": null,
-          "outgoing": [
-            "Flow_To_B",
-            "Flow_To_A"
-          ],
+          "outgoing": ["Flow_To_B", "Flow_To_A"],
           "standardLoop": null,
           "type": "parallel_gateway",
           "typeData": {}
@@ -61,15 +54,11 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "UserTask_A",
-          "incoming": [
-            "Flow_To_A"
-          ],
+          "incoming": ["Flow_To_A"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Task A",
-          "outgoing": [
-            "Flow_From_A"
-          ],
+          "outgoing": ["Flow_From_A"],
           "standardLoop": null,
           "type": "user_task",
           "typeData": {
@@ -90,15 +79,11 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "UserTask_B",
-          "incoming": [
-            "Flow_To_B"
-          ],
+          "incoming": ["Flow_To_B"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Task B",
-          "outgoing": [
-            "Flow_From_B"
-          ],
+          "outgoing": ["Flow_From_B"],
           "standardLoop": null,
           "type": "user_task",
           "typeData": {
@@ -119,16 +104,11 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Gateway_Join",
-          "incoming": [
-            "Flow_From_B",
-            "Flow_From_A"
-          ],
+          "incoming": ["Flow_From_B", "Flow_From_A"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": null,
-          "outgoing": [
-            "Flow_End"
-          ],
+          "outgoing": ["Flow_End"],
           "standardLoop": null,
           "type": "parallel_gateway",
           "typeData": {}
@@ -139,9 +119,7 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "EndEvent_1",
-          "incoming": [
-            "Flow_End"
-          ],
+          "incoming": ["Flow_End"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": null,
@@ -162,16 +140,12 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": [
-            "UserTask_A"
-          ],
+          "flowNodeRefs": ["UserTask_A"],
           "id": "Lane_A",
           "name": "LaneA"
         },
         {
-          "flowNodeRefs": [
-            "UserTask_B"
-          ],
+          "flowNodeRefs": ["UserTask_B"],
           "id": "Lane_B",
           "name": "LaneB"
         }

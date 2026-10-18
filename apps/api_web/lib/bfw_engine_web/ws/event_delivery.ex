@@ -11,6 +11,10 @@ defmodule BfwEngineWeb.Ws.EventDelivery do
   exception is the instance starter on a `process_instance:*` topic
   (`process_instance_starter` assign), who receives every flow node event of
   that instance tree. `engine:events` and `user_tasks:pending` never apply it.
+  `DataObjectWritten` is lane-independent on `process_instance:*` topics
+  (Data Objects belong to the instance, as in GraphQL; joining the topic
+  already checked instance visibility). It carries no instance visibility
+  stamps, so `engine:events` still filters it by `laneName`.
 
   `admin_override` is zeeky-only. `observe_all` is a separate unbounded-read
   assign and never implies write bypass.
@@ -67,6 +71,8 @@ defmodule BfwEngineWeb.Ws.EventDelivery do
                                  "AdHocActivityActivated",
                                  "AdHocSubProcessCompleted"
                                ])
+
+  @lane_independent_instance_topic_types MapSet.new(["DataObjectWritten"])
 
   @type assigns :: %{
           optional(:admin_override) => boolean(),
@@ -146,7 +152,18 @@ defmodule BfwEngineWeb.Ws.EventDelivery do
 
   defp deliver_flow_node_originating?(payload, assigns) do
     process_instance_starter_topic?(assigns) or
+      lane_independent_on_instance_topic?(payload, assigns) or
       flow_node_lane_accessible?(event_data(payload), assigns)
+  end
+
+  # A child's event fanned out to its root's topic stays lane-gated: the
+  # subscriber may not see the child instance.
+  defp lane_independent_on_instance_topic?(payload, assigns) do
+    process_instance_id = event_data(payload)["processInstanceId"]
+
+    MapSet.member?(@lane_independent_instance_topic_types, event_type(payload)) and
+      is_binary(process_instance_id) and
+      assigns[:topic] == "process_instance:" <> process_instance_id
   end
 
   defp deliver_process_instance_level?(payload, assigns) do

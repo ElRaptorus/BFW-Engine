@@ -12,6 +12,7 @@ defmodule BfwEngine.Test.ExamplePlugin do
     fails) its task before `handle_enter/3` returns; see its moduledoc for
     the `"then_fail"` and `"nested"` inputs
   - `raising` — raises from `handle_enter/3`
+  - `resume_raising` — parks, then raises from `handle_resume/2`
 
   Named Script handlers:
   - `test_validator` — synchronous script that adds a `validated` flag
@@ -35,6 +36,12 @@ defmodule BfwEngine.Test.ExamplePlugin do
     )
 
     facade.register_service_task_handler.("raising", BfwEngine.Test.ExamplePlugin.RaisingHandler)
+
+    facade.register_service_task_handler.(
+      "resume_raising",
+      BfwEngine.Test.ExamplePlugin.ResumeRaisingHandler
+    )
+
     facade.register_named_script.("test_validator", BfwEngine.Test.ExamplePlugin.TestValidatorScript)
     facade.register_named_script.("exiting_script", BfwEngine.Test.ExamplePlugin.ExitingScript)
 
@@ -130,7 +137,9 @@ defmodule BfwEngine.Test.ExamplePlugin.EarlyCompletionHandler do
 
   The handler returns `{:async, id}`, or `{:error, "handler gave up"}` when the
   input has `"then_fail" => true`. With `"nested" => true` the completion is
-  made by a `Task` the handler awaits instead, before it returns `{:async, id}`.
+  made by a `Task` the handler awaits instead, before it returns `{:async, id}`;
+  with `"twice" => true` that `Task` completes twice and both results are sent
+  as one `{first, second}` tuple.
 
   The call's result is sent as `{:early_completion_result, flow_node_instance_id, result}`
   to the process registered as `BfwEngine.Test.ExamplePlugin.EarlyCompletionHandler`,
@@ -139,6 +148,22 @@ defmodule BfwEngine.Test.ExamplePlugin.EarlyCompletionHandler do
   @behaviour BfwEngine.Plugin.ServiceTaskHandler
 
   @impl true
+  def handle_enter(_flow_node, %{payload: %{"twice" => true} = payload}, context) do
+    flow_node_instance_id = context.flow_node_instance_id
+    facade = BfwEngine.Test.ExamplePlugin.FacadeStore.get()
+
+    results =
+      fn ->
+        {complete(facade, flow_node_instance_id, payload),
+         complete(facade, flow_node_instance_id, payload)}
+      end
+      |> Task.async()
+      |> Task.await()
+
+    report(flow_node_instance_id, results)
+    {:async, flow_node_instance_id}
+  end
+
   def handle_enter(_flow_node, %{payload: %{"nested" => true} = payload}, context) do
     flow_node_instance_id = context.flow_node_instance_id
     facade = BfwEngine.Test.ExamplePlugin.FacadeStore.get()
@@ -260,6 +285,17 @@ defmodule BfwEngine.Test.ExamplePlugin.AsyncParkHandler do
   end
 end
 
+defmodule BfwEngine.Test.ExamplePlugin.ResumeRaisingHandler do
+  @moduledoc "Async Service Task handler that parks and raises from `handle_resume/2`."
+  @behaviour BfwEngine.Plugin.ServiceTaskHandler
+
+  @impl true
+  def handle_enter(_flow_node, _token, context), do: {:async, context.flow_node_instance_id}
+
+  @impl true
+  def handle_resume(_resume_input, _context), do: raise("deliberate resume failure")
+end
+
 defmodule BfwEngine.Test.ExamplePlugin.AsyncParkPayloads do
   @moduledoc false
   use Agent
@@ -314,13 +350,14 @@ end
 
 defmodule BfwEngine.Test.ExamplePlugin.TestValidatorScript do
   @moduledoc """
-  Named script handler for integration tests. Adds a `validated` flag
-  to the payload, proving that scriptRef dispatch works end-to-end.
+  Named script handler for integration tests. Adds a `validated` flag and
+  the context's `resumed` flag to the payload, proving that scriptRef
+  dispatch works end-to-end.
   """
   @behaviour BfwEngine.Plugin.NamedScript
 
   @impl true
-  def handle_enter(_flow_node, payload, _context) do
-    {:ok, Map.put(payload, "validated", true)}
+  def handle_enter(_flow_node, payload, context) do
+    {:ok, Map.merge(payload, %{"validated" => true, "resumed" => context.resumed})}
   end
 end

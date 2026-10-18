@@ -160,6 +160,39 @@ defmodule BfwEngine.Integration.SoftDeleteSecurityTest do
   # Resume fails gracefully on data anomaly
   # ---------------------------------------------------------------------------
 
+  describe "deleting a child instance" do
+    test "answers 409 active_instances_exist while its root runs, and succeeds after the root ended" do
+      process_instance_id =
+        http_deploy_and_start(
+          "compensation_subprocess_propagation.bpmn",
+          "CompensationSubprocessPropagation"
+        )
+
+      {:ok, _throw} = await_waiting_fni_by_node_id(process_instance_id, "Throw_Comp")
+      [child_process_instance_id] = list_child_process_instance_ids(process_instance_id)
+
+      {:ok, undo_flight} =
+        await_waiting_fni_by_node_id(child_process_instance_id, "UT_Undo_Flight")
+
+      assert to_string(fetch_process_instance!(child_process_instance_id).state) == "finished"
+
+      assert {409, %{"error" => "active_instances_exist"}} =
+               http_delete_process_instance(child_process_instance_id)
+
+      {204, _} = http_finish_user_task(undo_flight.id, %{})
+
+      {:ok, undo_hotel} =
+        await_waiting_fni_by_node_id(child_process_instance_id, "UT_Undo_Hotel")
+
+      {204, _} = http_finish_user_task(undo_hotel.id, %{})
+
+      assert {:ok, _process_instance} =
+               await_process_instance_state(process_instance_id, "finished")
+
+      assert {204, _} = http_delete_process_instance(child_process_instance_id)
+    end
+  end
+
   describe "resume with deleted version (data anomaly)" do
     test "ResumeRunner persists the process instance as fatal when its version is deleted" do
       {201, _deploy_body} = http_deploy("user_task_simple.bpmn")

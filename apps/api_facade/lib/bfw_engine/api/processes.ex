@@ -240,7 +240,7 @@ defmodule BfwEngine.Api.Processes do
 
     case result do
       {:ok, _deleted} = success ->
-        StartEventManager.unregister_timer_starts(process_version.id)
+        unregister_timer_starts(process_version.id)
         activate_latest_version(process_version.process_id)
         emit_process_undeployed(process_version, source)
         success
@@ -601,7 +601,21 @@ defmodule BfwEngine.Api.Processes do
       |> Enum.map(& &1.process_version_id)
       |> Enum.uniq()
       |> Enum.reject(&(&1 == version_id))
-      |> Enum.each(&StartEventManager.unregister_timer_starts/1)
+      |> Enum.each(&unregister_timer_starts/1)
+    end
+  end
+
+  # Runs after the version change has committed, so a failure cannot roll it
+  # back and is only logged.
+  defp unregister_timer_starts(process_version_id) do
+    case StartEventManager.unregister_timer_starts(process_version_id) do
+      {:error, reason} ->
+        Logger.warning(
+          "Timer start schedules of process version #{process_version_id} could not be disarmed: #{inspect(reason)}"
+        )
+
+      _ok ->
+        :ok
     end
   end
 

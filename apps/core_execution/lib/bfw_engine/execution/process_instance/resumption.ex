@@ -6,6 +6,7 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
 
   require Logger
 
+  alias BfwEngine.Execution.ProcessInstance.ErrorInfo
   alias BfwEngine.Execution.ProcessInstance.FlowNodeLookup
   alias BfwEngine.Execution.ProcessInstance.HandlerDispatch, as: InstanceHandlerDispatch
   alias BfwEngine.Execution.ProcessInstance.LaneResolution
@@ -22,6 +23,7 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
   alias BfwEngine.Execution.HandlerDispatch
   alias BfwEngine.Execution.Persistence, as: PersistenceAdapter
   alias BfwEngine.Execution.PersistenceRetry
+  alias BfwEngine.Execution.ProcessInstance
   alias BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator
   alias BfwEngine.Execution.ProcessInstance.CompensationOrchestrator
   alias BfwEngine.Execution.SequenceFlowResolver
@@ -67,7 +69,7 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
          %{flow_node_type: :boundary_event, state: state} = entry
        )
        when state in [:active, :waiting] do
-    host_flow_node_instance_id = type_property(entry, :host_flow_node_instance_id)
+    host_flow_node_instance_id = BoundaryOrchestrator.host_flow_node_instance_id(entry)
 
     case Map.get(states, host_flow_node_instance_id) do
       %{state: host_state} when host_state not in [:active, :waiting] ->
@@ -88,7 +90,10 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
   would otherwise idle forever. A candidate is a `:finished` FNI that is not
   an End Event, not a Multi-Instance iteration, and that no other FNI names
   as a predecessor. Nothing is re-dispatched when the scope already ended
-  through a Terminate, Error, Escalation, or Cancel End Event.
+  through a Terminate, Error, Escalation, or Cancel End Event, or through a
+  fired interrupting Event Subprocess. A host whose interrupting boundary
+  finished is skipped (the token left through the boundary), and a Complex
+  join that already fired is not dispatched again.
 
   Successors are resolved like the original handler did: Exclusive,
   Inclusive, and Complex splits and Link Throw Events re-run their handler
@@ -105,7 +110,7 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
     states = data.flow_node_instance_states
 
     if Enum.any?(states, fn {_id, entry} -> entry.state in [:active, :waiting] end) or
-         scope_ended_by_end_event?(data) do
+         scope_ended?(data) do
       []
     else
       referenced_ids =
@@ -117,7 +122,8 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
       states
       |> Enum.filter(fn {flow_node_instance_id, entry} ->
         lost_successor_candidate?(entry) and
-          not MapSet.member?(referenced_ids, flow_node_instance_id)
+          not MapSet.member?(referenced_ids, flow_node_instance_id) and
+          not interrupted_by_boundary?(data, flow_node_instance_id)
       end)
       |> Enum.sort_by(fn {_id, entry} -> entry.token.created_at end, DateTime)
       |> Enum.flat_map(&resolve_lost_successors(data, &1, process_instance_pid))
@@ -141,6 +147,48 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
     entry.state == :finished and entry.flow_node_type != :end_event and
       is_nil(Map.get(entry, :multi_instance_id))
   end
+
+  defp scope_ended?(data) do
+    scope_ended_by_end_event?(data) or
+      FlowNodes.EventSubprocess.interrupting_event_subprocess_fired?(data)
+  end
+
+  # The boundary won the race against its host's finish write: the token
+  # left through the boundary, so the host has no successors of its own.
+  defp interrupted_by_boundary?(data, host_flow_node_instance_id) do
+    Enum.any?(data.flow_node_instance_states, fn {_id, entry} ->
+      entry.flow_node_type == :boundary_event and entry.state == :finished and
+        BoundaryOrchestrator.host_flow_node_instance_id(entry) == host_flow_node_instance_id and
+        interrupting_boundary?(FlowNodeLookup.find_flow_node(data, entry.flow_node_id))
+    end)
+  end
+
+  defp interrupting_boundary?(%FlowNode{type_data: type_data}),
+    do: Map.get(type_data, :cancel_activity, true) != false
+
+  defp interrupting_boundary?(nil), do: false
+
+  # A straggler token to a Complex join that already fired is absorbed at
+  # runtime; the repair must not create a second join FNI either. A fired
+  # join interrupts its whole region, so a token started after the join
+  # finished belongs to a later pass of a loop and is not a straggler.
+  defp drop_fired_complex_joins(data, candidate_entry, next_flow_node_ids) do
+    candidate_started_at = candidate_entry.token.created_at
+
+    Enum.reject(next_flow_node_ids, fn flow_node_id ->
+      match?(%FlowNode{type: :complex_gateway}, FlowNodeLookup.find_flow_node(data, flow_node_id)) and
+        count_incoming_flows(data.process_model, flow_node_id) > 1 and
+        Enum.any?(data.flow_node_instance_states, fn {_id, entry} ->
+          entry.flow_node_id == flow_node_id and entry.state == :finished and
+            fired_after_candidate_started?(Map.get(entry, :finished_at), candidate_started_at)
+        end)
+    end)
+  end
+
+  defp fired_after_candidate_started?(nil, _candidate_started_at), do: true
+
+  defp fired_after_candidate_started?(join_finished_at, candidate_started_at),
+    do: DateTime.compare(join_finished_at, candidate_started_at) != :lt
 
   defp scope_ended_by_end_event?(data) do
     Enum.any?(data.flow_node_instance_states, fn {_id, entry} ->
@@ -194,6 +242,19 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
   end
 
   defp lost_successor_ids(data, flow_node_instance_id, entry, flow_node, process_instance_pid) do
+    case resolve_successor_ids(
+           data,
+           flow_node_instance_id,
+           entry,
+           flow_node,
+           process_instance_pid
+         ) do
+      {:error, _reason} = error -> error
+      next_flow_node_ids -> drop_fired_complex_joins(data, entry, next_flow_node_ids)
+    end
+  end
+
+  defp resolve_successor_ids(data, flow_node_instance_id, entry, flow_node, process_instance_pid) do
     if routes_through_handler?(data, flow_node) do
       rerun_routing_handler(data, flow_node_instance_id, entry, flow_node, process_instance_pid)
     else
@@ -892,7 +953,7 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
           "MI/loop shell"
         )
 
-      data = %{data | resume_pending: MapSet.put(data.resume_pending, flow_node_instance_id)}
+      data = update_in(data.resume.pending, &MapSet.put(&1, flow_node_instance_id))
 
       spawn_missing_boundary_fnis(
         data,
@@ -942,7 +1003,8 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
         handler_context
         | loop: Map.get(entry, :loop_overlay),
           multi_instance_id: Map.get(entry, :multi_instance_id),
-          iteration_index: Map.get(entry, :iteration_index)
+          iteration_index: Map.get(entry, :iteration_index),
+          resumed: true
       }
 
       :ok =
@@ -1131,6 +1193,7 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
         process_instance_pid
       )
       |> maybe_inject_boundary_host(entry)
+      |> Map.put(:resumed, true)
 
     :ok =
       InstanceHandlerDispatch.register_service_task_completion_route(
@@ -1188,7 +1251,18 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
         reactivate_receive_task_fni(data, flow_node_instance_id, entry, process_instance_pid)
 
       _ ->
-        reactivate_async_fni(data, flow_node_instance_id, entry)
+        reactivate_unless_compensation_run(data, flow_node_instance_id, entry)
+    end
+  end
+
+  # A parked Compensate Throw or End Event resumes only through
+  # `rebuild_compensation_run_state/1`; its merged park markers may still
+  # carry `async: true`.
+  defp reactivate_unless_compensation_run(data, flow_node_instance_id, entry) do
+    if type_property(entry, :compensation_run) == true do
+      data
+    else
+      reactivate_async_fni(data, flow_node_instance_id, entry)
     end
   end
 
@@ -1291,8 +1365,7 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
       )
       |> Map.put(
         :host_flow_node_instance_id,
-        Map.get(entry.type_properties, :host_flow_node_instance_id) ||
-          Map.get(entry.type_properties, "host_flow_node_instance_id")
+        BoundaryOrchestrator.host_flow_node_instance_id(entry)
       )
 
     spawn_resume_task(
@@ -1338,8 +1411,7 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
       )
       |> Map.put(
         :host_flow_node_instance_id,
-        Map.get(entry.type_properties, :host_flow_node_instance_id) ||
-          Map.get(entry.type_properties, "host_flow_node_instance_id")
+        BoundaryOrchestrator.host_flow_node_instance_id(entry)
       )
 
     spawn_resume_task(
@@ -1385,8 +1457,7 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
       )
       |> Map.put(
         :host_flow_node_instance_id,
-        Map.get(entry.type_properties, :host_flow_node_instance_id) ||
-          Map.get(entry.type_properties, "host_flow_node_instance_id")
+        BoundaryOrchestrator.host_flow_node_instance_id(entry)
       )
 
     spawn_resume_task(
@@ -1439,8 +1510,7 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
       )
       |> Map.put(
         :host_flow_node_instance_id,
-        Map.get(entry.type_properties, :host_flow_node_instance_id) ||
-          Map.get(entry.type_properties, "host_flow_node_instance_id")
+        BoundaryOrchestrator.host_flow_node_instance_id(entry)
       )
 
     spawn_resume_task(
@@ -1535,13 +1605,48 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
           self()
         )
 
+      process_instance_pid = self()
+
       Task.Supervisor.start_child(data.task_supervisor, fn ->
-        handler_module.handle_resume(resume_input, handler_context)
+        run_service_task_resume(
+          handler_module,
+          resume_input,
+          handler_context,
+          process_instance_pid
+        )
       end)
     end
   end
 
   defp start_service_task_resume(_data, _flow_node_instance_id, _entry, _flow_node), do: :ok
+
+  defp run_service_task_resume(
+         handler_module,
+         resume_input,
+         handler_context,
+         process_instance_pid
+       ) do
+    handler_module.handle_resume(resume_input, handler_context)
+  catch
+    kind, value ->
+      %{error_code: error_code, error_message: error_message} =
+        ErrorInfo.handler_resume_raised(
+          %{
+            flow_node_id: resume_input.flow_node_id,
+            handler_type: "implementation",
+            handler_key: resume_input.implementation
+          },
+          kind,
+          value
+        )
+
+      ProcessInstance.fail_async_service_task(
+        process_instance_pid,
+        handler_context.flow_node_instance_id,
+        error_code,
+        error_message
+      )
+  end
 
   defp input_payload(%{token: %{payload: payload}}) when is_map(payload), do: payload
   defp input_payload(_entry), do: %{}
@@ -1677,7 +1782,7 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
   # by `reactivate_mi_shell_fni`). They report `{:resume_settled, id}`.
   defp track_resume_settle(data, flow_node_instance_id, entry) do
     if resume_registers_subscription_or_child?(entry) do
-      %{data | resume_pending: MapSet.put(data.resume_pending, flow_node_instance_id)}
+      update_in(data.resume.pending, &MapSet.put(&1, flow_node_instance_id))
     else
       data
     end
@@ -1693,14 +1798,8 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
 
   defp resume_registers_subscription_or_child?(_entry), do: false
 
-  defp maybe_inject_boundary_host(context, %{
-         flow_node_type: :boundary_event,
-         type_properties: props
-       })
-       when is_map(props) do
-    host_id =
-      Map.get(props, :host_flow_node_instance_id) ||
-        Map.get(props, "host_flow_node_instance_id")
+  defp maybe_inject_boundary_host(context, %{flow_node_type: :boundary_event} = entry) do
+    host_id = BoundaryOrchestrator.host_flow_node_instance_id(entry)
 
     if host_id,
       do: %{context | host_flow_node_instance_id: host_id},
@@ -1724,7 +1823,7 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
         |> Enum.filter(fn {_id, entry} ->
           entry.flow_node_type == :boundary_event and
             entry.state in [:active, :waiting] and
-            BoundaryOrchestrator.boundary_fni_for_host?(entry, host_fni_id)
+            BoundaryOrchestrator.boundary_flow_node_instance_for_host?(entry, host_fni_id)
         end)
         |> Enum.map(fn {_id, entry} -> entry.flow_node_id end)
         |> MapSet.new()
@@ -1792,7 +1891,8 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
           state: "active",
           started_at: DateTime.utc_now(),
           input_token: token.payload,
-          previous_flow_node_instance_ids: [host_fni_id]
+          previous_flow_node_instance_ids: [host_fni_id],
+          type_properties: %{"host_flow_node_instance_id" => host_fni_id}
         })
       end,
       "FNI boundary create #{boundary_fni_id}"

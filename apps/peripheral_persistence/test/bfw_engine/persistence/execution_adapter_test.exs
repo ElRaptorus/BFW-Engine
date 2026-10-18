@@ -615,5 +615,67 @@ defmodule BfwEngine.Persistence.ExecutionAdapterTest do
 
       assert flow_node_instance.state == "finished"
     end
+
+    test "patch_fni_type_properties merges into a waiting row",
+         %{process_instance_id: process_instance_id, now: now} do
+      flow_node_instance_id = Ash.UUIDv7.generate()
+
+      FlowNodeInstance
+      |> Ash.Changeset.for_create(:create, %{
+        id: flow_node_instance_id,
+        process_instance_id: process_instance_id,
+        flow_node_id: "Catch_waiting",
+        flow_node_type: "intermediate_catch_event",
+        state: "waiting",
+        started_at: now,
+        type_properties: %{"subscription_id" => "old", "message_name" => "order"}
+      })
+      |> Ash.create!()
+
+      assert :ok =
+               ExecutionAdapter.patch_fni_type_properties(flow_node_instance_id, %{
+                 "subscription_id" => "new"
+               })
+
+      {:ok, flow_node_instance} =
+        Ash.get(FlowNodeInstance, flow_node_instance_id, authorize?: false)
+
+      assert flow_node_instance.state == "waiting"
+
+      assert flow_node_instance.type_properties == %{
+               "subscription_id" => "new",
+               "message_name" => "order"
+             }
+    end
+
+    test "patch_fni_type_properties leaves a row that turned terminal unchanged",
+         %{process_instance_id: process_instance_id, now: now} do
+      flow_node_instance_id = Ash.UUIDv7.generate()
+
+      FlowNodeInstance
+      |> Ash.Changeset.for_create(:create, %{
+        id: flow_node_instance_id,
+        process_instance_id: process_instance_id,
+        flow_node_id: "Catch_finished",
+        flow_node_type: "intermediate_catch_event",
+        state: "finished",
+        started_at: now,
+        type_properties: %{"subscription_id" => "old"}
+      })
+      |> Ash.create!()
+
+      assert {:error, :already_terminal} =
+               ExecutionAdapter.patch_fni_type_properties(flow_node_instance_id, %{
+                 "subscription_id" => "new"
+               })
+
+      assert {:error, :already_terminal} =
+               ExecutionAdapter.patch_fni_type_properties(Ash.UUIDv7.generate(), %{"a" => 1})
+
+      {:ok, flow_node_instance} =
+        Ash.get(FlowNodeInstance, flow_node_instance_id, authorize?: false)
+
+      assert flow_node_instance.type_properties == %{"subscription_id" => "old"}
+    end
   end
 end

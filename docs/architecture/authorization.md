@@ -210,6 +210,15 @@ already visible to every caller by §5.1 rule 3.
 **Rationale:** a lane restricts who reads that lane's work, not only who acts
 on it. The starter keeps the full picture of the instance they started.
 
+**Lanes restrict rows, not data.** The rule filters FNI rows; it does not
+redact token contents. A visible FNI's `inputToken` / `outputToken` may carry
+values produced on a lane the caller cannot read, because the token flows on
+across lane boundaries. Models that need data isolation keep such values out of
+the token: `bfw:outputMapping` drops them before the token leaves the lane, or
+they stay in an external system referenced by id. Data Objects are no
+alternative, they are lane-independent (§5.3). The Engine has no field-to-lane
+mapping to redact by.
+
 **Implementation:** the `FlowNodeInstance` `:read` policy
 (`apps/peripheral_persistence/lib/bfw_engine/persistence/resources/flow_node_instance.ex`)
 is three `authorize_if` clauses (`is_nil(lane_name)`,
@@ -223,6 +232,14 @@ Instance-scoped and lane-independent: if you can see the PI (§5.1), you can
 read all its Data Objects and their write history (`DataObject`,
 `DataObjectWrite`). This holds even when a Data Object is placed on a lane in
 the diagram — the FNI row-level rule (§5.2) does not apply to Data Objects.
+The WebSocket follows the same rule on `process_instance:*` topics:
+`DataObjectWritten` is delivered regardless of its `laneName` (joining the
+topic already checked PI visibility). On `engine:events` it carries no PI
+visibility stamps, so it stays filtered by `laneName`.
+
+`finalTokens` on a Process Instance is derived from End-Event FNIs and is read
+with the caller's actor, so it follows the FNI row-level rule (§5.2): the
+token of an End Event on a lane the caller cannot read is omitted.
 
 ### 5.4 Event visibility
 

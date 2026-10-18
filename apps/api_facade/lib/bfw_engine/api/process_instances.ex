@@ -175,13 +175,17 @@ defmodule BfwEngine.Api.ProcessInstances do
   @doc """
   Delete (soft-delete) a terminal process instance and all its FNIs.
 
-  Validates `delete_process_instance` scoped claim and terminal state.
+  Validates `delete_process_instance` scoped claim and terminal state. A
+  child instance (Call Activity, subprocess) whose root instance is not
+  terminal yet answers `{:error, :active_instances_exist}`: the running
+  tree may still resume, retry, or compensate into it.
   """
   @spec delete_process_instance(String.t(), struct(), keyword()) ::
           {:ok, struct()}
           | {:error, term()}
           | BfwEngine.Api.forbidden_error()
           | {:error, :process_instance_not_terminal, String.t()}
+          | {:error, :active_instances_exist}
   def delete_process_instance(process_instance_id, identity, opts \\ []) do
     with {:ok, process_instance} <- get_process_instance(process_instance_id),
          :ok <-
@@ -191,7 +195,8 @@ defmodule BfwEngine.Api.ProcessInstances do
              get_in(process_instance.started_by, ["id"]),
              opts
            ),
-         :ok <- validate_terminal_state(process_instance) do
+         :ok <- validate_terminal_state(process_instance),
+         :ok <- validate_root_terminal(process_instance) do
       soft_delete_process_instance_with_fnis(process_instance, Map.from_struct(identity))
     end
   end
@@ -342,6 +347,27 @@ defmodule BfwEngine.Api.ProcessInstances do
 
   defp validate_terminal_state(%{state: state}),
     do: {:error, :process_instance_not_terminal, state}
+
+  defp validate_root_terminal(%{parent_process_instance_id: nil}), do: :ok
+
+  defp validate_root_terminal(%{parent_process_instance_id: parent_process_instance_id}) do
+    case get_process_instance(parent_process_instance_id) do
+      {:ok, %{parent_process_instance_id: nil, state: state}} when state in @terminal_states ->
+        :ok
+
+      {:ok, %{parent_process_instance_id: nil}} ->
+        {:error, :active_instances_exist}
+
+      {:ok, parent} ->
+        validate_root_terminal(parent)
+
+      {:error, :not_found} ->
+        :ok
+
+      {:error, _reason} = error ->
+        error
+    end
+  end
 
   defp validate_process_enabled(nil), do: :ok
 

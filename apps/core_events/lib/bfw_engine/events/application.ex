@@ -3,6 +3,7 @@ defmodule BfwEngine.Events.Application do
 
   use Application
 
+  alias BfwEngine.Events.CancelledFlowNodeInstances
   alias BfwEngine.Events.EngineEventBus
   alias BfwEngine.Events.MessageSubscriptions
   alias BfwEngine.Events.PendingSweeper
@@ -18,6 +19,7 @@ defmodule BfwEngine.Events.Application do
       {Phoenix.PubSub, name: BfwEngine.Events.pubsub_name()},
       {Registry, keys: :unique, name: BfwEngine.Events.SinkRegistry},
       {DynamicSupervisor, strategy: :one_for_one, name: BfwEngine.Events.SinkSupervisor},
+      CancelledFlowNodeInstances,
       MessageSubscriptions,
       SignalSubscriptions,
       EngineEventBus
@@ -27,6 +29,8 @@ defmodule BfwEngine.Events.Application do
 
     children =
       base_children ++ sweeper_children ++ [{Task, &SinkRegistrar.register_all/0}]
+
+    :ok = CancelledFlowNodeInstances.create_table()
 
     opts = [strategy: :one_for_one, name: BfwEngine.Events.Supervisor]
     Supervisor.start_link(children, opts)
