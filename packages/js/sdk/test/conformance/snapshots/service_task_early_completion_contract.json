@@ -1,0 +1,283 @@
+{
+  "definitionsId": "Definitions_ServiceTaskEarlyCompletionContract",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "associations": [],
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "dataStoreReferences": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_Fatal",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "ServiceTask_Fatal",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Completes Early",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "service_task",
+          "typeData": {
+            "httpAuthHeader": null,
+            "httpBody": null,
+            "httpMethod": null,
+            "httpResponseHeaders": null,
+            "httpUrl": null,
+            "implementation": "early_completion",
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": {
+              "required": ["approved"],
+              "type": "object"
+            }
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Fatal",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Done",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "ServiceTaskEarlyContractFatal",
+      "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
+      "isExecutable": true,
+      "isTransactionScope": false,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_Fatal", "ServiceTask_Fatal", "End_Fatal"],
+          "id": "Lane_Fatal",
+          "name": "default"
+        }
+      ],
+      "name": "Early Contract Fatal",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_Fatal_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_Fatal",
+          "targetRef": "ServiceTask_Fatal"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Fatal_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "ServiceTask_Fatal",
+          "targetRef": "End_Fatal"
+        }
+      ],
+      "version": "1.0.0"
+    },
+    {
+      "associations": [],
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "dataStoreReferences": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_Boundary",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": ["Boundary_Error"],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "ServiceTask_Boundary",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Completes Early",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "service_task",
+          "typeData": {
+            "httpAuthHeader": null,
+            "httpBody": null,
+            "httpMethod": null,
+            "httpResponseHeaders": null,
+            "httpUrl": null,
+            "implementation": "early_completion",
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": {
+              "required": ["approved"],
+              "type": "object"
+            }
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Done",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Done",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Boundary_Error",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Any Error",
+          "outgoing": ["Flow_Failed"],
+          "standardLoop": null,
+          "type": "boundary_event",
+          "typeData": {
+            "attachedToRef": "ServiceTask_Boundary",
+            "cancelActivity": true,
+            "compensationHandlerId": null,
+            "eventDefinition": {
+              "errorCode": null,
+              "errorMessage": null,
+              "errorRef": null
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Failed",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Failed",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "ServiceTaskEarlyContractBoundary",
+      "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
+      "isExecutable": true,
+      "isTransactionScope": false,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_Boundary", "ServiceTask_Boundary", "End_Done", "Boundary_Error", "End_Failed"],
+          "id": "Lane_Boundary",
+          "name": "default"
+        }
+      ],
+      "name": "Early Contract Boundary",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_Boundary_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_Boundary",
+          "targetRef": "ServiceTask_Boundary"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Boundary_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "ServiceTask_Boundary",
+          "targetRef": "End_Done"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Failed",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Boundary_Error",
+          "targetRef": "End_Failed"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

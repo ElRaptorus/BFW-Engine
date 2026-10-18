@@ -1,0 +1,413 @@
+{
+  "definitionsId": "Definitions_CompensationScopeEspUncaughtEnd",
+  "errors": [
+    {
+      "errorCode": "UNDO_FAILED",
+      "id": "Error_Undo",
+      "name": "Undo Failed"
+    }
+  ],
+  "escalations": [
+    {
+      "escalationCode": "UNDO_ESCALATED",
+      "id": "Escalation_Undo",
+      "name": "Undo Escalated"
+    }
+  ],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "associations": [],
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "dataStoreReferences": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["Flow_1"],
+          "standardLoop": null,
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "SubProcess_Booking",
+          "incoming": ["Flow_1"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Booking",
+          "outgoing": ["Flow_2"],
+          "standardLoop": null,
+          "type": "sub_process",
+          "typeData": {
+            "activeElementsCompiled": null,
+            "activeElementsExpression": null,
+            "adhocCompletionCondition": null,
+            "adhocCompletionConditionCompiled": null,
+            "adhocOrdering": "parallel",
+            "cancelRemainingInstances": true,
+            "dataObjectReferences": [],
+            "dataObjects": [],
+            "dataStoreReferences": [],
+            "flowNodes": [
+              {
+                "boundaryEventRefs": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "Booking_Start",
+                "incoming": [],
+                "isForCompensation": false,
+                "multiInstance": null,
+                "name": "Booking Start",
+                "outgoing": ["Booking_Flow_1"],
+                "standardLoop": null,
+                "type": "start_event",
+                "typeData": {
+                  "eventDefinition": {},
+                  "isInterrupting": true,
+                  "resultContract": null
+                }
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "Task_Book",
+                "incoming": ["Booking_Flow_1"],
+                "isForCompensation": false,
+                "multiInstance": null,
+                "name": "Book",
+                "outgoing": ["Booking_Flow_2"],
+                "standardLoop": null,
+                "type": "task",
+                "typeData": {}
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "Booking_End",
+                "incoming": ["Booking_Flow_2"],
+                "isForCompensation": false,
+                "multiInstance": null,
+                "name": "Booked",
+                "outgoing": [],
+                "standardLoop": null,
+                "type": "end_event",
+                "typeData": {
+                  "eventDefinition": {},
+                  "inMappings": [],
+                  "payloadContract": null
+                }
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "ESP_Comp_Booking",
+                "incoming": [],
+                "isForCompensation": false,
+                "multiInstance": null,
+                "name": "Compensate Booking Scope",
+                "outgoing": [],
+                "standardLoop": null,
+                "type": "sub_process",
+                "typeData": {
+                  "activeElementsCompiled": null,
+                  "activeElementsExpression": null,
+                  "adhocCompletionCondition": null,
+                  "adhocCompletionConditionCompiled": null,
+                  "adhocOrdering": "parallel",
+                  "cancelRemainingInstances": true,
+                  "dataObjectReferences": [],
+                  "dataObjects": [],
+                  "dataStoreReferences": [],
+                  "flowNodes": [
+                    {
+                      "boundaryEventRefs": [],
+                      "dataInputAssociations": [],
+                      "dataOutputAssociations": [],
+                      "documentation": null,
+                      "id": "ESP_Start",
+                      "incoming": [],
+                      "isForCompensation": false,
+                      "multiInstance": null,
+                      "name": "Compensation Start",
+                      "outgoing": ["ESP_Flow_1"],
+                      "standardLoop": null,
+                      "type": "start_event",
+                      "typeData": {
+                        "eventDefinition": {
+                          "activityRef": null,
+                          "waitForCompletion": true
+                        },
+                        "isInterrupting": true,
+                        "resultContract": null
+                      }
+                    },
+                    {
+                      "boundaryEventRefs": [],
+                      "dataInputAssociations": [],
+                      "dataOutputAssociations": [],
+                      "documentation": null,
+                      "id": "UT_Decide",
+                      "incoming": ["ESP_Flow_1"],
+                      "isForCompensation": false,
+                      "multiInstance": null,
+                      "name": "Try To Undo",
+                      "outgoing": ["ESP_Flow_2"],
+                      "standardLoop": null,
+                      "type": "user_task",
+                      "typeData": {
+                        "assigneesExpression": null,
+                        "dueDate": null,
+                        "formActions": null,
+                        "formFields": null,
+                        "inMappings": [],
+                        "outMappings": [],
+                        "payloadContract": null,
+                        "priority": null,
+                        "resultContract": null
+                      }
+                    },
+                    {
+                      "boundaryEventRefs": [],
+                      "dataInputAssociations": [],
+                      "dataOutputAssociations": [],
+                      "documentation": null,
+                      "id": "Gateway_Outcome",
+                      "incoming": ["ESP_Flow_2"],
+                      "isForCompensation": false,
+                      "multiInstance": null,
+                      "name": "Outcome?",
+                      "outgoing": ["ESP_Flow_Escalation", "ESP_Flow_Error"],
+                      "standardLoop": null,
+                      "type": "exclusive_gateway",
+                      "typeData": {
+                        "defaultFlowRef": "ESP_Flow_Escalation"
+                      }
+                    },
+                    {
+                      "boundaryEventRefs": [],
+                      "dataInputAssociations": [],
+                      "dataOutputAssociations": [],
+                      "documentation": null,
+                      "id": "ESP_End_Error",
+                      "incoming": ["ESP_Flow_Error"],
+                      "isForCompensation": false,
+                      "multiInstance": null,
+                      "name": "Undo Failed",
+                      "outgoing": [],
+                      "standardLoop": null,
+                      "type": "end_event",
+                      "typeData": {
+                        "eventDefinition": {
+                          "errorCode": null,
+                          "errorMessage": null,
+                          "errorRef": "Error_Undo"
+                        },
+                        "inMappings": [],
+                        "payloadContract": null
+                      }
+                    },
+                    {
+                      "boundaryEventRefs": [],
+                      "dataInputAssociations": [],
+                      "dataOutputAssociations": [],
+                      "documentation": null,
+                      "id": "ESP_End_Escalation",
+                      "incoming": ["ESP_Flow_Escalation"],
+                      "isForCompensation": false,
+                      "multiInstance": null,
+                      "name": "Undo Escalated",
+                      "outgoing": [],
+                      "standardLoop": null,
+                      "type": "end_event",
+                      "typeData": {
+                        "eventDefinition": {
+                          "escalationCode": null,
+                          "escalationRef": "Escalation_Undo"
+                        },
+                        "inMappings": [],
+                        "payloadContract": null
+                      }
+                    }
+                  ],
+                  "implementation": null,
+                  "inMappings": [],
+                  "isAdHoc": false,
+                  "isTransaction": false,
+                  "outMappings": [],
+                  "payloadContract": null,
+                  "resultContract": null,
+                  "sequenceFlows": [
+                    {
+                      "conditionExpression": null,
+                      "id": "ESP_Flow_1",
+                      "isDefault": false,
+                      "name": null,
+                      "sourceRef": "ESP_Start",
+                      "targetRef": "UT_Decide"
+                    },
+                    {
+                      "conditionExpression": null,
+                      "id": "ESP_Flow_2",
+                      "isDefault": false,
+                      "name": null,
+                      "sourceRef": "UT_Decide",
+                      "targetRef": "Gateway_Outcome"
+                    },
+                    {
+                      "conditionExpression": "token.values.outcome = \"error\"",
+                      "id": "ESP_Flow_Error",
+                      "isDefault": false,
+                      "name": null,
+                      "sourceRef": "Gateway_Outcome",
+                      "targetRef": "ESP_End_Error"
+                    },
+                    {
+                      "conditionExpression": null,
+                      "id": "ESP_Flow_Escalation",
+                      "isDefault": true,
+                      "name": null,
+                      "sourceRef": "Gateway_Outcome",
+                      "targetRef": "ESP_End_Escalation"
+                    }
+                  ],
+                  "transactionMethod": null,
+                  "triggeredByEvent": true
+                }
+              }
+            ],
+            "implementation": null,
+            "inMappings": [],
+            "isAdHoc": false,
+            "isTransaction": false,
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": null,
+            "sequenceFlows": [
+              {
+                "conditionExpression": null,
+                "id": "Booking_Flow_1",
+                "isDefault": false,
+                "name": null,
+                "sourceRef": "Booking_Start",
+                "targetRef": "Task_Book"
+              },
+              {
+                "conditionExpression": null,
+                "id": "Booking_Flow_2",
+                "isDefault": false,
+                "name": null,
+                "sourceRef": "Task_Book",
+                "targetRef": "Booking_End"
+              }
+            ],
+            "transactionMethod": null,
+            "triggeredByEvent": false
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Throw_Comp",
+          "incoming": ["Flow_2"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Compensate",
+          "outgoing": ["Flow_3"],
+          "standardLoop": null,
+          "type": "intermediate_throw_event",
+          "typeData": {
+            "eventDefinition": {
+              "activityRef": null,
+              "waitForCompletion": true
+            },
+            "inMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_1",
+          "incoming": ["Flow_3"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "End",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "CompensationScopeEspUncaughtEnd",
+      "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
+      "isExecutable": true,
+      "isTransactionScope": false,
+      "lanes": [],
+      "name": "Compensation Scope ESP Uncaught End",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "SubProcess_Booking"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "SubProcess_Booking",
+          "targetRef": "Throw_Comp"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_3",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Throw_Comp",
+          "targetRef": "End_1"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

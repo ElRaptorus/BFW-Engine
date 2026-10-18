@@ -1,0 +1,389 @@
+{
+  "definitionsId": "Definitions_CrashedChildCleanup",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "associations": [],
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "dataStoreReferences": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["Flow_1"],
+          "standardLoop": null,
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Call_Middle",
+          "incoming": ["Flow_1"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Call Middle",
+          "outgoing": ["Flow_2"],
+          "standardLoop": null,
+          "type": "call_activity",
+          "typeData": {
+            "calledElement": "CrashedChildMiddle",
+            "calledProcessVersion": null,
+            "inMappings": [],
+            "outMappings": [],
+            "startEventId": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_1",
+          "incoming": ["Flow_2"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "End",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "CrashedChildParent",
+      "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
+      "isExecutable": true,
+      "isTransactionScope": false,
+      "lanes": [],
+      "name": "Crashed Child Parent",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "Call_Middle"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Call_Middle",
+          "targetRef": "End_1"
+        }
+      ],
+      "version": "1.0.0"
+    },
+    {
+      "associations": [],
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "dataStoreReferences": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Middle_Start",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Middle Start",
+          "outgoing": ["Middle_Flow_1"],
+          "standardLoop": null,
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Middle_Fork",
+          "incoming": ["Middle_Flow_1"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Fork",
+          "outgoing": ["Middle_Flow_3", "Middle_Flow_2"],
+          "standardLoop": null,
+          "type": "parallel_gateway",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "UT_Middle",
+          "incoming": ["Middle_Flow_2"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Middle Work",
+          "outgoing": ["Middle_Flow_4"],
+          "standardLoop": null,
+          "type": "user_task",
+          "typeData": {
+            "assigneesExpression": null,
+            "dueDate": null,
+            "formActions": null,
+            "formFields": null,
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "priority": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Call_Leaf",
+          "incoming": ["Middle_Flow_3"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Call Leaf",
+          "outgoing": ["Middle_Flow_5"],
+          "standardLoop": null,
+          "type": "call_activity",
+          "typeData": {
+            "calledElement": "CrashedChildLeaf",
+            "calledProcessVersion": null,
+            "inMappings": [],
+            "outMappings": [],
+            "startEventId": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Middle_Join",
+          "incoming": ["Middle_Flow_5", "Middle_Flow_4"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Join",
+          "outgoing": ["Middle_Flow_6"],
+          "standardLoop": null,
+          "type": "parallel_gateway",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Middle_End",
+          "incoming": ["Middle_Flow_6"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Middle End",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "CrashedChildMiddle",
+      "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
+      "isExecutable": true,
+      "isTransactionScope": false,
+      "lanes": [],
+      "name": "Crashed Child Middle",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Middle_Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Middle_Start",
+          "targetRef": "Middle_Fork"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Middle_Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Middle_Fork",
+          "targetRef": "UT_Middle"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Middle_Flow_3",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Middle_Fork",
+          "targetRef": "Call_Leaf"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Middle_Flow_4",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "UT_Middle",
+          "targetRef": "Middle_Join"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Middle_Flow_5",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Call_Leaf",
+          "targetRef": "Middle_Join"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Middle_Flow_6",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Middle_Join",
+          "targetRef": "Middle_End"
+        }
+      ],
+      "version": "1.0.0"
+    },
+    {
+      "associations": [],
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "dataStoreReferences": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Leaf_Start",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Leaf Start",
+          "outgoing": ["Leaf_Flow_1"],
+          "standardLoop": null,
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "UT_Leaf",
+          "incoming": ["Leaf_Flow_1"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Leaf Work",
+          "outgoing": ["Leaf_Flow_2"],
+          "standardLoop": null,
+          "type": "user_task",
+          "typeData": {
+            "assigneesExpression": null,
+            "dueDate": null,
+            "formActions": null,
+            "formFields": null,
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "priority": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Leaf_End",
+          "incoming": ["Leaf_Flow_2"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Leaf End",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "CrashedChildLeaf",
+      "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
+      "isExecutable": true,
+      "isTransactionScope": false,
+      "lanes": [],
+      "name": "Crashed Child Leaf",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Leaf_Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Leaf_Start",
+          "targetRef": "UT_Leaf"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Leaf_Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "UT_Leaf",
+          "targetRef": "Leaf_End"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}
