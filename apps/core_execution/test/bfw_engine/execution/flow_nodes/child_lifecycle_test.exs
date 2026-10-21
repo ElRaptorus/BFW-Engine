@@ -98,4 +98,34 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycleTest do
       assert ChildLifecycle.live_error_info(nil) == %{error_code: nil, error_message: nil}
     end
   end
+
+  describe "subprocess_model_id/2" do
+    alias BfwEngine.BPMN.Model.FlowNode
+    alias BfwEngine.BPMN.Model.Process, as: BpmnProcess
+    alias BfwEngine.Execution.HandlerContext
+
+    defp context_for(process_model_id),
+      do: %HandlerContext{process_model: %BpmnProcess{id: process_model_id}}
+
+    defp subprocess_node(id), do: %FlowNode{id: id, type: :sub_process, type_data: nil}
+
+    test "a top-level subprocess is named after the process and the node" do
+      assert ChildLifecycle.subprocess_model_id(context_for("order"), subprocess_node("Outer")) ==
+               "order__subprocess__Outer"
+    end
+
+    test "a subprocess nested in a subprocess keeps only the top-level process id" do
+      assert ChildLifecycle.subprocess_model_id(
+               context_for("order__subprocess__Outer"),
+               subprocess_node("Inner")
+             ) == "order__subprocess__Inner"
+    end
+
+    test "three levels deep still yields a single suffix" do
+      assert ChildLifecycle.subprocess_model_id(
+               context_for("order__subprocess__Inner"),
+               subprocess_node("Innermost")
+             ) == "order__subprocess__Innermost"
+    end
+  end
 end

@@ -109,7 +109,7 @@ use.
 |---|---|---|---|
 | `deploy_bpmn` | boolean | Allows: `POST /processes` (BPMN upload), `PUT /processes/{model_id}/enable`, `PUT /processes/{model_id}/disable` — all catalog-mutation operations | `false` |
 | `delete_bpmn` | boolean | Allows: `DELETE /processes/{model_id}/versions/{version}`, `DELETE /processes/{model_id}` (version/process deletion ) | `false` |
-| `purge_audit_data` | boolean | Unused. REST/CLI purge is not shipped. Mix `evil.retention.purge` is not JWT-gated | `false` |
+| `purge_audit_data` | boolean | Unused. REST/CLI purge is not shipped. Mix `bfw.retention.purge` is not JWT-gated | `false` |
 | `lane:<name>` | `"read"` \| `"write"` | `"write"`: act on flow nodes on that lane. `"read"`: observe only. Boolean `true` is rejected. | none |
 | `observe_all` | boolean | Unbounded read/observe of PIs, FNIs, data objects, and WS events. **Never** grants write. | `false` |
 | `zeeky_boogie_doog` | boolean | Admin override: full read **and** write bypass. Distinct from `observe_all`. | `false` |

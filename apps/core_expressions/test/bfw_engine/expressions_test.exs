@@ -918,6 +918,29 @@ defmodule BfwEngine.ExpressionsTest do
     }
   end
 
+  describe "Result.json_text/1" do
+    test "encodes strings, maps and lists as JSON" do
+      assert Result.json_text("a") == ~s("a")
+      assert Result.json_text(%{"a" => 1}) == ~s({"a":1})
+      assert Result.json_text([1, 2]) == "[1,2]"
+    end
+
+    test "renders a top-level FEEL date as its ISO text" do
+      assert Result.json_text({:feel_date, "2026-01-02"}) == ~s("2026-01-02")
+    end
+
+    test "renders FEEL temporals nested in lists and maps" do
+      assert Result.json_text([{:feel_date, "2026-01-02"}]) == ~s(["2026-01-02"])
+
+      assert Result.json_text(%{"due" => {:feel_datetime, "2026-01-02T03:04:05Z"}}) ==
+               ~s({"due":"2026-01-02T03:04:05Z"})
+    end
+
+    test "falls back to inspect for terms JSON cannot encode" do
+      assert Result.json_text({:unknown, self()}) =~ "unknown"
+    end
+  end
+
   defp build_context(overrides \\ []) do
     %Context{
       token: Keyword.get(overrides, :token, %{}),

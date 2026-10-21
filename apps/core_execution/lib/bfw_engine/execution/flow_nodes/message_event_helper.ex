@@ -15,6 +15,7 @@ defmodule BfwEngine.Execution.FlowNodes.MessageEventHelper do
   alias BfwEngine.Execution.HandlerContext
   alias BfwEngine.Expressions
   alias BfwEngine.Expressions.Context, as: FeelContext
+  alias BfwEngine.Expressions.Result
 
   @doc """
   Resolve the BPMN message name from a flow node's event definition
@@ -127,6 +128,13 @@ defmodule BfwEngine.Execution.FlowNodes.MessageEventHelper do
     do: {:ok, text}
 
   defp correlation_text(value) when is_binary(value), do: {:ok, value}
+
+  # A correlation value is a string by design: a list or map has no single text form.
+  defp correlation_text(value) when is_list(value) or is_map(value),
+    do:
+      {:error,
+       {:correlation_expression_failed, "cannot convert #{Result.json_text(value)} to a string"}}
+
   defp correlation_text(value), do: {:ok, to_string(value)}
 
   defp extract_message_ref(%FlowNode{type: type, type_data: type_data})

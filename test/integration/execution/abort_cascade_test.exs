@@ -29,6 +29,33 @@ defmodule BfwEngine.Integration.Execution.AbortCascadeTest do
     :ok
   end
 
+  describe "deleting a terminal tree" do
+    test "deleting the root hides its child process instances too" do
+      {201, _} = http_deploy("ca_cascade_waiting_child.bpmn")
+      {201, _} = http_deploy("ca_cascade_simple_parent.bpmn")
+
+      {201, body} = http_start("CaCascadeSimpleParent")
+      parent_process_instance_id = body["processInstanceId"]
+
+      {:ok, child_user_task_fni} = poll_child_waiting_user_task(parent_process_instance_id)
+      child_process_instance_id = child_user_task_fni.process_instance_id
+
+      {204, _} =
+        http_abort_process_instance(parent_process_instance_id, "stop", %{
+          "abort_process_instance" => "all"
+        })
+
+      wait_for_process_instance(parent_process_instance_id, 5_000)
+      wait_for_process_instance(child_process_instance_id, 5_000)
+
+      {204, nil} = http_delete_process_instance(parent_process_instance_id)
+
+      assert fetch_process_instance(parent_process_instance_id) == nil
+      assert fetch_process_instance(child_process_instance_id) == nil
+      assert fetch_flow_node_instances(child_process_instance_id) == []
+    end
+  end
+
   # -------------------------------------------------------------------
   # U1: Abort child PI → parent cascades to aborted
   # -------------------------------------------------------------------

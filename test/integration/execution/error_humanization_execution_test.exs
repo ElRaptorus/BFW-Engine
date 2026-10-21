@@ -34,4 +34,29 @@ defmodule BfwEngine.Integration.Execution.ErrorHumanizationExecutionTest do
       refute message =~ "inspect"
     end
   end
+
+  describe "process instance that went fatal because a flow node instance went fatal" do
+    test "keeps process_fatal and carries the structured cause" do
+      {201, _} = http_deploy("service_task_unknown_type.bpmn")
+
+      {201, body} = http_start("ServiceTaskUnknownType")
+      process_instance_id = body["processInstanceId"]
+      wait_for_process_instance(process_instance_id)
+      assert_pi_state!(process_instance_id, "fatal")
+
+      service_fni =
+        process_instance_id
+        |> fetch_flow_node_instances()
+        |> Enum.find(&(&1.flow_node_id == "ServiceTask_Unknown"))
+
+      error_info = fetch_process_instance!(process_instance_id).error_info
+
+      assert error_info["error_code"] == "process_fatal"
+      assert error_info["message"] =~ "Process instance went fatal: "
+      assert error_info["message"] =~ "nonexistent_handler"
+      assert error_info["detail"]["flow_node_id"] == "ServiceTask_Unknown"
+      assert error_info["detail"]["flow_node_instance_id"] == service_fni.id
+      assert error_info["detail"]["cause"]["error_code"] == "no_handler_for_implementation"
+    end
+  end
 end

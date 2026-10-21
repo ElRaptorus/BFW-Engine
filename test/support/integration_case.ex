@@ -40,7 +40,19 @@ defmodule BfwEngine.IntegrationCase do
     ServiceReset.bpmn_model_cache()
     ensure_test_secret()
     terminate_all_process_instances()
+    checkout_persistence()
     :ok
+  end
+
+  # `/stats` and other endpoints query the database; the sandbox pool needs an
+  # owner for the test process.
+  defp checkout_persistence do
+    if BfwEngine.Test.DbAssertions.sandbox_pool?() do
+      for repo <- [BfwEngine.Persistence.Repo, BfwEngine.Persistence.ReadRepo] do
+        Ecto.Adapters.SQL.Sandbox.checkout(repo, ownership_timeout: 300_000)
+        Ecto.Adapters.SQL.Sandbox.mode(repo, {:shared, self()})
+      end
+    end
   end
 
   defp terminate_all_process_instances do

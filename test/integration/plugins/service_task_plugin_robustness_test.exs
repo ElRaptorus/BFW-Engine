@@ -449,7 +449,8 @@ defmodule BfwEngine.Plugins.Integration.ServiceTaskPluginRobustnessTest do
         inspect(find_fni_by_flow_node_id(process_instance_id, "End_Interrupted").input_token)
 
       assert caught_token =~ "HTTP_INTERRUPTED"
-      assert caught_token =~ "http://slow.test.local/api"
+      assert caught_token =~ "Call Slow API"
+      refute caught_token =~ "slow.test.local"
     end
   end
 

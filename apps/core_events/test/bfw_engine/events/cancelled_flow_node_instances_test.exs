@@ -52,8 +52,8 @@ defmodule BfwEngine.Events.CancelledFlowNodeInstancesTest do
 
     assert [%{flow_node_instance_id: "fni-winner"}] = result.deliveries
 
-    assert ["fni-winner"] ==
-             Enum.map(MessageSubscriptions.lookup("order", :none), & &1.flow_node_instance_id)
+    # A delivered one-shot subscription is claimed, so it is gone afterwards.
+    assert MessageSubscriptions.lookup("order", :none) == []
   end
 
   test "a late message registration of a cancelled loser does not drain a pending message" do
@@ -87,7 +87,7 @@ defmodule BfwEngine.Events.CancelledFlowNodeInstancesTest do
     {:ok, result} = SignalPublisher.publish_signal(%{name: "go"})
 
     assert [%{flow_node_instance_id: "fni-winner"}] = result.deliveries
-    assert [%{flow_node_instance_id: "fni-winner"}] = SignalSubscriptions.lookup("go")
+    assert SignalSubscriptions.lookup("go") == []
   end
 
   test "marks are removed when the marking process exits" do

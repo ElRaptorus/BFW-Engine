@@ -3056,11 +3056,10 @@ defmodule BfwEngine.Execution.ProcessInstance do
             InstanceHandlerDispatch.invoke_optional_callback(flow_node, :handle_fatal, [entry])
 
         data =
-          put_in(data.flow_node_instance_states[flow_node_instance_id], %{
-            entry
-            | state: :fatal,
-              pid: nil
-          })
+          put_in(
+            data.flow_node_instance_states[flow_node_instance_id],
+            entry |> Map.put(:error_info, error_info) |> Map.merge(%{state: :fatal, pid: nil})
+          )
 
         data = unregister_conditional_waiter(data, flow_node_instance_id)
 
@@ -4893,11 +4892,70 @@ defmodule BfwEngine.Execution.ProcessInstance do
         adapter.update_process_instance(data.process_instance_id, %{
           state: @pi_state_fatal,
           finished_at: DateTime.utc_now(),
-          error_info: process_instance_fatal_error_info(fatal_reason)
+          error_info: process_instance_fatal_error_info(data, fatal_reason)
         })
       end,
       "PI fatal #{data.process_instance_id}"
     )
+  end
+
+  # A fatal flow node instance makes the process instance fatal: the process
+  # error names that cause and the failing flow node and flow node instance.
+  defp process_instance_fatal_error_info(data, :fni_fatal) do
+    case find_fatal_entry(data, fn _error_info -> true end) do
+      {flow_node_instance_id, entry} ->
+        process_fatal_error_info(entry.error_info, entry.flow_node_id, flow_node_instance_id)
+
+      nil ->
+        process_fatal_error_info(ErrorInfo.build(:fni_fatal), nil, nil)
+    end
+  end
+
+  defp process_instance_fatal_error_info(data, {:fni_crash, flow_node_instance_id, reason}) do
+    case Map.get(data.flow_node_instance_states, flow_node_instance_id) do
+      %{error_info: error_info, flow_node_id: flow_node_id} ->
+        process_fatal_error_info(error_info, flow_node_id, flow_node_instance_id)
+
+      _entry ->
+        process_fatal_error_info(ErrorInfo.build({:crash, reason}), nil, flow_node_instance_id)
+    end
+  end
+
+  # An uncaught handler error reaches here with its own reason; the flow node
+  # instance that failed with it carries the same error info.
+  defp process_instance_fatal_error_info(data, fatal_reason) do
+    case process_instance_fatal_error_info(fatal_reason) do
+      %{"error_code" => "process_fatal", "detail" => %{"cause" => cause}} = error_info ->
+        case find_fatal_entry(data, &(&1 == cause)) do
+          {flow_node_instance_id, entry} ->
+            process_fatal_error_info(cause, entry.flow_node_id, flow_node_instance_id)
+
+          nil ->
+            error_info
+        end
+
+      error_info ->
+        error_info
+    end
+  end
+
+  defp find_fatal_entry(data, error_info_matches?) do
+    Enum.find(data.flow_node_instance_states, fn {_id, entry} ->
+      entry.state == :fatal and Map.has_key?(entry, :error_info) and
+        error_info_matches?.(entry.error_info)
+    end)
+  end
+
+  defp process_fatal_error_info(cause, flow_node_id, flow_node_instance_id) do
+    %{
+      "error_code" => "process_fatal",
+      "message" => "Process instance went fatal: #{cause["message"]}",
+      "detail" => %{
+        "cause" => cause,
+        "flow_node_id" => flow_node_id,
+        "flow_node_instance_id" => flow_node_instance_id
+      }
+    }
   end
 
   defp process_instance_fatal_error_info({:event_subprocess_correlation_failed, _, _} = reason),
@@ -4922,13 +4980,8 @@ defmodule BfwEngine.Execution.ProcessInstance do
        ),
        do: %{ErrorInfo.build(reason) | "detail" => flow_node_id}
 
-  defp process_instance_fatal_error_info(fatal_reason) do
-    %{
-      "error_code" => "process_fatal",
-      "message" => "Process instance went fatal",
-      "detail" => JsonSafe.convert(fatal_reason)
-    }
-  end
+  defp process_instance_fatal_error_info(fatal_reason),
+    do: process_fatal_error_info(ErrorInfo.build(fatal_reason), nil, nil)
 
   defp persist_pi_resume_failed(data, reason) do
     adapter = PersistenceAdapter.adapter()

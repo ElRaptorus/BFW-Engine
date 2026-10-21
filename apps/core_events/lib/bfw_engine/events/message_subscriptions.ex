@@ -30,6 +30,8 @@ defmodule BfwEngine.Events.MessageSubscriptions do
   @process_instance_index_table :bfw_engine_message_subscriptions_by_process_instance
   # Survives a restart of this server: the resume pipeline marks readiness once per boot.
   @ready_key {__MODULE__, :ready}
+  # Drain passes per registration: the second pass only runs after every row of the first was taken.
+  @drain_attempts 2
 
   # -------------------------------------------------------------------
   # Subscription struct
@@ -122,13 +124,7 @@ defmodule BfwEngine.Events.MessageSubscriptions do
         Map.get(params, :root_process_instance_id) || params.process_instance_id
     }
 
-    key = {subscription.message_name, subscription.expected_correlation_value}
-    :ets.insert(@table_name, {key, subscription})
-
-    :ets.insert(
-      @process_instance_index_table,
-      {subscription.process_instance_id, key, subscription.subscription_id}
-    )
+    insert_subscription(subscription)
 
     Logger.debug(
       "MessageSubscriptions: registered #{subscription.subscription_id} " <>
@@ -145,6 +141,36 @@ defmodule BfwEngine.Events.MessageSubscriptions do
     end
 
     {:ok, subscription.subscription_id}
+  end
+
+  @doc """
+  Atomically take one subscription out of the registry.
+
+  Returns `true` only for the caller that removed it. A publisher claims a
+  one-shot subscription (catch, boundary, receive task) before delivering,
+  so two publications racing for the same waiter deliver exactly once. A
+  caller that loses the claim must not deliver.
+  """
+  @spec claim(Subscription.t()) :: boolean()
+  def claim(%Subscription{} = subscription) do
+    key = {subscription.message_name, subscription.expected_correlation_value}
+
+    match_specification = [
+      {{key, %{subscription_id: subscription.subscription_id}}, [], [true]}
+    ]
+
+    case :ets.select_delete(@table_name, match_specification) do
+      0 ->
+        false
+
+      _claimed ->
+        :ets.delete_object(
+          @process_instance_index_table,
+          {subscription.process_instance_id, key, subscription.subscription_id}
+        )
+
+        true
+    end
   end
 
   @doc """
@@ -362,6 +388,16 @@ defmodule BfwEngine.Events.MessageSubscriptions do
     end)
   end
 
+  defp insert_subscription(subscription) do
+    key = {subscription.message_name, subscription.expected_correlation_value}
+    :ets.insert(@table_name, {key, subscription})
+
+    :ets.insert(
+      @process_instance_index_table,
+      {subscription.process_instance_id, key, subscription.subscription_id}
+    )
+  end
+
   defp generate_id do
     "msub_" <> (:crypto.strong_rand_bytes(16) |> Base.encode16(case: :lower))
   end
@@ -380,7 +416,7 @@ defmodule BfwEngine.Events.MessageSubscriptions do
             value -> value
           end
 
-        drain_from_adapter(adapter, subscription, correlation)
+        drain_from_adapter(adapter, subscription, correlation, @drain_attempts)
     end
   rescue
     exception ->
@@ -389,10 +425,19 @@ defmodule BfwEngine.Events.MessageSubscriptions do
       )
   end
 
-  defp drain_from_adapter(adapter, subscription, correlation) do
+  # A registration takes at most one pending message, the oldest: a catch
+  # event consumes a single message. A one-shot subscription is claimed first
+  # so a live publication racing this drain cannot deliver a second message;
+  # when the claim is lost the pending rows stay pending. When no row can be
+  # marked (another drain took them), the subscription goes back into the
+  # registry and the drain looks once more.
+  defp drain_from_adapter(adapter, subscription, correlation, attempts_left) do
     case adapter.find_pending_messages(subscription.message_name, correlation) do
+      {:ok, []} ->
+        :ok
+
       {:ok, pending_rows} ->
-        deliver_pending_rows(adapter, subscription, pending_rows)
+        drain_rows(adapter, subscription, correlation, pending_rows, attempts_left)
 
       {:error, reason} ->
         Logger.warning(
@@ -401,11 +446,45 @@ defmodule BfwEngine.Events.MessageSubscriptions do
     end
   end
 
-  defp deliver_pending_rows(adapter, subscription, rows) do
+  defp drain_rows(
+         adapter,
+         %Subscription{kind: :event_subprocess_start} = subscription,
+         _,
+         rows,
+         _
+       ) do
+    deliver_first_pending_row(adapter, subscription, rows)
+    :ok
+  end
+
+  defp drain_rows(adapter, subscription, correlation, rows, attempts_left) do
+    if claim(subscription) do
+      case deliver_first_pending_row(adapter, subscription, rows) do
+        :delivered ->
+          :ok
+
+        :none_marked ->
+          insert_subscription(subscription)
+          retry_drain(adapter, subscription, correlation, attempts_left)
+      end
+    else
+      :ok
+    end
+  end
+
+  defp retry_drain(_adapter, _subscription, _correlation, attempts_left)
+       when attempts_left <= 1,
+       do: :ok
+
+  defp retry_drain(adapter, subscription, correlation, attempts_left) do
+    drain_from_adapter(adapter, subscription, correlation, attempts_left - 1)
+  end
+
+  defp deliver_first_pending_row(adapter, subscription, rows) do
     alias BfwEngine.Events.EngineEventBus
     alias BfwEngine.Types.Event
 
-    Enum.each(rows, fn row ->
+    Enum.reduce_while(rows, :none_marked, fn row, _result ->
       case adapter.mark_pending_delivered(row.id) do
         :ok ->
           send(subscription.via_pid, pending_delivery_message(subscription, row))
@@ -433,8 +512,11 @@ defmodule BfwEngine.Events.MessageSubscriptions do
               "to subscription #{subscription.subscription_id}"
           )
 
+          {:halt, :delivered}
+
         {:error, _reason} ->
           Logger.debug("MessageSubscriptions: pending message #{row.message_id} already claimed")
+          {:cont, :none_marked}
       end
     end)
   end

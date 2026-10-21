@@ -1357,7 +1357,7 @@
       "ProcessInstanceAlreadyTerminalError": {
         "properties": {
           "currentState": {
-            "description": "The terminal state the process instance is in (finished, fatal, or aborted).",
+            "description": "The terminal state the process instance is in: any of `finished`, `fatal`, `aborted`, `error`, `escalated`, `compensated`, or `cancelled`.",
             "type": "string"
           },
           "error": {
@@ -3142,11 +3142,31 @@
             },
             "description": "Message published"
           },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            },
+            "description": "The body is not valid JSON, `correlation` is not a string or null, or `payload` is not an object or null."
+          },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
           },
           "403": {
             "$ref": "#/components/responses/Forbidden"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PayloadTooLargeError"
+                }
+              }
+            },
+            "description": "The request body exceeds the size limit"
           },
           "500": {
             "content": {
@@ -3219,7 +3239,7 @@
     },
     "/process-instances/{id}": {
       "delete": {
-        "description": "Deletes a terminal process instance and all its flow node instances. Only terminal PIs (`finished`, `fatal`, `aborted`) can be deleted — running PIs return 422.\n**Authorization:** Requires `delete_process_instance` claim (`own` or `all`) per D43 §6.2.",
+        "description": "Deletes a terminal process instance together with its whole tree: every child process instance and all flow node instances are hidden in the same transaction. Any terminal state can be deleted; a running PI returns 422, and a tree that still has a running descendant returns 409 `active_instances_exist`.\n**Authorization:** Requires `delete_process_instance` claim (`own` or `all`) per D43 §6.2.",
         "operationId": "deleteProcessInstance",
         "parameters": [
           {
@@ -3228,7 +3248,7 @@
         ],
         "responses": {
           "204": {
-            "description": "Process instance and FNIs deleted (no body)"
+            "description": "Process instance, its descendant instances and all their FNIs deleted (no body)"
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
@@ -3254,7 +3274,7 @@
                 }
               }
             },
-            "description": "The process instance is a child (Call Activity or subprocess) whose root process instance has not ended yet."
+            "description": "The process instance is a child (Call Activity or subprocess) whose root process instance has not ended yet, or one of its descendant process instances is still running or suspended."
           },
           "422": {
             "content": {
@@ -3285,7 +3305,7 @@
     },
     "/process-instances/{id}/abort": {
       "put": {
-        "description": "Aborts a running process instance. All active and waiting FNIs are cancelled, and the PI transitions to `:aborted`. Requires the `abort_process_instance` claim (`own` or `all`) per D43 §6.2.",
+        "description": "Aborts a running process instance (a process instance in any terminal state answers 422 `process_already_terminal`). All active and waiting FNIs are cancelled, and the PI transitions to `:aborted`. Requires the `abort_process_instance` claim (`own` or `all`) per D43 §6.2.",
         "operationId": "abortProcessInstance",
         "parameters": [
           {
@@ -4156,6 +4176,24 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "A statistics query against the database failed. The engine does not answer with zeroed counters; retry after `Retry-After` seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
           }
         },
         "summary": "Runtime statistics",

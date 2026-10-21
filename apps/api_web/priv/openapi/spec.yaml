@@ -161,6 +161,19 @@ paths:
                 $ref: "#/components/schemas/StatsResponse"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "503":
+          description: >-
+            A statistics query against the database failed. The engine does not
+            answer with zeroed counters; retry after `Retry-After` seconds.
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+              description: Suggested retry delay in seconds
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
   # ---------------------------------------------------------------------------
   # Processes (authenticated)
@@ -565,7 +578,8 @@ paths:
       summary: Abort a process instance
       operationId: abortProcessInstance
       description: >-
-        Aborts a running process instance. All active and waiting FNIs are
+        Aborts a running process instance (a process instance in any terminal
+        state answers 422 `process_already_terminal`). All active and waiting FNIs are
         cancelled, and the PI transitions to `:aborted`. Requires the
         `abort_process_instance` claim (`own` or `all`) per D43 §6.2.
       parameters:
@@ -698,9 +712,11 @@ paths:
       summary: Delete a process instance
       operationId: deleteProcessInstance
       description: >-
-        Deletes a terminal process instance and all its flow node instances.
-        Only terminal PIs (`finished`, `fatal`, `aborted`) can be deleted —
-        running PIs return 422.
+        Deletes a terminal process instance together with its whole tree: every
+        child process instance and all flow node instances are hidden in the
+        same transaction. Any terminal state can be deleted; a running PI
+        returns 422, and a tree that still has a running descendant returns 409
+        `active_instances_exist`.
 
         **Authorization:** Requires `delete_process_instance` claim
         (`own` or `all`) per D43 §6.2.
@@ -708,7 +724,7 @@ paths:
         - $ref: "#/components/parameters/ProcessInstanceId"
       responses:
         "204":
-          description: Process instance and FNIs deleted (no body)
+          description: Process instance, its descendant instances and all their FNIs deleted (no body)
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -723,7 +739,8 @@ paths:
         "409":
           description: >-
             The process instance is a child (Call Activity or subprocess) whose
-            root process instance has not ended yet.
+            root process instance has not ended yet, or one of its descendant
+            process instances is still running or suspended.
           content:
             application/json:
               schema:
@@ -1655,8 +1672,22 @@ paths:
                 pending: false
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "400":
+          description: >-
+            The body is not valid JSON, `correlation` is not a string or null,
+            or `payload` is not an object or null.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestError"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "413":
+          description: The request body exceeds the size limit
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PayloadTooLargeError"
         "500":
           description: Unexpected internal error while publishing the message
           content:
@@ -2240,7 +2271,8 @@ components:
         currentState:
           type: string
           description: >-
-            The terminal state the process instance is in (finished, fatal, or aborted).
+            The terminal state the process instance is in: any of `finished`, `fatal`,
+            `aborted`, `error`, `escalated`, `compensated`, or `cancelled`.
 
     ProcessInstanceNotTerminalError:
       type: object

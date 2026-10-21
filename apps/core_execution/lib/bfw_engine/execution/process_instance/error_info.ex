@@ -708,6 +708,10 @@ defmodule BfwEngine.Execution.ProcessInstance.ErrorInfo do
       "subprocess did not complete."
   end
 
+  defp humanize_error(:fni_fatal) do
+    "A flow node instance went fatal and no boundary or event subprocess caught its error."
+  end
+
   defp humanize_error({error_code, detail}) when is_atom(error_code) and is_binary(detail) do
     "#{atom_to_words(error_code)}: #{detail}"
   end

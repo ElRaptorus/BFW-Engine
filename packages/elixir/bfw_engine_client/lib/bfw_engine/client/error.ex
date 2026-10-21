@@ -52,7 +52,6 @@ defmodule BfwEngine.Client.Error do
           | :retry_checkpoint_is_mi_iteration
           | :retry_checkpoint_is_non_retryable
           | :decision_definition_not_found
-          | :retry_checkpoint_inside_transaction
           | :retry_inside_transaction_scope
           | :retry_checkpoint_inside_adhoc_subprocess
           | :retry_inside_adhoc_subprocess
@@ -137,7 +136,6 @@ defmodule BfwEngine.Client.Error do
     "enable_failed" => :validation_error,
     "disable_failed" => :validation_error,
     "decision_not_found" => :decision_definition_not_found,
-    "retry_checkpoint_inside_transaction" => :retry_checkpoint_inside_transaction,
     "retry_inside_transaction_scope" => :retry_inside_transaction_scope,
     "retry_checkpoint_inside_adhoc_subprocess" => :retry_checkpoint_inside_adhoc_subprocess,
     "retry_inside_adhoc_subprocess" => :retry_inside_adhoc_subprocess,

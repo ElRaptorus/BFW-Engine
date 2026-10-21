@@ -26,6 +26,8 @@ defmodule BfwEngine.Events.SignalSubscriptions do
   @process_instance_index_table :bfw_engine_signal_subscriptions_by_process_instance
   # Survives a restart of this server: the resume pipeline marks readiness once per boot.
   @ready_key {__MODULE__, :ready}
+  # Drain passes per registration: the second pass only runs after every row of the first was taken.
+  @drain_attempts 2
 
   # -------------------------------------------------------------------
   # Subscription struct
@@ -114,12 +116,7 @@ defmodule BfwEngine.Events.SignalSubscriptions do
         Map.get(params, :root_process_instance_id) || params.process_instance_id
     }
 
-    :ets.insert(@table_name, {subscription.signal_name, subscription})
-
-    :ets.insert(
-      @process_instance_index_table,
-      {subscription.process_instance_id, subscription.signal_name, subscription.subscription_id}
-    )
+    insert_subscription(subscription)
 
     Logger.debug(
       "SignalSubscriptions: registered #{subscription.subscription_id} " <>
@@ -135,6 +132,35 @@ defmodule BfwEngine.Events.SignalSubscriptions do
     end
 
     {:ok, subscription.subscription_id}
+  end
+
+  @doc """
+  Atomically take one subscription out of the registry.
+
+  Returns `true` only for the caller that removed it. A publisher claims a
+  one-shot subscription (catch, boundary) before delivering, so two
+  publications racing for the same waiter deliver exactly once. A caller
+  that loses the claim must not deliver.
+  """
+  @spec claim(Subscription.t()) :: boolean()
+  def claim(%Subscription{} = subscription) do
+    match_specification = [
+      {{subscription.signal_name, %{subscription_id: subscription.subscription_id}}, [], [true]}
+    ]
+
+    case :ets.select_delete(@table_name, match_specification) do
+      0 ->
+        false
+
+      _claimed ->
+        :ets.delete_object(
+          @process_instance_index_table,
+          {subscription.process_instance_id, subscription.signal_name,
+           subscription.subscription_id}
+        )
+
+        true
+    end
   end
 
   @doc """
@@ -332,6 +358,15 @@ defmodule BfwEngine.Events.SignalSubscriptions do
     end)
   end
 
+  defp insert_subscription(subscription) do
+    :ets.insert(@table_name, {subscription.signal_name, subscription})
+
+    :ets.insert(
+      @process_instance_index_table,
+      {subscription.process_instance_id, subscription.signal_name, subscription.subscription_id}
+    )
+  end
+
   defp generate_id do
     "ssub_" <> (:crypto.strong_rand_bytes(16) |> Base.encode16(case: :lower))
   end
@@ -353,21 +388,56 @@ defmodule BfwEngine.Events.SignalSubscriptions do
       )
   end
 
-  defp drain_from_adapter(adapter, subscription) do
+  # A registration takes at most one pending signal, the oldest: a catch event
+  # consumes a single signal. A one-shot subscription is claimed first so a live
+  # publication racing this drain cannot deliver a second signal; when the claim
+  # is lost the pending rows stay pending. When no row can be marked (another
+  # drain took them), the subscription goes back into the registry and the
+  # drain looks once more.
+  defp drain_from_adapter(adapter, subscription, attempts_left \\ @drain_attempts) do
     case adapter.find_pending_signals(subscription.signal_name) do
+      {:ok, []} ->
+        :ok
+
       {:ok, pending_rows} ->
-        deliver_pending_rows(adapter, subscription, pending_rows)
+        drain_rows(adapter, subscription, pending_rows, attempts_left)
 
       {:error, reason} ->
         Logger.warning("SignalSubscriptions: failed to drain pending signals: #{inspect(reason)}")
     end
   end
 
-  defp deliver_pending_rows(adapter, subscription, rows) do
+  defp drain_rows(adapter, %Subscription{kind: :event_subprocess_start} = subscription, rows, _) do
+    deliver_first_pending_row(adapter, subscription, rows)
+    :ok
+  end
+
+  defp drain_rows(adapter, subscription, rows, attempts_left) do
+    if claim(subscription) do
+      case deliver_first_pending_row(adapter, subscription, rows) do
+        :delivered ->
+          :ok
+
+        :none_marked ->
+          insert_subscription(subscription)
+          retry_drain(adapter, subscription, attempts_left)
+      end
+    else
+      :ok
+    end
+  end
+
+  defp retry_drain(_adapter, _subscription, attempts_left) when attempts_left <= 1, do: :ok
+
+  defp retry_drain(adapter, subscription, attempts_left) do
+    drain_from_adapter(adapter, subscription, attempts_left - 1)
+  end
+
+  defp deliver_first_pending_row(adapter, subscription, rows) do
     alias BfwEngine.Events.EngineEventBus
     alias BfwEngine.Types.Event
 
-    Enum.each(rows, fn row ->
+    Enum.reduce_while(rows, :none_marked, fn row, _result ->
       case adapter.mark_pending_delivered(row.id) do
         :ok ->
           send(subscription.via_pid, pending_delivery_message(subscription, row))
@@ -393,10 +463,14 @@ defmodule BfwEngine.Events.SignalSubscriptions do
               "to subscription #{subscription.subscription_id}"
           )
 
+          {:halt, :delivered}
+
         {:error, reason} ->
           Logger.debug(
             "SignalSubscriptions: pending signal #{row.signal_id} already claimed: #{inspect(reason)}"
           )
+
+          {:cont, :none_marked}
       end
     end)
   end

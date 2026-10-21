@@ -359,7 +359,7 @@ defmodule BfwEngine.BPMN.ModelCache do
        when is_binary(message_ref) do
     case Enum.find(messages, fn msg -> msg.id == message_ref end) do
       nil -> nil
-      message_def -> message_def.name
+      message_def -> non_blank(message_def.name)
     end
   end
 
@@ -397,11 +397,15 @@ defmodule BfwEngine.BPMN.ModelCache do
        when is_binary(signal_ref) do
     case Enum.find(signals, fn sig -> sig.id == signal_ref end) do
       nil -> nil
-      signal_def -> signal_def.name
+      signal_def -> non_blank(signal_def.name)
     end
   end
 
   defp resolve_signal_name_from_definitions(_definitions, _signal_ref), do: nil
+
+  # A blank name is not a routing key: indexing it would let a publication of "" start instances.
+  defp non_blank(name) when is_binary(name), do: if(String.trim(name) == "", do: nil, else: name)
+  defp non_blank(_name), do: nil
 
   # -------------------------------------------------------------------
   # Private: Subprocess model extraction

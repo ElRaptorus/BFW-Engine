@@ -11,11 +11,15 @@ defmodule BfwEngine.EngineFacade.ProcessInstances do
   `"version"` (a `bfw:version` string or `"latest"`) and
   `"resetToFlowNodeInstanceId"`. The TypeScript SDK key `"targetVersion"`
   is accepted as `"version"`; an explicit `"version"` wins.
+
+  `abort` answers `{:error, :process_already_terminal, state}` when the
+  persisted instance is already in a terminal state.
   """
 
   @type t :: %__MODULE__{
           get: (String.t() -> {:ok, struct()} | {:error, term()}),
-          abort: (String.t(), String.t() | nil -> :ok | {:error, term()}),
+          abort: (String.t(), String.t() | nil ->
+                    :ok | {:error, term()} | {:error, :process_already_terminal, String.t()}),
           retry: (String.t(), map() -> :ok | {:error, term()}),
           delete: (String.t() -> {:ok, struct()} | {:error, term()})
         }

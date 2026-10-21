@@ -30,7 +30,6 @@ export { RetryCheckpointIsJoinGatewayError } from './retry-checkpoint-is-join-ga
 export { RetryCheckpointIsEbgLoserError } from './retry-checkpoint-is-ebg-loser-error.js';
 export { RetryCheckpointIsMiIterationError } from './retry-checkpoint-is-mi-iteration-error.js';
 export { RetryCheckpointIsNonRetryableError } from './retry-checkpoint-is-non-retryable-error.js';
-export { RetryCheckpointInsideTransactionError } from './retry-checkpoint-inside-transaction-error.js';
 export { RetryInsideTransactionScopeError } from './retry-inside-transaction-scope-error.js';
 export { GraphqlDepthLimitError } from './graphql-depth-limit-error.js';
 export { GraphqlComplexityLimitError } from './graphql-complexity-limit-error.js';

@@ -97,8 +97,11 @@ queries on request**, not a counter cache:
 | `listeners` | `EngineEventBus.list_sinks/0` |
 | `dbPools` | configured `pool_size` for write `Repo` and, if started, `ReadRepo` |
 
-Ash/ETS failures are caught and returned as zeros / empty maps so the
-endpoint does not 500 when Postgres is down.
+`StatsCollector.snapshot/0` returns `{:ok, snapshot}` or
+`{:error, :database_unavailable}`. A failed database query (raise or exit) is
+logged at error level and the endpoint answers 503 `service_unavailable` with
+`Retry-After: 5`; it never reports zeroed counters, which would be
+indistinguishable from an idle engine.
 
 Wire shape (camelCase):
 

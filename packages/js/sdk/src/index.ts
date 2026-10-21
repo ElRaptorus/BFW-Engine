@@ -109,7 +109,6 @@ export {
   RetryCheckpointIsEbgLoserError,
   RetryCheckpointIsMiIterationError,
   RetryCheckpointIsNonRetryableError,
-  RetryCheckpointInsideTransactionError,
   RetryInsideTransactionScopeError,
   GraphqlDepthLimitError,
   GraphqlComplexityLimitError,

@@ -237,8 +237,13 @@ defmodule BfwEngine.Events.SignalPublisher do
   # Private: delivery
   # -------------------------------------------------------------------
 
+  # Inline catch and boundary subscriptions are one-shot: they are claimed before
+  # delivery, and a waiter another publication claimed first is not counted. An
+  # Event Subprocess start subscription is persistent and is never claimed.
   defp deliver_to_subscriptions(subscriptions, signal_id, triggerer_fni_id) do
-    Enum.map(subscriptions, fn subscription ->
+    subscriptions
+    |> Enum.filter(&(&1.kind == :event_subprocess_start or SignalSubscriptions.claim(&1)))
+    |> Enum.map(fn subscription ->
       # ESP-D13c: signals are broadcast-all. An ESP signal start fires alongside
       # inline catches/boundaries and standalone starts. Its `via_pid` is the
       # scope PI, which routes `{:event_subprocess_signal, flow_node_id}` to

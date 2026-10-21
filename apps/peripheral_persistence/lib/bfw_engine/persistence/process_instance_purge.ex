@@ -120,8 +120,13 @@ defmodule BfwEngine.Persistence.ProcessInstancePurge do
     end
   end
 
+  @doc """
+  True when a descendant (never the root itself) of the given instance is
+  `running` or `suspended`. A failing query answers `true`: callers must not
+  purge or delete a tree they cannot prove is quiescent.
+  """
   @spec tree_has_non_terminal_descendant?(String.t()) :: boolean()
-  defp tree_has_non_terminal_descendant?(root_process_instance_id) do
+  def tree_has_non_terminal_descendant?(root_process_instance_id) do
     sql = """
     WITH RECURSIVE tree AS (
       SELECT id FROM process_instances WHERE id = $1::uuid
@@ -201,7 +206,13 @@ defmodule BfwEngine.Persistence.ProcessInstancePurge do
     {Enum.join(fragments, " OR "), parameters}
   end
 
-  defp descendant_ids_including_self!(process_instance_id) do
+  @doc """
+  IDs of the instance and every descendant linked by
+  `parent_process_instance_id`. Rolls the surrounding transaction back on a
+  query failure, so call it inside `Repo.transaction/1`.
+  """
+  @spec descendant_ids_including_self!(String.t()) :: [String.t()]
+  def descendant_ids_including_self!(process_instance_id) do
     sql = """
     WITH RECURSIVE tree AS (
       SELECT id FROM process_instances WHERE id = $1::uuid

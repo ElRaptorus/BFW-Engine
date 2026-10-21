@@ -41,7 +41,7 @@ Additional logging beyond `ErrorResponse`:
 
 **GraphQL error shape:** `PipelineModifier` replaces Absinthe's document result phase with `spec_compliant_errors: true`, so machine-readable details (`code`, `fields`, `vars`, `shortMessage`) sit under `errors[].extensions`, never at the top level of an error object. Clients read `errors[0].extensions.code`.
 
-**Unified terminal-state codes:** The `ProcessInstanceController` returns `process_already_terminal` (with a `currentState` field) instead of separate `process_already_finished` / `process_already_fatal` / `process_already_aborted` codes. Similarly, `process_instance_not_terminal` includes `currentState`.
+**Unified terminal-state codes:** The `ProcessInstanceController` returns `process_already_terminal` (with a `currentState` field; abort rejects every terminal state: `finished`, `fatal`, `aborted`, `error`, `escalated`, `compensated`, `cancelled`) instead of separate `process_already_finished` / `process_already_fatal` / `process_already_aborted` codes. Similarly, `process_instance_not_terminal` includes `currentState`.
 
 ### 10.1 REST surface (lightweight, trigger-style)
 
@@ -78,7 +78,7 @@ Additional trigger-style paths in the table below remain specified for v1 parity
 | `GET` | `/health` | Liveness/readiness; **no auth**; **204 No Content**. Load is `engine.load` on `GET /stats` |
 | `GET` | `/info` | Engine id/name/version/`startedAt`; **no auth** |
 | `GET` | `/metrics` | Prometheus text exposition; **no auth** when enabled (`BFE_METRICS_ENABLED`, default `true`). Returns plain-text `404 Not Found` when disabled |
-| `GET` | `/stats` | JSON snapshot of current engine state (see [observability.md](./observability.md)) |
+| `GET` | `/stats` | JSON snapshot of current engine state (see [observability.md](./observability.md)); 503 `service_unavailable` + `Retry-After: 5` when a database query fails |
 | `POST` | `/processes/{model_id}/start` | Start a new PI (body: startEventId?, payload?, context?, businessKey?). `context` is stored as `started_with_context`; empty when omitted. Always resolves to the latest non-deleted version (`process_versions.deleted=false`) of an enabled process |
 | `POST` | `/messages/{message_name}/trigger` | **Implemented** — publish a named message. Body: `{payload?, correlation?}` — message name is the path parameter. `correlation` is optional; if absent, the published `correlation_value` defaults to `:none` ([routing.md](./routing.md) §3.5.2). Routing follows [routing.md](./routing.md) §3.5.3: every subscription whose `(message_name, expected_correlation_value)` matches receives a copy (broadcast-within-key). If **any** subscription matches, Message Start Events are suppressed (catch-wins-over-Start); if none match, at most one PI is started per enabled process whose latest live version has a Message Start Event with matching name (start discovery rule, [routing.md](./routing.md) §3.5.3). If none match and no Start Event matches, the message is held in `pending_messages` for `BFE_MESSAGE_PENDING_TTL` ([configuration.md](./configuration.md)). Response body: `{messageId, correlationValue, deliveries: [{processInstanceId, flowNodeInstanceId}], startedProcessInstanceIds: [...], pending: boolean}`. Auth: `trigger_message` (`"all"`). Returns `503` with `Retry-After` when `MessageSubscriptions` is not yet ready (resume gate). The old RPC-style `POST /triggers/messages` was **removed**, not aliased. |
 | `POST` | `/signals/{signal_name}/trigger` | **Implemented** — broadcast a named signal. Body: empty or `{}`; any `payload` key is silently ignored. Signals carry no payload and no correlation — pure broadcast by signal name. Response body: `{signalId, signalName, deliveries: [{processInstanceId, flowNodeInstanceId}], startedProcessInstanceIds: [string], pending: boolean}`. Auth: `trigger_signal` (`"all"`). Returns `503` with `Retry-After: 5` when `SignalSubscriptions` is not yet ready (resume gate). The old RPC-style `POST /triggers/signals` was **removed**, not aliased. |
@@ -116,7 +116,7 @@ Additional trigger-style paths in the table below remain specified for v1 parity
 |---|---|---|---|
 | `POST` | `/messages/{message_name}/trigger` | Trigger a named message | `trigger_message` (`"all"`) |
 
-Body: `{payload?, correlation?}`. Returns `200` with `{messageId, correlationValue, deliveries, startedProcessInstanceIds, pending}`. Errors: `403` (missing `trigger_message` claim), `413` (payload too large), `503` (subscription registry not ready during resume — includes `Retry-After`). Controller: `BfwEngineWeb.Http.MessageController` (`apps/api_web/lib/bfw_engine_web/http/controllers/message_controller.ex`). Delegates to `BfwEngine.Api.publish_message/5` (claim check + `MessagePublisher`).
+Body: `{payload?, correlation?}`. Returns `200` with `{messageId, correlationValue, deliveries, startedProcessInstanceIds, pending}`. Errors: `400` `bad_request` (malformed JSON, `correlation` not a string or null, `payload` not an object or null), `403` (missing `trigger_message` claim), `413` (payload too large), `503` (subscription registry not ready during resume — includes `Retry-After`). Controller: `BfwEngineWeb.Http.MessageController` (`apps/api_web/lib/bfw_engine_web/http/controllers/message_controller.ex`). Delegates to `BfwEngine.Api.publish_message/5` (claim check + `MessagePublisher`).
 
 #### 10.1.4 Signal triggers (`SignalController` — implemented)
 
@@ -184,7 +184,7 @@ No engine state changes on a 413 — the PI is not started, the message is not p
 
 The cap is enforced identically whether the payload comes through REST (above) or through the plugin facade (`BfwEngine.Api.*` / `engine_facade`). Overflow on REST returns HTTP 413 as shown; overflow on the facade returns `{:error, :payload_too_large, %{field, size, limit}}` with the same shape. There are no GraphQL mutations, so GraphQL never carries a command payload.
 
-Body-level limits (the total HTTP request byte size) are enforced separately by the upstream Phoenix endpoint at `max_body_bytes = 4 * BFE_TOKEN_MAX_BYTES` by default (headroom for JSON envelope + multiple payload-bearing fields on a single request) and return the standard Phoenix `413` before the per-field cap check runs.
+Body-level limits (the total HTTP request byte size) are enforced separately by the upstream Phoenix endpoint at `max_body_bytes = 4 * BFE_TOKEN_MAX_BYTES` by default (headroom for JSON envelope + multiple payload-bearing fields on a single request) and return a structured `413` `payload_too_large` before the per-field cap check runs. The router parser failures use the shared JSON error bodies: `400` `bad_request` (malformed JSON), `406` `not_acceptable`, `413` `payload_too_large`, `415` `unsupported_media_type` (`BfwEngineWeb.Http.ErrorJSON`).
 
 ### 10.2 GraphQL surface (query-only)
 
@@ -455,7 +455,7 @@ Real-time FNI updates use the WebSocket API (Phoenix Channels), not GraphQL subs
 
 #### Retention (no REST purge)
 
-Manual purge is **not** a live REST or GraphQL field. Process-instance trees are hard-deleted by `mix bfw.retention.purge`. Ordinary `DELETE /process-instances/{id}` remains **soft-delete of one PI + its FNIs** and still omits `cancelled`. A child PI (non-nil `parent_process_instance_id`) is refused with 409 `active_instances_exist` while its root PI (found by walking the parent chain) is not terminal: the running tree may still resume, retry, or compensate into it. The walk cannot read a deleted ancestor, so a child whose intermediate parent was deleted (possible only while the root was terminal, before a retry made it live again) skips the root check (accepted limitation). GraphQL is query-only.
+Manual purge is **not** a live REST or GraphQL field. Process-instance trees are hard-deleted by `mix bfw.retention.purge`. Ordinary `DELETE /process-instances/{id}` soft-deletes the PI **and its whole descendant tree** with all their FNIs in one transaction, for every terminal state including `cancelled`; it refuses with 409 `active_instances_exist` while any descendant is `running` or `suspended`. A child PI (non-nil `parent_process_instance_id`) is refused with 409 `active_instances_exist` while its root PI (found by walking the parent chain) is not terminal: the running tree may still resume, retry, or compensate into it. The walk cannot read a deleted ancestor, so a child whose intermediate parent was deleted (possible only while the root was terminal, before a retry made it live again) skips the root check (accepted limitation). GraphQL is query-only.
 
 See [configuration.md](./configuration.md) and [database.md](../guides/operations/database.md).
 

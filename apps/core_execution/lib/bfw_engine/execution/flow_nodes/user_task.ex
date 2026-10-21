@@ -258,7 +258,7 @@ defmodule BfwEngine.Execution.FlowNodes.UserTask do
 
     case Expressions.eval(expression, feel_context) do
       {:ok, result} when is_list(result) ->
-        result
+        Enum.filter(result, &is_binary/1)
 
       {:ok, result} when is_binary(result) ->
         [result]

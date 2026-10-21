@@ -82,7 +82,7 @@ defmodule BfwEngine.Events.SubscriptionLivenessTest do
 
       assert_receive {:signal_arrived, _signal_id, _triggerer}
       assert [%{flow_node_instance_id: "fni-live"}] = result.deliveries
-      assert [%{flow_node_instance_id: "fni-live"}] = SignalSubscriptions.lookup("go")
+      assert SignalSubscriptions.lookup("go") == []
     end
 
     test "unregister_all_for_flow_node_instance keeps Event Subprocess starts" do

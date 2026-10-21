@@ -129,7 +129,7 @@ Example cron (daily 03:00 UTC):
 | `BFE_RETENTION_ABORTED_DAYS` | Max age for `aborted` PIs |
 | `BFE_RETENTION_ESCALATED_DAYS` | Max age for `escalated` PIs |
 | `BFE_RETENTION_COMPENSATED_DAYS` | Max age for `compensated` PIs |
-| `BFE_RETENTION_CANCELLED_DAYS` | Max age for `cancelled` PIs (Mix purge only; REST delete still omits `cancelled`) |
+| `BFE_RETENTION_CANCELLED_DAYS` | Max age for `cancelled` PIs (Mix purge only) |
 | `BFE_RETENTION_BATCH_SIZE` | Max root trees per Mix invocation (default `500`) |
 | `BFE_RETENTION_RUN_INTERVAL` | Ignored; cron owns the interval |
 | `BFE_RETENTION_ENGINE_AUDIT_DAYS` | Not read by the engine. Use it as the cutoff (in days) for the SQL below |

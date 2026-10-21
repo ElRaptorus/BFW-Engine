@@ -328,7 +328,8 @@ defmodule BfwEngine.Plugins.Builtin.HttpServiceTaskHandlerTest do
         )
 
       assert error_code == "HTTP_CONNECTION_FAILED"
-      assert message == "HTTP request to http://test.local/api failed: the connection was refused"
+      assert message == "HTTP request failed: the connection was refused"
+      refute message =~ "test.local"
     end
 
     test "H-22: an exit in the HTTP client fails the task instead of leaving it waiting" do
@@ -340,7 +341,7 @@ defmodule BfwEngine.Plugins.Builtin.HttpServiceTaskHandlerTest do
       assert error_code == "HTTP_REQUEST_FAILED"
 
       assert message ==
-               "HTTP request to http://test.local/api could not be executed: the HTTP client stopped with exit"
+               "HTTP request could not be executed: the HTTP client stopped with exit"
     end
 
     test "H-23: an error status quotes at most the first 500 characters of the body" do

@@ -38,10 +38,13 @@ defmodule BfwEngineWeb.Http.PluginExtensionControllerTest do
   import Plug.Test
   import Plug.Conn
 
+  alias BfwEngine.Persistence.ReadRepo
+  alias BfwEngine.Persistence.Repo
   alias BfwEngine.Plugins.Registry
   alias BfwEngine.Test.HttpAuthHelper
   alias BfwEngineWeb.Http.PluginExtensionControllerTest.EchoPlug
   alias BfwEngineWeb.ServiceReset
+  alias Ecto.Adapters.SQL.Sandbox
 
   @router BfwEngineWeb.Http.Router
 
@@ -103,6 +106,10 @@ defmodule BfwEngineWeb.Http.PluginExtensionControllerTest do
 
   describe "engine routes still win" do
     test "GET /stats is not captured by the plugin catch-all" do
+      :ok = Sandbox.checkout(Repo)
+      Sandbox.mode(Repo, {:shared, self()})
+      :ok = Sandbox.checkout(ReadRepo)
+      Sandbox.mode(ReadRepo, {:shared, self()})
       token = HttpAuthHelper.sign_jwt()
 
       conn =

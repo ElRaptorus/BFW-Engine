@@ -67,7 +67,6 @@ Plugins: `facade.process_instances.retry.(id, opts)` with `skip_claims: true`.
 | `retry_inside_adhoc_subprocess` | Targeted PI is a child of an ad-hoc subprocess scope |
 | `retry_checkpoint_inside_adhoc_subprocess` | Checkpoint points inside an ad-hoc subprocess scope |
 | `retry_inside_transaction_scope` | Targeted PI has a transaction ancestor |
-| `retry_checkpoint_inside_transaction` | Checkpoint points inside a transaction child scope |
 | `version_migration_incompatible` | Surviving flow-node IDs are missing from the target version |
 
 ## Version Migration

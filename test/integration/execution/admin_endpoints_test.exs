@@ -87,6 +87,30 @@ defmodule BfwEngine.Integration.Execution.AdminEndpointsTest do
       assert_pi_state!(process_instance_id, "aborted")
     end
 
+    test "returns 422 process_already_terminal with the current state for a finished PI" do
+      process_instance_id = http_deploy_and_start("linear_start_end.bpmn", "LinearStartEnd")
+      wait_for_process_instance(process_instance_id)
+      assert_pi_state!(process_instance_id, "finished")
+
+      claims = %{"abort_process_instance" => "all"}
+      {422, body} = http_abort_process_instance(process_instance_id, nil, claims)
+
+      assert body["error"] == "process_already_terminal"
+      assert body["currentState"] == "finished"
+    end
+
+    test "returns 422 process_already_terminal for an already aborted PI" do
+      process_instance_id = http_deploy_and_start("user_task_simple.bpmn", "UserTaskSimple")
+      Process.sleep(200)
+      claims = %{"abort_process_instance" => "all"}
+      {204, nil} = http_abort_process_instance(process_instance_id, nil, claims)
+
+      {422, body} = http_abort_process_instance(process_instance_id, nil, claims)
+
+      assert body["error"] == "process_already_terminal"
+      assert body["currentState"] == "aborted"
+    end
+
     test "returns 404 for non-existent PI" do
       claims = %{"abort_process_instance" => "all"}
       {404, body} = http_abort_process_instance(Ash.UUIDv7.generate(), nil, claims)

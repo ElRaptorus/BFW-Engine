@@ -2,8 +2,11 @@ defmodule BfwEngine.Telemetry.StatsCollectorTest do
   use ExUnit.Case, async: false
 
   alias BfwEngine.Events.EngineEventBus
+  alias BfwEngine.Persistence.ReadRepo
+  alias BfwEngine.Persistence.Repo
   alias BfwEngine.Telemetry.ServiceReset
   alias BfwEngine.Telemetry.StatsCollector
+  alias Ecto.Adapters.SQL.Sandbox
 
   describe "info/0" do
     test "returns engine identity fields" do
@@ -19,9 +22,28 @@ defmodule BfwEngine.Telemetry.StatsCollectorTest do
     end
   end
 
+  describe "snapshot/0 when the database cannot be queried" do
+    test "returns an error instead of zeroed counters" do
+      assert {:error, :database_unavailable} = failing_snapshot()
+    end
+
+    # No sandbox owner for this process, so every count query raises or exits.
+    defp failing_snapshot do
+      Task.async(fn -> StatsCollector.snapshot() end) |> Task.await()
+    end
+  end
+
   describe "snapshot/0" do
+    setup do
+      :ok = Sandbox.checkout(Repo)
+      Sandbox.mode(Repo, {:shared, self()})
+      :ok = Sandbox.checkout(ReadRepo)
+      Sandbox.mode(ReadRepo, {:shared, self()})
+      :ok
+    end
+
     test "returns all expected top-level keys" do
-      result = StatsCollector.snapshot()
+      {:ok, result} = StatsCollector.snapshot()
 
       expected_keys =
         ~w(engine process_instances flow_node_instances user_tasks_pending
@@ -33,7 +55,7 @@ defmodule BfwEngine.Telemetry.StatsCollectorTest do
     end
 
     test "engine section contains identity and load level" do
-      %{engine: engine} = StatsCollector.snapshot()
+      {:ok, %{engine: engine}} = StatsCollector.snapshot()
 
       assert is_binary(engine.id)
       assert is_binary(engine.name)
@@ -42,7 +64,7 @@ defmodule BfwEngine.Telemetry.StatsCollectorTest do
     end
 
     test "listeners section has sink info" do
-      %{listeners: listeners} = StatsCollector.snapshot()
+      {:ok, %{listeners: listeners}} = StatsCollector.snapshot()
 
       assert is_integer(listeners.event_sinks_count)
       assert is_map(listeners.event_sinks_by_name)
@@ -52,7 +74,7 @@ defmodule BfwEngine.Telemetry.StatsCollectorTest do
       ServiceReset.engine_event_bus()
 
       try do
-        %{listeners: listeners} = StatsCollector.snapshot()
+        {:ok, %{listeners: listeners}} = StatsCollector.snapshot()
 
         assert listeners.event_sinks_count == 0
 
@@ -69,7 +91,7 @@ defmodule BfwEngine.Telemetry.StatsCollectorTest do
     end
 
     test "S-3: process_instances section has all state keys" do
-      %{process_instances: pi_stats} = StatsCollector.snapshot()
+      {:ok, %{process_instances: pi_stats}} = StatsCollector.snapshot()
 
       for key <- ~w(running finished fatal aborted)a do
         assert Map.has_key?(pi_stats, key),
@@ -83,7 +105,7 @@ defmodule BfwEngine.Telemetry.StatsCollectorTest do
       sinks = EngineEventBus.list_sinks()
 
       if sinks != [] do
-        %{listeners: listeners} = StatsCollector.snapshot()
+        {:ok, %{listeners: listeners}} = StatsCollector.snapshot()
 
         assert listeners.event_sinks_count == Enum.count(sinks)
 

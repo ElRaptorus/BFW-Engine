@@ -63,6 +63,15 @@ defmodule BfwEngineWeb.Http.TimerScheduleControllerTest do
       end)
     end
 
+    test "returns 403 for a deploy_bpmn claim that is not the boolean true" do
+      with_auth_enabled(fn ->
+        conn = auth_conn(:get, "/timer-schedules", %{"deploy_bpmn" => "yes"})
+
+        assert conn.status == 403
+        assert_error_body(Jason.decode!(conn.resp_body), "forbidden")
+      end)
+    end
+
     test "returns 200 with a data list" do
       with_auth_enabled(fn ->
         conn = auth_conn(:get, "/timer-schedules", %{"deploy_bpmn" => true})

@@ -35,9 +35,9 @@ Performs asynchronous HTTP requests using the `Req` library (all Service Task ha
 - **Error status:** calls `fail_async_service_task` with code `HTTP_<status>` (for example `HTTP_404`); the message quotes at most the first 500 characters of the response body
 - **Connection failure:** calls `fail_async_service_task` with code `HTTP_CONNECTION_FAILED` and a message naming the failure (connection refused, connection closed, host not resolved, or the client's reason code)
 - **Timeout:** calls `fail_async_service_task` with code `HTTP_TIMEOUT`
-- **Request could not be executed** (the request raised, exited, or threw, for example a malformed URL or a stopped connection pool): calls `fail_async_service_task` with code `HTTP_REQUEST_FAILED`
+- **Request could not be executed** (the request raised, exited, or threw, for example a malformed URL or a stopped connection pool): calls `fail_async_service_task` with code `HTTP_REQUEST_FAILED`. No failure message contains the request URL, because a URL can carry a token in its query string
 - **Authorization header** that evaluates to anything but a string or number, or to text containing a carriage return, line feed, or NUL character: synchronous error `http_auth_expression_error`. Failure messages never contain the header value
-- **Engine restart while the request is in flight:** `handle_resume/2` calls `fail_async_service_task` with code `HTTP_INTERRUPTED` (the message names the task and the URL); the request is not re-issued, so an error boundary decides
+- **Engine restart while the request is in flight:** `handle_resume/2` calls `fail_async_service_task` with code `HTTP_INTERRUPTED` (the message names the task, never the URL); the request is not re-issued, so an error boundary decides
 - **Payload cap:** output is checked against `BFE_TOKEN_MAX_BYTES` when the task finishes
 
 ### FEEL Context

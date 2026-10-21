@@ -838,4 +838,33 @@ describe('mapResponseError — HTTP status fallback', () => {
     const error = mapResponseError(418, {});
     expect(error.errorCode).toBe('unknown');
   });
+
+  it('maps the removed retry_checkpoint_inside_transaction code to a plain ValidationError', () => {
+    const error = mapResponseError(422, {
+      error: 'retry_checkpoint_inside_transaction',
+      message: 'Checkpoint inside a transaction',
+    });
+    expect(error).toBeInstanceOf(ValidationError);
+    expect(error.errorCode).toBe('retry_checkpoint_inside_transaction');
+  });
+
+  it('keeps the parser error codes not_acceptable and unsupported_media_type', () => {
+    const notAcceptable = mapResponseError(406, { error: 'not_acceptable', message: 'Not Acceptable' });
+    expect(notAcceptable).toBeInstanceOf(BfwEngineError);
+    expect(notAcceptable.statusCode).toBe(406);
+    expect(notAcceptable.errorCode).toBe('not_acceptable');
+
+    const unsupportedMediaType = mapResponseError(415, {
+      error: 'unsupported_media_type',
+      message: 'Unsupported Media Type',
+    });
+    expect(unsupportedMediaType.statusCode).toBe(415);
+    expect(unsupportedMediaType.errorCode).toBe('unsupported_media_type');
+  });
+
+  it('maps a parser 413 payload_too_large without size fields to PayloadTooLargeError', () => {
+    const error = mapResponseError(413, { error: 'payload_too_large', message: 'Request Entity Too Large' });
+    expect(error).toBeInstanceOf(PayloadTooLargeError);
+    expect(error.errorCode).toBe('payload_too_large');
+  });
 });

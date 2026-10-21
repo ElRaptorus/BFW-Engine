@@ -6,7 +6,7 @@ User Tasks are wait states that pause execution until a human completes the task
 
 | Extension | Purpose |
 |-----------|---------|
-| `bfw:assignees` | FEEL expression evaluated when the task is entered, with `token` bound to the input after `bfw:inputMapping`. A list is used as is, a string becomes a one-element list, anything else (or a FEEL error, which is logged) gives no assignees |
+| `bfw:assignees` | FEEL expression evaluated when the task is entered, with `token` bound to the input after `bfw:inputMapping`. A list keeps its string entries and drops all other entries, a string becomes a one-element list, anything else (or a FEEL error, which is logged) gives no assignees |
 | `bfw:formFields` | JSON array of form fields, passed through to clients and not interpreted by the engine |
 | `bfw:inputMapping` | FEEL-based input mapper (`source`/`target` pair). Transforms incoming token before the task is presented. Multiple supported |
 | `bfw:outputMapping` | FEEL-based output mapper (`source`/`target` pair). Transforms the `{ actionId, values }` token before result contract validation. Multiple supported |

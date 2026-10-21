@@ -321,6 +321,21 @@ defmodule BfwEngine.Execution.FlowNodesTest do
       assert result.type_properties.assignees == ["single-assignee"]
     end
 
+    test "a list assignee result keeps only string entries" do
+      base_node = %FlowNode{
+        id: "ut-assignees-mixed",
+        type: :user_task,
+        type_data: %FlowNodeData.UserTask{assignees_expression: ~s([1, "a", null])}
+      }
+
+      {node, context} = make_context(base_node)
+
+      assert {:wait, %FlowNodeResult{} = result} =
+               FlowNodes.UserTask.handle_enter(node, make_token(), context)
+
+      assert result.type_properties.assignees == ["a"]
+    end
+
     test "nil assignees expression returns empty list" do
       base_node = %FlowNode{
         id: "ut-nil-assignees",

@@ -32,17 +32,21 @@ defmodule BfwEngine.Execution.FlowNodes.SignalThrowEvent do
     with {:ok, mapped_payload} <-
            MappingHelper.apply_in_mappings(in_mappings, raw_payload, context),
          {:ok, signal_name} <-
-           SignalEventHelper.resolve_signal_name(flow_node, context.definitions) do
-      publish_and_proceed(
+           SignalEventHelper.resolve_signal_name(flow_node, context.definitions),
+         {:ok, next_ids} <- resolve_outgoing(flow_node, context) do
+      publish_and_finish(
         flow_node,
         context,
         signal_name,
+        next_ids,
         MappingHelper.merge_over_input(raw_payload, mapped_payload)
       )
     end
   end
 
-  defp publish_and_proceed(flow_node, context, signal_name, payload) do
+  # Outgoing flows are resolved before publishing: an invalid flow fatals the
+  # event without a publication.
+  defp publish_and_finish(flow_node, context, signal_name, next_ids, payload) do
     {:ok, _publish_result} =
       SignalPublisher.publish_signal(%{
         name: signal_name,
@@ -53,23 +57,17 @@ defmodule BfwEngine.Execution.FlowNodes.SignalThrowEvent do
         }
       })
 
-    case resolve_outgoing(flow_node, context) do
-      {:ok, next_ids} ->
-        case FniLifecycle.finish(context, flow_node, payload, %{}) do
-          {:ok, lifecycle_result} ->
-            {:ok,
-             %FlowNodeResult{
-               output_payload: payload,
-               next_flow_node_ids: next_ids,
-               metadata: %{persisted: true, lifecycle: lifecycle_result}
-             }}
+    case FniLifecycle.finish(context, flow_node, payload, %{}) do
+      {:ok, lifecycle_result} ->
+        {:ok,
+         %FlowNodeResult{
+           output_payload: payload,
+           next_flow_node_ids: next_ids,
+           metadata: %{persisted: true, lifecycle: lifecycle_result}
+         }}
 
-          {:error, reason} ->
-            {:error, reason}
-        end
-
-      {:error, _reason} = error ->
-        error
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 

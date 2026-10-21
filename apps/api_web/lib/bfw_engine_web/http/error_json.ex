@@ -13,6 +13,10 @@ defmodule BfwEngineWeb.Http.ErrorJSON do
 
   defp template_to_error("404.json"), do: {"not_found", "Not Found"}
   defp template_to_error("500.json"), do: {"internal_error", "Internal Server Error"}
+  defp template_to_error("400.json"), do: {"bad_request", "Bad Request"}
+  defp template_to_error("406.json"), do: {"not_acceptable", "Not Acceptable"}
+  defp template_to_error("413.json"), do: {"payload_too_large", "Request Entity Too Large"}
+  defp template_to_error("415.json"), do: {"unsupported_media_type", "Unsupported Media Type"}
 
   defp template_to_error(template) do
     message = Phoenix.Controller.status_message_from_template(template)

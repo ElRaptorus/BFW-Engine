@@ -12,11 +12,13 @@ defmodule BfwEngine.Api.ProcessInstances do
   alias BfwEngine.Execution.CalledElementResolver
   alias BfwEngine.Execution.Persistence
   alias BfwEngine.Execution.PersistenceRetry
+  alias BfwEngine.Persistence.ProcessInstancePurge
   alias BfwEngine.Persistence.Repo
   alias BfwEngine.Persistence.Resources
 
   @domain BfwEngine.Persistence.Api
   @non_terminal_states ~w(running suspended)
+  @terminal_states ~w(finished fatal aborted error escalated compensated cancelled)
 
   @doc "Check whether any non-terminal PIs exist for a single process version."
   @spec has_active_process_instances?(binary()) :: boolean()
@@ -89,39 +91,49 @@ defmodule BfwEngine.Api.ProcessInstances do
   end
 
   @doc """
-  Soft-delete a process instance and all its flow node instances in a
-  single transaction.
+  Soft-delete a process instance, every descendant instance, and all their
+  flow node instances in a single transaction. Returns the updated root.
   """
   @spec soft_delete_process_instance_with_fnis(struct(), map()) ::
           {:ok, struct()} | {:error, term()}
   def soft_delete_process_instance_with_fnis(process_instance, identity) do
-    now = DateTime.utc_now()
-    delete_attributes = %{deleted: true, deleted_at: now, deleted_by: identity}
+    delete_attributes = %{deleted: true, deleted_at: DateTime.utc_now(), deleted_by: identity}
 
     Repo.transaction(fn ->
-      {:ok, updated_pi} =
+      process_instance_ids =
+        ProcessInstancePurge.descendant_ids_including_self!(process_instance.id)
+
+      {:ok, updated_process_instance} =
         process_instance
         |> Ash.Changeset.for_update(:soft_delete, delete_attributes)
         |> Ash.update(authorize?: false)
 
-      bulk_result =
+      descendant_ids = List.delete(process_instance_ids, process_instance.id)
+
+      soft_delete_in_bulk!(
+        Resources.ProcessInstance |> Ash.Query.filter(id in ^descendant_ids),
+        delete_attributes
+      )
+
+      soft_delete_in_bulk!(
         Resources.FlowNodeInstance
-        |> Ash.Query.filter(process_instance_id == ^process_instance.id)
-        |> Ash.bulk_update(:soft_delete, delete_attributes,
-          domain: @domain,
-          authorize?: false,
-          return_errors?: true
-        )
+        |> Ash.Query.filter(process_instance_id in ^process_instance_ids),
+        delete_attributes
+      )
 
-      case bulk_result do
-        %Ash.BulkResult{status: :success} ->
-          updated_pi
-
-        %Ash.BulkResult{status: status, errors: errors}
-        when status in [:partial_success, :error] ->
-          Repo.rollback({:fni_bulk_delete_failed, errors})
-      end
+      updated_process_instance
     end)
+  end
+
+  defp soft_delete_in_bulk!(query, delete_attributes) do
+    case Ash.bulk_update(query, :soft_delete, delete_attributes,
+           domain: @domain,
+           authorize?: false,
+           return_errors?: true
+         ) do
+      %Ash.BulkResult{status: :success} -> :ok
+      %Ash.BulkResult{errors: errors} -> Repo.rollback({:soft_delete_failed, errors})
+    end
   end
 
   @doc """
@@ -158,7 +170,10 @@ defmodule BfwEngine.Api.ProcessInstances do
   ownership check for `own`.
   """
   @spec abort_process_instance(String.t(), String.t() | nil, struct(), keyword()) ::
-          :ok | {:error, term()} | BfwEngine.Api.forbidden_error()
+          :ok
+          | {:error, term()}
+          | {:error, :process_already_terminal, String.t()}
+          | BfwEngine.Api.forbidden_error()
   def abort_process_instance(process_instance_id, reason, identity, opts \\ []) do
     with {:ok, process_instance} <- get_process_instance(process_instance_id),
          :ok <-
@@ -167,10 +182,16 @@ defmodule BfwEngine.Api.ProcessInstances do
              "abort_process_instance",
              get_in(process_instance.started_by, ["id"]),
              opts
-           ) do
+           ),
+         :ok <- reject_terminal_state(process_instance) do
       Execution.abort_process_instance(process_instance_id, reason, identity)
     end
   end
+
+  defp reject_terminal_state(%{state: state}) when state in @terminal_states,
+    do: {:error, :process_already_terminal, state}
+
+  defp reject_terminal_state(_process_instance), do: :ok
 
   @doc """
   Delete (soft-delete) a terminal process instance and all its FNIs.
@@ -196,7 +217,8 @@ defmodule BfwEngine.Api.ProcessInstances do
              opts
            ),
          :ok <- validate_terminal_state(process_instance),
-         :ok <- validate_root_terminal(process_instance) do
+         :ok <- validate_root_terminal(process_instance),
+         :ok <- validate_descendants_terminal(process_instance) do
       soft_delete_process_instance_with_fnis(process_instance, Map.from_struct(identity))
     end
   end
@@ -341,12 +363,16 @@ defmodule BfwEngine.Api.ProcessInstances do
   @doc "Look up a running process instance by ID."
   defdelegate lookup_process_instance(process_instance_id), to: Execution
 
-  @terminal_states ~w(finished fatal aborted error escalated compensated)
-
   defp validate_terminal_state(%{state: state}) when state in @terminal_states, do: :ok
 
   defp validate_terminal_state(%{state: state}),
     do: {:error, :process_instance_not_terminal, state}
+
+  defp validate_descendants_terminal(%{id: process_instance_id}) do
+    if ProcessInstancePurge.tree_has_non_terminal_descendant?(process_instance_id),
+      do: {:error, :active_instances_exist},
+      else: :ok
+  end
 
   defp validate_root_terminal(%{parent_process_instance_id: nil}), do: :ok
 

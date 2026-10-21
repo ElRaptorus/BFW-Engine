@@ -81,7 +81,7 @@ Notable env vars:
 | `BFE_RETENTION_ABORTED_DAYS` | Same, for state `aborted` | *(unset)* |
 | `BFE_RETENTION_ESCALATED_DAYS` | Same, for state `escalated` | *(unset)* |
 | `BFE_RETENTION_COMPENSATED_DAYS` | Same, for state `compensated` | *(unset)* |
-| `BFE_RETENTION_CANCELLED_DAYS` | Same, for state `cancelled`. REST `DELETE /process-instances/{id}` still omits `cancelled`; only the Mix purge uses this knob | *(unset)* |
+| `BFE_RETENTION_CANCELLED_DAYS` | Same, for state `cancelled`; only the Mix purge uses this knob | *(unset)* |
 | `BFE_RETENTION_ENGINE_AUDIT_DAYS` | **Unused by the engine.** Operator convention for the message/signal SQL cutoff ([database.md](../guides/operations/database.md)). Unset = do not DELETE those rows | *(unset)* |
 | `BFE_PENDING_MESSAGES_KEEP_AFTER_TRANSITION` | When `true` (default), `pending_messages` rows persist after their state transitions away from `pending` (delivery-attempt audit). They are then eligible for operator SQL via the `BFE_RETENTION_ENGINE_AUDIT_DAYS` cutoff convention. When `false`, the engine physically deletes the row on deliver/expire/cancel, so the table only ever holds live `pending` rows. Destroy still requires `state == 'pending'` | `true` |
 | `BFE_PENDING_SIGNALS_KEEP_AFTER_TRANSITION` | Same semantics as `BFE_PENDING_MESSAGES_KEEP_AFTER_TRANSITION`, applied to `pending_signals` | `true` |
@@ -500,7 +500,7 @@ There are no `Event.RetentionPurged` / `Event.EngineAuditPurged` events.
 | **`BFE_PENDING_SIGNALS_KEEP_AFTER_TRANSITION=false`** | Identical semantics for `pending_signals`. Independent per-table. |
 | **Pending escalations** | **Not applicable.** There is no pending-escalation cache. |
 | **Cross-PI broadcasts & unmatched publishes** | A `messages` row that fanned out to 5 PIs still occupies one row. Mix purge does not delete it. Operator SQL deletes by `published_at` alone. |
-| **REST `DELETE /process-instances/{id}`** | Remains **soft-delete of one PI + its FNIs**. It does not walk children, does not hard-delete DOs/gateway rows, and still omits `cancelled`. Mix `evil.retention.purge` is the hard-delete path. |
+| **REST `DELETE /process-instances/{id}`** | Soft-deletes the PI, its descendant PIs and all their FNIs in one transaction, for every terminal state including `cancelled`. It does not hard-delete DOs/gateway rows. Mix `bfw.retention.purge` is the hard-delete path. |
 
 ### Not shipped
 

@@ -35,8 +35,9 @@ defmodule BfwEngine.Execution.FlowNodes.SendTask do
   @doc """
   Applies input mappings, enforces PayloadCap, resolves the message name,
   evaluates correlation (retrieval expression with fallback to the
-  process-level correlation key), publishes the message, and resolves
-  outgoing sequence flows.
+  process-level correlation key), resolves the outgoing sequence flows, and
+  publishes the message. A flow resolution failure fatals the task before
+  anything is published.
   """
   @spec handle_enter(FlowNode.t(), Token.t(), HandlerContext.t()) ::
           {:ok, FlowNodeResult.t()} | {:error, term()}
@@ -58,9 +59,16 @@ defmodule BfwEngine.Execution.FlowNodes.SendTask do
          {:ok, message_name} <-
            MessageEventHelper.resolve_message_name(flow_node, context.definitions),
          {:ok, correlation_value} <-
-           MessageEventHelper.resolve_throw_correlation(type_data, mapped_payload, context) do
+           MessageEventHelper.resolve_throw_correlation(type_data, mapped_payload, context),
+         {:ok, next_ids} <- resolve_outgoing(flow_node, context) do
       publish_message(context, message_name, mapped_payload, correlation_value)
-      proceed(flow_node, context, MappingHelper.merge_over_input(raw_payload, mapped_payload))
+
+      finish(
+        flow_node,
+        context,
+        next_ids,
+        MappingHelper.merge_over_input(raw_payload, mapped_payload)
+      )
     else
       {:error, :payload_too_large, details} ->
         {:error, Map.put(details, :reason, :payload_too_large)}
@@ -96,24 +104,18 @@ defmodule BfwEngine.Execution.FlowNodes.SendTask do
     :ok
   end
 
-  defp proceed(flow_node, context, outgoing_payload) do
-    case resolve_outgoing(flow_node, context) do
-      {:ok, next_ids} ->
-        case FniLifecycle.finish(context, flow_node, outgoing_payload, %{}) do
-          {:ok, lifecycle_result} ->
-            {:ok,
-             %FlowNodeResult{
-               output_payload: outgoing_payload,
-               next_flow_node_ids: next_ids,
-               metadata: %{persisted: true, lifecycle: lifecycle_result}
-             }}
+  defp finish(flow_node, context, next_ids, outgoing_payload) do
+    case FniLifecycle.finish(context, flow_node, outgoing_payload, %{}) do
+      {:ok, lifecycle_result} ->
+        {:ok,
+         %FlowNodeResult{
+           output_payload: outgoing_payload,
+           next_flow_node_ids: next_ids,
+           metadata: %{persisted: true, lifecycle: lifecycle_result}
+         }}
 
-          {:error, reason} ->
-            {:error, reason}
-        end
-
-      {:error, _reason} = error ->
-        error
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 

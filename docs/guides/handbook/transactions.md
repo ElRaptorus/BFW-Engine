@@ -160,7 +160,6 @@ Transactions impose strict retry rules to preserve atomicity:
 |----------|--------------|
 | Retry a `:cancelled` child PI directly | 422 `process_instance_not_retriable` |
 | Retry a child PI nested below a transaction (direct or transitively) | 422 `retry_inside_transaction_scope` |
-| Use a checkpoint (`resetToFlowNodeInstanceId`) that points inside the transaction | 422 `retry_checkpoint_inside_transaction` |
 | Retry the parent process from upstream of the transaction | Allowed |
 
 The reasoning: once a transaction is part of the process tree, all nested

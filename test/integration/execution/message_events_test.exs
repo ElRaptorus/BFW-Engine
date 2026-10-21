@@ -559,4 +559,58 @@ defmodule BfwEngine.Integration.Execution.MessageEventsTest do
       assert is_integer(body["limit"])
     end
   end
+
+  describe "POST /messages/:name/trigger request validation" do
+    defp post_raw(path, body) do
+      Plug.Test.conn(:post, path, body)
+      |> Plug.Conn.put_req_header("content-type", "application/json")
+      |> Plug.Conn.put_req_header(
+        "authorization",
+        "Bearer #{sign_jwt(%{"trigger_message" => "all"})}"
+      )
+      |> route()
+      |> decode_response()
+    end
+
+    for {description, body, field} <- [
+          {"a number correlation", ~s({"correlation": 42}), "correlation"},
+          {"an array correlation", ~s({"correlation": [1]}), "correlation"},
+          {"an object correlation", ~s({"correlation": {"a": 1}}), "correlation"},
+          {"an array payload", ~s({"payload": [1]}), "payload"}
+        ] do
+      test "rejects #{description} with 400 bad_request" do
+        {400, response} = post_raw("/messages/order/trigger", unquote(body))
+
+        assert response["error"] == "bad_request"
+        assert response["message"] =~ unquote(field)
+      end
+    end
+
+    test "a null payload and a null correlation are accepted" do
+      {status, _response} =
+        post_raw("/messages/order/trigger", ~s({"payload": null, "correlation": null}))
+
+      assert status in [200, 201, 202]
+    end
+
+    test "malformed JSON answers 400 bad_request" do
+      {400, _headers, body} =
+        Phoenix.ConnTest.assert_error_sent(400, fn ->
+          post_raw("/messages/order/trigger", "{not json")
+        end)
+
+      assert Jason.decode!(body)["error"] == "bad_request"
+    end
+
+    test "an oversized body answers 413 payload_too_large" do
+      oversized = Jason.encode!(%{"payload" => %{"blob" => String.duplicate("x", 400_000)}})
+
+      {413, _headers, body} =
+        Phoenix.ConnTest.assert_error_sent(413, fn ->
+          post_raw("/messages/order/trigger", oversized)
+        end)
+
+      assert Jason.decode!(body)["error"] == "payload_too_large"
+    end
+  end
 end

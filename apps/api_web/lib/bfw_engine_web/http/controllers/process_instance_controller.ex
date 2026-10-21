@@ -50,41 +50,38 @@ defmodule BfwEngineWeb.Http.ProcessInstanceController do
           resource: "process_instance"
         )
 
-      {:error, :process_finished} ->
-        render_error(
-          conn,
-          422,
-          "process_already_terminal",
-          "Process instance is already in a terminal state",
-          current_state: "finished"
-        )
-
-      {:error, :process_fatal} ->
-        render_error(
-          conn,
-          422,
-          "process_already_terminal",
-          "Process instance is already in a terminal state",
-          current_state: "fatal"
-        )
-
-      {:error, :process_aborted} ->
-        render_error(
-          conn,
-          422,
-          "process_already_terminal",
-          "Process instance is already in a terminal state",
-          current_state: "aborted"
-        )
+      {:error, :process_already_terminal, current_state} ->
+        render_already_terminal(conn, current_state)
 
       {:error, abort_reason} ->
-        render_error(
-          conn,
-          422,
-          to_string(abort_reason),
-          "Cannot abort process instance: #{abort_reason}"
-        )
+        render_abort_failure(conn, abort_reason)
     end
+  end
+
+  # A live instance process that already ended replies with these atoms.
+  defp render_abort_failure(conn, :process_finished),
+    do: render_already_terminal(conn, "finished")
+
+  defp render_abort_failure(conn, :process_fatal), do: render_already_terminal(conn, "fatal")
+  defp render_abort_failure(conn, :process_aborted), do: render_already_terminal(conn, "aborted")
+
+  defp render_abort_failure(conn, abort_reason) do
+    render_error(
+      conn,
+      422,
+      to_string(abort_reason),
+      "Cannot abort process instance: #{abort_reason}"
+    )
+  end
+
+  defp render_already_terminal(conn, current_state) do
+    render_error(
+      conn,
+      422,
+      "process_already_terminal",
+      "Process instance is already in a terminal state",
+      current_state: current_state
+    )
   end
 
   # ---------------------------------------------------------------------------
@@ -307,20 +304,6 @@ defmodule BfwEngineWeb.Http.ProcessInstanceController do
       "retry_inside_transaction_scope",
       "Cannot retry a process instance that is nested inside a Transaction subprocess. " <>
         "Retry from the Transaction subprocess shell or from a node upstream of it."
-    )
-  end
-
-  defp render_retry_error(
-         conn,
-         _process_instance_id,
-         {:error, :retry_checkpoint_inside_transaction}
-       ) do
-    render_error(
-      conn,
-      422,
-      "retry_checkpoint_inside_transaction",
-      "Cannot checkpoint-retry at a flow node that was cancelled by a Cancel End Event " <>
-        "inside a Transaction subprocess. Select a checkpoint upstream of the transaction."
     )
   end
 

@@ -42,6 +42,7 @@ defmodule CoreExpressions.MixProject do
   defp deps do
     [
       {:core_types, in_umbrella: true},
+      {:jason, "~> 1.4"},
       {:rustler, "~> 0.37.3", runtime: false}
     ]
   end

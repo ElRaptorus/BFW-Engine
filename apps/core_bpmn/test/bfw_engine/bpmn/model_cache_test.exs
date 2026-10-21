@@ -282,6 +282,22 @@ defmodule BfwEngine.BPMN.ModelCacheTest do
       refute "Inner_Msg_Start" in start_ids
     end
 
+    test "a blank message or signal name is not indexed" do
+      definitions = definitions_with_inner_event_starts()
+
+      blank = %{
+        definitions
+        | messages: [%MessageDefinition{id: "Msg_1", name: ""}],
+          signals: [%SignalDefinition{id: "Sig_1", name: "  "}]
+      }
+
+      ModelCache.put_new("v_blank_names", blank)
+
+      assert ModelCache.find_message_start_events("") == []
+      assert ModelCache.find_signal_start_events("") == []
+      assert ModelCache.find_signal_start_events("  ") == []
+    end
+
     test "find_signal_start_events/1 returns only the top-level signal start" do
       ModelCache.put_new("v_iso_sig", definitions_with_inner_event_starts())
 

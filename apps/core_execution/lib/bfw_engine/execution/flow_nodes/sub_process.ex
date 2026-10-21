@@ -265,7 +265,7 @@ defmodule BfwEngine.Execution.FlowNodes.SubProcess do
          start_event_id
        ) do
     handler_pid = self()
-    subprocess_model_id = "#{context.process_model.id}__subprocess__#{flow_node.id}"
+    subprocess_model_id = ChildLifecycle.subprocess_model_id(context, flow_node)
 
     start_opts = %{
       process_instance_id: child_process_instance_id,

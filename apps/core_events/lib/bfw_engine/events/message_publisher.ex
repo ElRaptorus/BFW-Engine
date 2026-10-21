@@ -311,8 +311,12 @@ defmodule BfwEngine.Events.MessagePublisher do
   # Private: delivery
   # -------------------------------------------------------------------
 
+  # One-shot subscriptions are claimed before delivery: a waiter that another
+  # publication claimed first is not counted and gets nothing.
   defp deliver_to_subscriptions(subscriptions, message_id, payload, triggerer_fni_id) do
-    Enum.map(subscriptions, fn subscription ->
+    subscriptions
+    |> Enum.filter(&MessageSubscriptions.claim/1)
+    |> Enum.map(fn subscription ->
       send(subscription.via_pid, {:message_arrived, message_id, payload, triggerer_fni_id})
 
       event_correlation =

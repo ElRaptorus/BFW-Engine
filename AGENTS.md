@@ -497,7 +497,7 @@ definition's `name` attribute, resolved via `signalRef` on the event definition.
 
 **Semantics:** broadcast-all by `signal_name`; no payload; no
 correlation; Signal Start + catch/boundary fire **simultaneously** (no
-catch-wins-over-start); pending signals use **FIFO single-claim** drain.
+catch-wins-over-start); pending signals use **FIFO single-claim** drain; a catch or boundary consumes exactly one signal (one pending row per registration, oldest first).
 
 ### Error Event Extensions
 
@@ -2049,7 +2049,7 @@ routing to a Compensate Throw, then a Cancel End.
 | Nesting | The deploy-time validator rejects `bpmn:transaction` inside another `bpmn:transaction` at any depth, also through embedded subprocesses. |
 | `method` | Parsed and stored as `transaction_method`. It is not executed. |
 | Hazard | An uncaught error does not trigger compensation. It propagates to the parent the same way as from an embedded subprocess. |
-| Retry | A checkpoint must not point inside a transaction scope, and no PI below a transaction ancestor may be retried independently. Error codes: `retry_checkpoint_inside_transaction`, `retry_inside_transaction_scope`. |
+| Retry | No PI below a transaction ancestor may be retried independently (`retry_inside_transaction_scope`). |
 | `:cancelled` | Not retryable. It is a handled business outcome. |
 
 ### Events
@@ -2065,7 +2065,6 @@ routing to a Compensate Throw, then a Cancel End.
 ### Retry Restrictions
 
 - Retrying a PI in `:cancelled` state → `process_instance_not_retriable`
-- `resetToFlowNodeInstanceId` pointing inside a transaction's child scope → `retry_checkpoint_inside_transaction`
 - Retrying any PI that has a transaction ancestor in the process tree (TX → SP → CA: any level) → `retry_inside_transaction_scope`. Walk is done via `parent_process_instance_id` chain.
 
 For architecture details see [`docs/architecture/execution.md`](docs/architecture/execution.md) §Transaction Subprocess.
@@ -2097,7 +2096,7 @@ Core never imports from Peripheral, Plugins, or API. Peripheral never imports fr
 | `core_expressions` | Core | FEEL evaluator (Rust NIF) |
 | `core_bpmn` | Core | XML parser, ModelCache, validator, linter gate |
 | `core_dmn` | Core | DMN parser, evaluator, DRG chaining, BKM invocation, boxed expressions, Decision Services, type system |
-| `peripheral_persistence` | Peripheral | Ash + AshPostgres, dual-pool (Repo + ReadRepo). Mix `evil.retention.purge` for opt-in PI-tree hard-delete (RET-D1) |
+| `peripheral_persistence` | Peripheral | Ash + AshPostgres, dual-pool (Repo + ReadRepo). Mix `bfw.retention.purge` for opt-in PI-tree hard-delete (RET-D1) |
 | `peripheral_telemetry` | Peripheral | :telemetry counters, `/stats`, optional `GET /metrics` (Prometheus) |
 | `engine_plugins` | Plugins | Plugin registry, in-BEAM loader |
 | `api_auth` | API | JWT validation (HS256 + RS256/ES256 + JWKS) |

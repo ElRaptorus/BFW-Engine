@@ -214,4 +214,39 @@ defmodule BfwEngine.Integration.Graphql.GraphqlSoftDeleteTest do
       assert get_after["data"]["getDecisionVersion"] == nil
     end
   end
+
+  describe "deleted root ProcessInstance with a child" do
+    test "hides the root and its child through getProcessInstance and processInstances" do
+      root_id =
+        http_deploy_and_start("embedded_subprocess_happy_path.bpmn", "EmbeddedSubprocessHappyPath")
+
+      assert {:ok, _process_instance} = await_process_instance_state(root_id, "finished")
+      [child_id] = list_child_process_instance_ids(root_id)
+
+      get_query = """
+      query GetPI($id: ID!) { getProcessInstance(id: $id) { id } }
+      """
+
+      list_query = """
+      { processInstances { results { id } } }
+      """
+
+      {200, list_before} = http_graphql(list_query, %{}, @admin_claims)
+      ids_before = Enum.map(list_before["data"]["processInstances"]["results"], & &1["id"])
+      assert root_id in ids_before
+      assert child_id in ids_before
+
+      assert {204, _} = http_delete_process_instance(root_id)
+
+      {200, list_after} = http_graphql(list_query, %{}, @admin_claims)
+      ids_after = Enum.map(list_after["data"]["processInstances"]["results"], & &1["id"])
+      refute root_id in ids_after
+      refute child_id in ids_after
+
+      for process_instance_id <- [root_id, child_id] do
+        {200, result} = http_graphql(get_query, %{"id" => process_instance_id}, @admin_claims)
+        assert result["data"]["getProcessInstance"] == nil
+      end
+    end
+  end
 end

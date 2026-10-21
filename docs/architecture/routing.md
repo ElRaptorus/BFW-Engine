@@ -29,7 +29,10 @@ body / handler context (throw-side publish). Both results become a string in
 duration becomes its ISO 8601 text (`date("2026-01-01")` correlates as
 `"2026-01-01"`), FEEL `null` means no correlation value (`:none`), and
 anything else goes through `to_string/1`; a value that cannot be converted
-fails with `correlation_expression_failed`. Where each one runs:
+fails with `correlation_expression_failed`. A list or map result is not a
+correlation value and fails the same way; `POST /messages/{name}/trigger`
+likewise rejects a `correlation` that is not a string or null (400
+`bad_request`). Where each one runs:
 
 - **Catch / Boundary / Event-Subprocess-Start subscribe**: PI's `<bfw:correlationKey>` evaluated against current PI state (token + Data Objects + `Identity`, see [expressions.md](./expressions.md) §8 context). Result cached on the `%Subscription{}` row as `expected_correlation_value`. A message Event Subprocess start binds `token` to its scope's start payload (§3.5.8).
   - If the process declares no `<bfw:correlationKey>`, the subscription's `expected_correlation_value` is `:none` — it matches any message whose `correlation_value` is `:none`.
@@ -44,7 +47,7 @@ A published message `(name, payload, correlation_value)` flows through
 `BfwEngine.Events.MessagePublisher.publish_message/1`:
 
 1. Write a row to `messages` (audit — always, whether or not it correlates).
-2. Look up the subscription registry with `(name, correlation_value)`. Collect **every** matching subscription (broadcast-within-key — serial-letter semantics).
+2. Look up the subscription registry with `(name, correlation_value)`. Collect **every** matching subscription (broadcast-within-key — serial-letter semantics). A catch, boundary, or receive subscription takes exactly one message: the publisher claims it atomically (`MessageSubscriptions.claim/1`, an ETS select-delete) before delivering, so two racing publishes never both reach the same waiting subscription; the losing publish goes on to start events or is held pending. Event Subprocess start subscriptions are persistent and are never claimed.
 3. For each matching subscription, send a typed `%Event.MessageArrived{}` to the owning PI's `:gen_statem` via its registered pid; the PI dispatches to the target FNI through its internal catch registry (see [execution.md](./execution.md)).
 4. Record the delivery on `messages.correlations` as `[{process_instance_id, flow_node_instance_id}]` — one entry per delivery.
 5. **Catch-wins-over-Start rule**: if step 2 yielded **zero** matching subscriptions, start new PIs from matching Message Start Events under the start discovery rule below (each seeding its own correlation value via §3.5.2). If step 2 yielded at least one match, Message Start Events are **not** triggered for this publish — the message is considered consumed by the subscription(s).
@@ -61,7 +64,7 @@ Pending messages are held in the durable `pending_messages` table ([data-model.m
 shortly after publish still catches the message.
 
 - On publish with zero matches (§3.5.3 step 6): insert a `pending_messages` row with `state='pending'`, `expires_at = published_at + BFE_MESSAGE_PENDING_TTL`.
-- On every subscription register (`MessageSubscriptions.register/1`): drain pending messages for that `(name, expected_correlation_value)` — any pending rows still inside TTL are delivered immediately via §3.5.3 step 3 and their `state` set to `'delivered'`. An Event Subprocess start that registers at scope activation drains the same way and fires its Event Subprocess as on a live publish. This is intended: a pending row exists only because no subscription matched at publish time, so no Catch/Boundary was waiting that could lose the message; the first subscription of the key to register, Catch, Boundary, or Event Subprocess start, takes it.
+- On every subscription register (`MessageSubscriptions.register/1`): drain pending messages for that `(name, expected_correlation_value)` — the **oldest** pending row still inside TTL is delivered via §3.5.3 step 3 and its `state` set to `'delivered'`; further rows stay pending for the next registration. A one-shot subscription is claimed before the row is marked; if every row was taken by a concurrent drain the subscription is re-inserted and the drain retried once. An Event Subprocess start that registers at scope activation drains the same way and fires its Event Subprocess as on a live publish. This is intended: a pending row exists only because no subscription matched at publish time, so no Catch/Boundary was waiting that could lose the message; the first subscription of the key to register, Catch, Boundary, or Event Subprocess start, takes it.
 - A periodic sweeper (every 10 s by default) transitions expired `pending` rows to `state='expired'` and emits a `warn` JSON log carrying the `message_id`, `name`, and `correlation_value`.
 - `pending_messages` never holds Signals or Escalations — those are not TTL'd.
 - **Delete-on-transition**: the post-transition row lifetime is governed by `BFE_PENDING_MESSAGES_KEEP_AFTER_TRANSITION` (default `true`). With the default, rows in `delivered`/`expired`/`cancelled` state persist until operator SQL ages them out (delivery-attempt audit). With the flag set to `false`, the engine physically deletes the row on deliver/expire/cancel (`destroy_if_pending` still requires `state == 'pending'`), so the table holds only rows still in flight.
@@ -146,7 +149,10 @@ events at publish time, it is cached in `pending_signals` with a configurable
 TTL (default `PT60S`, env `BFE_SIGNAL_PENDING_TTL`, wired as
 `config :core_events, :signal_pending_ttl`). The first subscriber that
 registers and claims a pending row consumes it (FIFO drain per
-`signal_name`) — subsequent subscribers do not receive that pending signal.
+`signal_name`, one row per registration, oldest first) — subsequent
+subscribers do not receive that pending signal. Live publishes claim a
+catch/boundary subscription the same way as messages (§3.5.3); Event
+Subprocess starts are never claimed.
 `SignalSubscriptions.register/1` queries in-TTL `pending_signals` rows for
 the subscription's `signal_name`, delivers `{:signal_arrived, signal_id}` to
 the registering `via_pid` (an Event Subprocess start is told

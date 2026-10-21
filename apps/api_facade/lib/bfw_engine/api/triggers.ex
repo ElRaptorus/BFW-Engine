@@ -132,7 +132,7 @@ defmodule BfwEngine.Api.Triggers do
     end
   end
 
-  defp derive_origin(%{type: "plugin", plugin_name: plugin_name}),
+  defp derive_origin(%{id: "plugin:" <> plugin_name}),
     do: %{source: "plugin", plugin_name: plugin_name}
 
   defp derive_origin(identity),

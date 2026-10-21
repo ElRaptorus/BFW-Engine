@@ -241,7 +241,7 @@ defmodule BfwEngine.Execution.FlowNodes.AdHocSubProcess do
        ) do
     handler_pid = self()
     type_data = flow_node.type_data
-    subprocess_model_id = "#{context.process_model.id}__subprocess__#{flow_node.id}"
+    subprocess_model_id = ChildLifecycle.subprocess_model_id(context, flow_node)
 
     start_opts = %{
       process_instance_id: child_process_instance_id,

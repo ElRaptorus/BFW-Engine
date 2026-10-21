@@ -3,11 +3,13 @@ defmodule BfwEngine.Telemetry.StatsCollector do
   Assembles the `/stats` JSON snapshot on demand.
 
   Queries live data from Ash resources, ETS tables, and the plugin
-  registry. All queries are wrapped in try/catch so that a missing
-  or unavailable DB returns zeros rather than crashing the endpoint.
+  registry. When a database-backed section cannot be read, `snapshot/0`
+  answers `{:error, :database_unavailable}` instead of reporting zeros:
+  a zero count is a statement, an unreadable count is not.
   """
 
   require Ash.Query
+  require Logger
 
   alias BfwEngine.Events.EngineEventBus
   alias BfwEngine.Persistence.Resources.FlowNodeInstance, as: FNIResource
@@ -20,9 +22,24 @@ defmodule BfwEngine.Telemetry.StatsCollector do
 
   @dialyzer {:nowarn_function, snapshot: 0, info: 0}
 
-  @doc "Returns the full /stats snapshot as a map."
-  @spec snapshot() :: map()
+  @doc "Returns the full /stats snapshot, or an error when a database query fails."
+  @spec snapshot() :: {:ok, map()} | {:error, :database_unavailable}
   def snapshot do
+    {:ok, build_snapshot()}
+  rescue
+    exception ->
+      Logger.error(
+        "Stats snapshot failed: database query raised #{inspect(exception.__struct__)}"
+      )
+
+      {:error, :database_unavailable}
+  catch
+    :exit, reason ->
+      Logger.error("Stats snapshot failed: database query exited with #{inspect(reason)}")
+      {:error, :database_unavailable}
+  end
+
+  defp build_snapshot do
     config = Application.get_all_env(:peripheral_telemetry)
 
     %{
@@ -59,48 +76,16 @@ defmodule BfwEngine.Telemetry.StatsCollector do
   end
 
   defp query_process_instance_counts do
-    defaults = %{running: 0, finished: 0, fatal: 0, aborted: 0, error: 0}
-
-    states = ["running", "finished", "fatal", "aborted", "error"]
-
-    counts =
-      Enum.reduce(states, defaults, fn state_str, acc ->
-        count = count_resources(PIResource, state_str)
-        key = String.to_existing_atom(state_str)
-        Map.put(acc, key, count)
-      end)
-
-    counts
-  rescue
-    _ -> %{running: 0, finished: 0, fatal: 0, aborted: 0, error: 0}
-  catch
-    :exit, _ -> %{running: 0, finished: 0, fatal: 0, aborted: 0, error: 0}
+    count_by_state(
+      PIResource,
+      %{running: 0, finished: 0, fatal: 0, aborted: 0, error: 0},
+      ["running", "finished", "fatal", "aborted", "error"]
+    )
   end
 
   defp query_flow_node_instance_counts do
-    defaults = %{
-      active: 0,
-      waiting: 0,
-      finished: 0,
-      fatal: 0,
-      aborted: 0,
-      interrupted: 0,
-      error: 0,
-      by_type: %{}
-    }
-
-    states = ["active", "waiting", "finished", "fatal", "aborted", "interrupted", "error"]
-
-    counts =
-      Enum.reduce(states, defaults, fn state_str, acc ->
-        count = count_resources(FNIResource, state_str)
-        key = String.to_existing_atom(state_str)
-        Map.put(acc, key, count)
-      end)
-
-    counts
-  rescue
-    _ ->
+    count_by_state(
+      FNIResource,
       %{
         active: 0,
         waiting: 0,
@@ -110,19 +95,19 @@ defmodule BfwEngine.Telemetry.StatsCollector do
         interrupted: 0,
         error: 0,
         by_type: %{}
-      }
-  catch
-    :exit, _ ->
-      %{
-        active: 0,
-        waiting: 0,
-        finished: 0,
-        fatal: 0,
-        aborted: 0,
-        interrupted: 0,
-        error: 0,
-        by_type: %{}
-      }
+      },
+      ["active", "waiting", "finished", "fatal", "aborted", "interrupted", "error"]
+    )
+  end
+
+  defp count_by_state(resource, defaults, states) do
+    Enum.reduce(states, defaults, fn state_string, accumulator ->
+      Map.put(
+        accumulator,
+        String.to_existing_atom(state_string),
+        count_resources(resource, state_string)
+      )
+    end)
   end
 
   defp query_user_tasks_pending do
@@ -133,10 +118,6 @@ defmodule BfwEngine.Telemetry.StatsCollector do
       |> Ash.count!(authorize?: false)
 
     %{count: count, by_assignee_role: %{}}
-  rescue
-    _ -> %{count: 0, by_assignee_role: %{}}
-  catch
-    :exit, _ -> %{count: 0, by_assignee_role: %{}}
   end
 
   defp query_async_flow_nodes do
@@ -147,10 +128,6 @@ defmodule BfwEngine.Telemetry.StatsCollector do
       |> Ash.count!(authorize?: false)
 
     %{waiting: count, by_plugin: %{}}
-  rescue
-    _ -> %{waiting: 0, by_plugin: %{}}
-  catch
-    :exit, _ -> %{waiting: 0, by_plugin: %{}}
   end
 
   defp query_timer_stats do
@@ -189,10 +166,6 @@ defmodule BfwEngine.Telemetry.StatsCollector do
     |> Ash.Query.filter(state == ^state_string)
     |> Ash.Query.for_read(:read, %{}, authorize?: false)
     |> Ash.count!(authorize?: false)
-  rescue
-    _ -> 0
-  catch
-    :exit, _ -> 0
   end
 
   defp load_level do
@@ -205,8 +178,10 @@ defmodule BfwEngine.Telemetry.StatsCollector do
   defp compute_load_level(limit) when is_integer(limit) and limit > 0 do
     active =
       try do
-        %{active: n} = DynamicSupervisor.count_children(BfwEngine.Execution.Supervisor)
-        n
+        %{active: active_count} =
+          DynamicSupervisor.count_children(BfwEngine.Execution.Supervisor)
+
+        active_count
       catch
         :exit, _ -> 0
       end
@@ -229,8 +204,8 @@ defmodule BfwEngine.Telemetry.StatsCollector do
         :persistent_term.put(:bfw_engine_started_at, now)
         now
 
-      ts ->
-        ts
+      recorded_started_at ->
+        recorded_started_at
     end
   end
 
@@ -265,8 +240,8 @@ defmodule BfwEngine.Telemetry.StatsCollector do
     sinks = EngineEventBus.list_sinks()
 
     by_name =
-      Enum.reduce(sinks, %{}, fn sink, acc ->
-        Map.put(acc, sink.name, "on")
+      Enum.reduce(sinks, %{}, fn sink, accumulator ->
+        Map.put(accumulator, sink.name, "on")
       end)
 
     defaults = %{

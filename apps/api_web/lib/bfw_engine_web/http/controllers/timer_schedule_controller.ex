@@ -21,119 +21,75 @@ defmodule BfwEngineWeb.Http.TimerScheduleController do
 
   import BfwEngineWeb.Http.ErrorResponse
 
-  alias BfwEngine.Timers.StartEventManager
+  alias BfwEngine.Api
   alias BfwEngine.Types.Wire
 
   def index(conn, params) do
-    identity = caller_identity(conn)
-
-    case check_deploy_claim(identity) do
-      :ok ->
-        filter_opts = build_filter_opts(params)
-        {:ok, schedules} = StartEventManager.list_schedules(filter_opts)
+    case Api.list_timer_schedules(caller_identity(conn), build_filter_opts(params)) do
+      {:ok, schedules} ->
         json(conn, Wire.camelize_keys(%{data: Enum.map(schedules, &sanitize_schedule/1)}))
 
-      {:error, :forbidden} ->
-        render_error(conn, 403, "forbidden", "Insufficient permissions",
-          required_claim: "deploy_bpmn"
-        )
+      {:error, :forbidden, _details} ->
+        render_forbidden(conn)
     end
   end
 
   def show(conn, %{"id" => schedule_id}) do
-    identity = caller_identity(conn)
+    case Api.get_timer_schedule(schedule_id, caller_identity(conn)) do
+      {:ok, schedule} ->
+        json(conn, Wire.camelize_keys(%{data: sanitize_schedule(schedule)}))
 
-    case check_deploy_claim(identity) do
-      :ok ->
-        case StartEventManager.get_schedule(schedule_id) do
-          {:ok, schedule} ->
-            json(conn, Wire.camelize_keys(%{data: sanitize_schedule(schedule)}))
+      {:error, :not_found} ->
+        render_error(conn, 404, "not_found", "Timer schedule not found")
 
-          {:error, :not_found} ->
-            render_error(conn, 404, "not_found", "Timer schedule not found")
-        end
-
-      {:error, :forbidden} ->
-        render_error(conn, 403, "forbidden", "Insufficient permissions",
-          required_claim: "deploy_bpmn"
-        )
+      {:error, :forbidden, _details} ->
+        render_forbidden(conn)
     end
   end
 
   def enable(conn, %{"id" => schedule_id}) do
-    identity = caller_identity(conn)
-
-    case check_deploy_claim(identity) do
-      :ok ->
-        case StartEventManager.enable_schedule(schedule_id) do
-          {:ok, updated} ->
-            json(conn, Wire.camelize_keys(%{data: sanitize_schedule(updated)}))
-
-          {:error, :not_found} ->
-            render_error(conn, 404, "not_found", "Timer schedule not found")
-
-          {:error, :not_a_cycle} ->
-            render_error(
-              conn,
-              422,
-              "not_applicable",
-              "Enable/disable is only supported for cycle timer schedules"
-            )
-
-          {:error, reason} ->
-            Logger.error("Failed to enable timer schedule '#{schedule_id}': #{inspect(reason)}")
-
-            render_error(
-              conn,
-              422,
-              "enable_failed",
-              "Failed to enable timer schedule '#{schedule_id}'"
-            )
-        end
-
-      {:error, :forbidden} ->
-        render_error(conn, 403, "forbidden", "Insufficient permissions",
-          required_claim: "deploy_bpmn"
-        )
-    end
+    schedule_id
+    |> Api.enable_timer_schedule(caller_identity(conn))
+    |> render_update(conn, schedule_id, "enable_failed", "enable")
   end
 
   def disable(conn, %{"id" => schedule_id}) do
-    identity = caller_identity(conn)
+    schedule_id
+    |> Api.disable_timer_schedule(caller_identity(conn))
+    |> render_update(conn, schedule_id, "disable_failed", "disable")
+  end
 
-    case check_deploy_claim(identity) do
-      :ok ->
-        case StartEventManager.disable_schedule(schedule_id) do
-          {:ok, updated} ->
-            json(conn, Wire.camelize_keys(%{data: sanitize_schedule(updated)}))
+  defp render_update({:ok, updated}, conn, _schedule_id, _error_code, _verb) do
+    json(conn, Wire.camelize_keys(%{data: sanitize_schedule(updated)}))
+  end
 
-          {:error, :not_found} ->
-            render_error(conn, 404, "not_found", "Timer schedule not found")
+  defp render_update({:error, :not_found}, conn, _schedule_id, _error_code, _verb) do
+    render_error(conn, 404, "not_found", "Timer schedule not found")
+  end
 
-          {:error, :not_a_cycle} ->
-            render_error(
-              conn,
-              422,
-              "not_applicable",
-              "Enable/disable is only supported for cycle timer schedules"
-            )
+  defp render_update({:error, :not_a_cycle}, conn, _schedule_id, _error_code, _verb) do
+    render_error(
+      conn,
+      422,
+      "not_applicable",
+      "Enable/disable is only supported for cycle timer schedules"
+    )
+  end
 
-          {:error, reason} ->
-            Logger.error("Failed to disable timer schedule '#{schedule_id}': #{inspect(reason)}")
+  defp render_update({:error, :forbidden, _details}, conn, _schedule_id, _error_code, _verb) do
+    render_forbidden(conn)
+  end
 
-            render_error(
-              conn,
-              422,
-              "disable_failed",
-              "Failed to disable timer schedule '#{schedule_id}'"
-            )
-        end
+  defp render_update({:error, reason}, conn, schedule_id, error_code, verb) do
+    Logger.error("Failed to #{verb} timer schedule '#{schedule_id}': #{inspect(reason)}")
 
-      {:error, :forbidden} ->
-        render_error(conn, 403, "forbidden", "Insufficient permissions",
-          required_claim: "deploy_bpmn"
-        )
-    end
+    render_error(conn, 422, error_code, "Failed to #{verb} timer schedule '#{schedule_id}'")
+  end
+
+  defp render_forbidden(conn) do
+    render_error(conn, 403, "forbidden", "Insufficient permissions",
+      required_claim: "deploy_bpmn"
+    )
   end
 
   defp build_filter_opts(params) do
@@ -167,16 +123,6 @@ defmodule BfwEngineWeb.Http.TimerScheduleController do
       :cycle_total,
       :cycle_remaining
     ])
-  end
-
-  defp check_deploy_claim(identity) do
-    claim_value = Map.get(identity.claims, "deploy_bpmn", false)
-
-    if claim_value do
-      :ok
-    else
-      {:error, :forbidden}
-    end
   end
 
   defp caller_identity(conn) do

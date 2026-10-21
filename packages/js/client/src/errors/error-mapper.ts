@@ -46,7 +46,6 @@ import {
   ProcessNotFoundError,
   RateLimitedError,
   RetryCheckpointInsideAdhocSubprocessError,
-  RetryCheckpointInsideTransactionError,
   RetryCheckpointIsEbgLoserError,
   RetryCheckpointIsJoinGatewayError,
   RetryCheckpointIsMiIterationError,
@@ -226,8 +225,6 @@ function mapByErrorCode(errorCode: string, message: string, body: Record<string,
       return new ValidationError(message, [], body);
     case 'decision_not_found':
       return new DecisionDefinitionNotFoundError(message, body);
-    case 'retry_checkpoint_inside_transaction':
-      return new RetryCheckpointInsideTransactionError(message, body);
     case 'retry_inside_transaction_scope':
       return new RetryInsideTransactionScopeError(message, body);
     case 'retry_checkpoint_inside_adhoc_subprocess':

@@ -146,6 +146,20 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
   end
 
   @doc """
+  Model cache id of a subprocess scope: the top-level process id, `__subprocess__`,
+  and the subprocess node id. A subprocess nested in a subprocess runs under a
+  context whose process model id is already a scope id, so only its top-level
+  part is kept.
+  """
+  @spec subprocess_model_id(HandlerContext.t(), FlowNode.t()) :: String.t()
+  def subprocess_model_id(context, flow_node) do
+    top_level_process_id =
+      context.process_model.id |> String.split("__subprocess__") |> hd()
+
+    "#{top_level_process_id}__subprocess__#{flow_node.id}"
+  end
+
+  @doc """
   Outcome of a child PI that went down with an abnormal reason before it
   announced a terminal state (a crash its `terminate/3` could not record).
   A child row still `running` is persisted `fatal` with

@@ -68,7 +68,6 @@ defmodule BfwEngine.Plugins.Builtin.HttpServiceTaskHandler do
         Task.start(fn ->
           execute_and_complete(
             req_opts,
-            url,
             type_data,
             flow_node,
             token,
@@ -85,8 +84,7 @@ defmodule BfwEngine.Plugins.Builtin.HttpServiceTaskHandler do
   def handle_resume(%{flow_node: flow_node}, handler_context) do
     message =
       "HTTP service task '#{flow_node.id}'#{task_name_suffix(flow_node)} was interrupted by an engine " <>
-        "restart while its request to #{flow_node.type_data.http_url} was in flight; " <>
-        "the request is not re-issued"
+        "restart while its request was in flight; the request is not re-issued"
 
     report_completion(
       handler_context.flow_node_instance_id,
@@ -103,7 +101,6 @@ defmodule BfwEngine.Plugins.Builtin.HttpServiceTaskHandler do
 
   defp execute_and_complete(
          req_opts,
-         url,
          type_data,
          flow_node,
          token,
@@ -111,7 +108,7 @@ defmodule BfwEngine.Plugins.Builtin.HttpServiceTaskHandler do
          flow_node_instance_id
        ) do
     completion =
-      case execute_request(req_opts, url, type_data, flow_node, token, handler_context) do
+      case execute_request(req_opts, type_data, flow_node, token, handler_context) do
         {:ok, output} ->
           Execution.finish_async_service_task(flow_node_instance_id, output)
 
@@ -137,18 +134,20 @@ defmodule BfwEngine.Plugins.Builtin.HttpServiceTaskHandler do
     error
   end
 
-  defp error_code({:http_timeout, _url}), do: "HTTP_TIMEOUT"
-  defp error_code({:http_connection_failed, _url, _failure}), do: "HTTP_CONNECTION_FAILED"
+  defp error_code(:http_timeout), do: "HTTP_TIMEOUT"
+  defp error_code({:http_connection_failed, _failure}), do: "HTTP_CONNECTION_FAILED"
   defp error_code({:http_error, status, _body}), do: "HTTP_#{status}"
   defp error_code(:payload_too_large), do: "PAYLOAD_TOO_LARGE"
-  defp error_code({:http_request_failed, _url, _message}), do: "HTTP_REQUEST_FAILED"
+  defp error_code({:http_request_failed, _description}), do: "HTTP_REQUEST_FAILED"
   defp error_code(_reason), do: "HTTP_ERROR"
 
-  defp error_message({:http_timeout, url}),
-    do: "HTTP request to #{url} timed out after #{@request_timeout_ms} ms"
+  # No failure message names the request URL: it can carry credentials in its
+  # query string, and the URL is static text of the deployed model anyway.
+  defp error_message(:http_timeout),
+    do: "HTTP request timed out after #{@request_timeout_ms} ms"
 
-  defp error_message({:http_connection_failed, url, failure}),
-    do: "HTTP request to #{url} failed: #{failure}"
+  defp error_message({:http_connection_failed, failure}),
+    do: "HTTP request failed: #{failure}"
 
   defp error_message({:http_error, status, body}) do
     "HTTP request answered status #{status}; response body (first #{@error_body_max_characters} " <>
@@ -158,8 +157,8 @@ defmodule BfwEngine.Plugins.Builtin.HttpServiceTaskHandler do
   defp error_message(:payload_too_large),
     do: "The HTTP response is larger than the engine's payload cap"
 
-  defp error_message({:http_request_failed, url, message}),
-    do: "HTTP request to #{url} could not be executed: #{message}"
+  defp error_message({:http_request_failed, description}),
+    do: "HTTP request could not be executed: #{description}"
 
   defp error_message({:http_response_headers_expression_error, detail}),
     do: "The bfw:httpResponseHeaders expression failed: #{detail}"
@@ -273,7 +272,7 @@ defmodule BfwEngine.Plugins.Builtin.HttpServiceTaskHandler do
 
   # -- HTTP execution (runs in spawned Task) ----------------------------------
 
-  defp execute_request(req_opts, url, type_data, flow_node, token, handler_context) do
+  defp execute_request(req_opts, type_data, flow_node, token, handler_context) do
     case Req.request(req_opts) do
       {:ok, %Req.Response{status: status, body: resp_body, headers: resp_headers}}
       when status >= 200 and status < 300 ->
@@ -290,18 +289,19 @@ defmodule BfwEngine.Plugins.Builtin.HttpServiceTaskHandler do
         {:error, {:http_error, status, resp_body}}
 
       {:error, %Req.TransportError{reason: :timeout}} ->
-        {:error, {:http_timeout, url}}
+        {:error, :http_timeout}
 
       {:error, %Req.TransportError{reason: reason}} ->
-        {:error, {:http_connection_failed, url, transport_failure(reason)}}
+        {:error, {:http_connection_failed, transport_failure(reason)}}
 
       {:error, exception} ->
-        {:error, {:http_connection_failed, url, client_failure(exception)}}
+        {:error, {:http_connection_failed, client_failure(exception)}}
     end
   rescue
-    exception -> {:error, {:http_request_failed, url, Exception.message(exception)}}
+    exception ->
+      {:error, {:http_request_failed, "the HTTP client raised #{inspect(exception.__struct__)}"}}
   catch
-    kind, _value -> {:error, {:http_request_failed, url, "the HTTP client stopped with #{kind}"}}
+    kind, _value -> {:error, {:http_request_failed, "the HTTP client stopped with #{kind}"}}
   end
 
   defp build_req_opts(url, method, body, auth_header) do

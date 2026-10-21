@@ -226,7 +226,7 @@ data_objects        -- CURRENT-VALUE snapshot, one row per (PI, DO), upserted on
 ```
 -- NOTE: `messages`, `pending_messages`, `signals`, and `pending_signals` are
 -- ENGINE-LEVEL AUDIT tables — they have no PI FK (the relation to PIs is via `messages.correlations[]`
--- / broadcast semantics), so they are NOT cleaned up by Mix `evil.retention.purge`.
+-- / broadcast semantics), so they are NOT cleaned up by Mix `bfw.retention.purge`.
 -- Operators DELETE aged rows with SQL ([`database.md`](../guides/operations/database.md)) using
 -- `BFE_RETENTION_ENGINE_AUDIT_DAYS` as a cutoff convention ([`configuration.md`](./configuration.md)).
 -- Operational-state rows (pending_messages

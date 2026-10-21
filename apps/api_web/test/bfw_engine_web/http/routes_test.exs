@@ -4,15 +4,25 @@ defmodule BfwEngineWeb.Http.RoutesTest do
   import Plug.Test
   import Plug.Conn
 
+  alias BfwEngine.Persistence.ReadRepo
+  alias BfwEngine.Persistence.Repo
   alias BfwEngine.Test.HttpAuthHelper
   alias BfwEngineWeb.Http.OpenApiSpecLoader
   alias BfwEngineWeb.ServiceReset
+  alias Ecto.Adapters.SQL.Sandbox
 
   @router BfwEngineWeb.Http.Router
 
   setup do
     ServiceReset.provider_registry()
     :ok
+  end
+
+  defp checkout_database do
+    :ok = Sandbox.checkout(Repo)
+    Sandbox.mode(Repo, {:shared, self()})
+    :ok = Sandbox.checkout(ReadRepo)
+    Sandbox.mode(ReadRepo, {:shared, self()})
   end
 
   defp call(conn) do
@@ -73,7 +83,21 @@ defmodule BfwEngineWeb.Http.RoutesTest do
       :ok
     end
 
+    test "returns 503 with a retry hint when the database query fails" do
+      token = HttpAuthHelper.sign_jwt()
+
+      conn =
+        conn(:get, "/stats")
+        |> put_req_header("authorization", "Bearer #{token}")
+        |> call()
+
+      assert conn.status == 503
+      assert get_resp_header(conn, "retry-after") == ["5"]
+      assert Jason.decode!(conn.resp_body)["error"] == "service_unavailable"
+    end
+
     test "returns 200 with snapshot data" do
+      checkout_database()
       token = HttpAuthHelper.sign_jwt()
 
       conn =
@@ -98,6 +122,7 @@ defmodule BfwEngineWeb.Http.RoutesTest do
     end
 
     test "returns 200 for a token with only client_id" do
+      checkout_database()
       token = HttpAuthHelper.sign_jwt(%{"sub" => nil, "client_id" => "service-account-1"})
 
       conn =
@@ -132,6 +157,7 @@ defmodule BfwEngineWeb.Http.RoutesTest do
     end
 
     test "returns 200 with snapshot" do
+      checkout_database()
       conn = conn(:get, "/stats") |> call()
 
       assert conn.status == 200
