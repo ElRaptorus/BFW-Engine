@@ -2,6 +2,7 @@ import {
   ForbiddenError,
   NotFoundError,
   ProcessDisabledError,
+  ProcessInstanceAlreadyTerminalError,
   ProcessInstanceNotTerminalError,
   ProcessNotFoundError,
 } from '@elraptorus/bfw_engine_sdk';
@@ -131,16 +132,17 @@ describe('Process Instance Lifecycle', () => {
   });
 
   describe('bad paths -- abort', () => {
-    it('abort finished process instance returns 404 (gen_statem terminates on completion)', async () => {
+    it('abort finished process instance throws ProcessInstanceAlreadyTerminalError', async () => {
       const startResult = await adminClient.processes.start(PASSTHROUGH_ID);
       await waitForState(adminClient, startResult.processInstanceId, 'finished');
       try {
         await adminClient.processInstances.abort(startResult.processInstanceId);
-        expect.fail('Should have thrown NotFoundError');
+        expect.fail('Should have thrown ProcessInstanceAlreadyTerminalError');
       } catch (error: unknown) {
-        expect(error).toBeInstanceOf(NotFoundError);
-        if (error instanceof NotFoundError) {
-          expect(error.statusCode).toBe(404);
+        expect(error).toBeInstanceOf(ProcessInstanceAlreadyTerminalError);
+        if (error instanceof ProcessInstanceAlreadyTerminalError) {
+          expect(error.statusCode).toBe(422);
+          expect(error.currentState).toBe('finished');
         }
       } finally {
         await adminClient.processInstances.delete(startResult.processInstanceId);

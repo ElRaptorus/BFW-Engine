@@ -6,6 +6,7 @@ import {
   NotFoundError,
   ParseError,
   ProcessDisabledError,
+  ProcessInstanceAlreadyTerminalError,
   ProcessInstanceNotTerminalError,
   ProcessNotFoundError,
   UnauthorizedError,
@@ -147,17 +148,19 @@ describe('Error Mapping', { concurrent: false }, () => {
     });
   });
 
-  describe('Abort finished PI returns NotFound (PI gen_statem terminates on completion)', () => {
-    it('maps 404 because the PI process is no longer in the runtime registry', async () => {
+  describe('Abort finished PI returns ProcessInstanceAlreadyTerminalError', () => {
+    it('maps 422 process_already_terminal with the persisted state', async () => {
       const { processInstanceId } = await adminClient.processes.start(passthroughProcessModelId);
       await waitForState(adminClient, processInstanceId, 'finished');
       try {
         await adminClient.processInstances.abort(processInstanceId);
         expect.fail('Should have thrown');
       } catch (error) {
-        expect(error).toBeInstanceOf(NotFoundError);
-        if (error instanceof NotFoundError) {
-          expect(error.statusCode).toBe(404);
+        expect(error).toBeInstanceOf(ProcessInstanceAlreadyTerminalError);
+        if (error instanceof ProcessInstanceAlreadyTerminalError) {
+          expect(error.statusCode).toBe(422);
+          expect(error.errorCode).toBe('process_already_terminal');
+          expect(error.currentState).toBe('finished');
         }
       }
     });
