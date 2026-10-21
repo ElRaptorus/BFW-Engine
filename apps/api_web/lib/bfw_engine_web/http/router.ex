@@ -45,7 +45,9 @@ defmodule BfwEngineWeb.Http.Router do
     plug BfwEngineWeb.Http.Plugs.DevtoolsGatePlug
   end
 
-  pipeline :metrics_gate do
+  pipeline :metrics do
+    plug :accepts, ["text"]
+    plug BfwEngineWeb.Http.Plugs.SecurityHeadersPlug
     plug BfwEngineWeb.Http.Plugs.MetricsGatePlug
   end
 
@@ -61,7 +63,7 @@ defmodule BfwEngineWeb.Http.Router do
   end
 
   scope "/", BfwEngineWeb.Http do
-    pipe_through [:api, :metrics_gate]
+    pipe_through :metrics
 
     get "/metrics", MetricsController, :index
   end

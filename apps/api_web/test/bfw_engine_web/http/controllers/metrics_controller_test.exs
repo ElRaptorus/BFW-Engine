@@ -73,4 +73,32 @@ defmodule BfwEngineWeb.Http.MetricsControllerTest do
       assert conn.status == 200
     end
   end
+
+  describe "content negotiation" do
+    test "router serves metrics for a text/plain-only Accept header" do
+      Application.put_env(:peripheral_telemetry, :metrics_enabled, true)
+
+      conn =
+        conn(:get, "/metrics")
+        |> put_req_header("accept", "text/plain")
+        |> Router.call(Router.init([]))
+
+      assert conn.status == 200
+      assert get_resp_header(conn, "content-type") |> hd() =~ "text/plain"
+    end
+
+    test "router serves metrics for the Prometheus scraper Accept header" do
+      Application.put_env(:peripheral_telemetry, :metrics_enabled, true)
+
+      conn =
+        conn(:get, "/metrics")
+        |> put_req_header(
+          "accept",
+          "application/openmetrics-text;version=1.0.0,text/plain;version=0.0.4;q=0.5,*/*;q=0.1"
+        )
+        |> Router.call(Router.init([]))
+
+      assert conn.status == 200
+    end
+  end
 end
