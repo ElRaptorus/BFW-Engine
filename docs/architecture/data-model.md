@@ -34,7 +34,7 @@ process_versions
   version             text        NOT NULL    -- from <bfw:version>, required at deploy time
   definitions_id      text        NOT NULL    -- bpmn:definitions@id from the BPMN XML; required at deploy time
   bpmn_xml            text         -- full XML, normalized. SINGLE SOURCE OF TRUTH for the process definition. The parsed AST is built in memory by BfwEngine.BPMN.ModelCache on first access and is never persisted — neither the AST nor the parsed contracts live in the database.
-  deployer            jsonb        -- identity claim of deployer at deploy time
+  deployer            jsonb        -- identity snapshot of the deployer at deploy time; APIs expose only its id (api.md §Identity Fields on the Wire)
   deleted             boolean     NOT NULL DEFAULT false       -- deletion flag, irreversible in v1
   deleted_at          timestamptz NULL                         -- set in the same txn that flips `deleted` to true
   deleted_by          jsonb       NULL                         -- identity claim of the caller that deleted this version (same shape as `deployer` / `process_instances.started_by`)
@@ -77,7 +77,7 @@ decision_versions
   definition_id            uuid FK -> decision_definitions.id
   version                  text        NOT NULL    -- from DMN definitions metadata
   dmn_xml                  text        NOT NULL    -- full XML, single persistent source of truth
-  deployed_by              jsonb                   -- identity claim of deployer
+  deployer                 jsonb                   -- identity snapshot of the deployer; APIs expose only its id
   deployed_at              timestamptz
   deleted                  boolean     NOT NULL DEFAULT false
   deleted_at               timestamptz NULL

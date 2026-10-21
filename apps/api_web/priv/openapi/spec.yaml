@@ -2669,10 +2669,9 @@ components:
           format: date-time
           description: Timestamp when this version was deployed.
         deployer:
-          type: object
+          type: string
           nullable: true
-          description: Identity snapshot of the deployer when available.
-          additionalProperties: true
+          description: ID of the user who deployed this version; null when not recorded.
         bpmnXml:
           type: string
           description: >-
@@ -2709,10 +2708,9 @@ components:
           format: date-time
           description: Timestamp when this version was deployed.
         deployer:
-          type: object
+          type: string
           nullable: true
-          description: Identity snapshot of the deployer when available.
-          additionalProperties: true
+          description: ID of the user who deployed this version; null when not recorded.
         bpmnXml:
           type: string
           description: >-
@@ -3018,9 +3016,9 @@ components:
           type: string
           format: date-time
         deployer:
-          type: object
+          type: string
           nullable: true
-          additionalProperties: true
+          description: ID of the user who deployed this version; null when not recorded.
         dmnXml:
           type: string
           description: >-
@@ -3052,9 +3050,9 @@ components:
           type: string
           format: date-time
         deployer:
-          type: object
+          type: string
           nullable: true
-          additionalProperties: true
+          description: ID of the user who deployed this version; null when not recorded.
         dmnXml:
           type: string
           description: >-

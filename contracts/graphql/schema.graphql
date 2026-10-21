@@ -7,8 +7,8 @@ enum DecisionVersionSortField {
   DECISION_DEFINITION_ID
   VERSION
   DMN_XML
-  DEPLOYER
   DEPLOYED_AT
+  DEPLOYER
 }
 
 "A page of :decision_version"
@@ -35,6 +35,24 @@ type PageOfDecisionVersion {
   results: [DecisionVersion!]
 }
 
+input DecisionVersionFilterDeployer {
+  isNil: Boolean
+  eq: String
+  notEq: String
+  in: [String!]
+  lessThan: String
+  greaterThan: String
+  lessThanOrEqual: String
+  greaterThanOrEqual: String
+  contains: String
+  isDistinctFrom: String
+  isNotDistinctFrom: String
+  stringEndsWith: String
+  stringStartsWith: String
+  like: String
+  ilike: String
+}
+
 input DecisionVersionFilterDeployedAt {
   isNil: Boolean
   eq: DateTime
@@ -46,19 +64,6 @@ input DecisionVersionFilterDeployedAt {
   greaterThanOrEqual: DateTime
   isDistinctFrom: DateTime
   isNotDistinctFrom: DateTime
-}
-
-input DecisionVersionFilterDeployer {
-  isNil: Boolean
-  eq: JsonString
-  notEq: JsonString
-  in: [JsonString]
-  lessThan: JsonString
-  greaterThan: JsonString
-  lessThanOrEqual: JsonString
-  greaterThanOrEqual: JsonString
-  isDistinctFrom: JsonString
-  isNotDistinctFrom: JsonString
 }
 
 input DecisionVersionFilterDmnXml {
@@ -125,14 +130,23 @@ input DecisionVersionFilterId {
 
 input DecisionVersionFilterInput {
   and: [DecisionVersionFilterInput!]
+
   or: [DecisionVersionFilterInput!]
+
   not: [DecisionVersionFilterInput!]
+
   id: DecisionVersionFilterId
+
   decisionDefinitionId: DecisionVersionFilterDecisionDefinitionId
+
   version: DecisionVersionFilterVersion
+
   dmnXml: DecisionVersionFilterDmnXml
-  deployer: DecisionVersionFilterDeployer
+
   deployedAt: DecisionVersionFilterDeployedAt
+
+  "ID of the user who deployed this version"
+  deployer: DecisionVersionFilterDeployer
 }
 
 input DecisionVersionSortInput {
@@ -142,11 +156,17 @@ input DecisionVersionSortInput {
 
 type DecisionVersion {
   id: ID!
+
   decisionDefinitionId: ID!
+
   version: String!
+
   dmnXml: String!
-  deployer: JsonString
+
   deployedAt: DateTime!
+
+  "ID of the user who deployed this version"
+  deployer: String
 }
 
 enum DecisionDefinitionSortField {
@@ -914,9 +934,9 @@ enum ProcessInstanceSortField {
   STATE
   STARTED_AT
   FINISHED_AT
-  STARTED_BY
   STARTED_WITH_CONTEXT
   ERROR_INFO
+  STARTED_BY
   ID_TEXT
 }
 
@@ -962,6 +982,24 @@ input ProcessInstanceFilterIdText {
   ilike: String
 }
 
+input ProcessInstanceFilterStartedBy {
+  isNil: Boolean
+  eq: String
+  notEq: String
+  in: [String!]
+  lessThan: String
+  greaterThan: String
+  lessThanOrEqual: String
+  greaterThanOrEqual: String
+  contains: String
+  isDistinctFrom: String
+  isNotDistinctFrom: String
+  stringEndsWith: String
+  stringStartsWith: String
+  like: String
+  ilike: String
+}
+
 input ProcessInstanceFilterErrorInfo {
   isNil: Boolean
   eq: JsonString
@@ -976,19 +1014,6 @@ input ProcessInstanceFilterErrorInfo {
 }
 
 input ProcessInstanceFilterStartedWithContext {
-  isNil: Boolean
-  eq: JsonString
-  notEq: JsonString
-  in: [JsonString]
-  lessThan: JsonString
-  greaterThan: JsonString
-  lessThanOrEqual: JsonString
-  greaterThanOrEqual: JsonString
-  isDistinctFrom: JsonString
-  isNotDistinctFrom: JsonString
-}
-
-input ProcessInstanceFilterStartedBy {
   isNil: Boolean
   eq: JsonString
   notEq: JsonString
@@ -1138,8 +1163,6 @@ input ProcessInstanceFilterInput {
 
   finishedAt: ProcessInstanceFilterFinishedAt
 
-  startedBy: ProcessInstanceFilterStartedBy
-
   startedWithContext: ProcessInstanceFilterStartedWithContext
 
   errorInfo: ProcessInstanceFilterErrorInfo
@@ -1151,6 +1174,9 @@ input ProcessInstanceFilterInput {
   dataObjectValues: DataObjectValueFilterInput
 
   dataObjectHistory: DataObjectHistoryEntryFilterInput
+
+  "ID of the user who started this instance"
+  startedBy: ProcessInstanceFilterStartedBy
 
   "UUID primary key cast to text — enables substring (ilike) search in GraphQL"
   idText: ProcessInstanceFilterIdText
@@ -1177,8 +1203,6 @@ type ProcessInstance {
   startedAt: DateTime!
 
   finishedAt: DateTime
-
-  startedBy: JsonString
 
   startedWithContext: JsonString
 
@@ -1231,6 +1255,9 @@ type ProcessInstance {
   "End-event output tokens for finished PIs; nil for all other states"
   finalTokens: [JsonString!]
 
+  "ID of the user who started this instance"
+  startedBy: String
+
   "UUID primary key cast to text — enables substring (ilike) search in GraphQL"
   idText: String
 }
@@ -1241,8 +1268,8 @@ enum ProcessVersionSortField {
   VERSION
   DEFINITIONS_ID
   BPMN_XML
-  DEPLOYER
   DEPLOYED_AT
+  DEPLOYER
 }
 
 "A page of :process_version"
@@ -1269,6 +1296,24 @@ type PageOfProcessVersion {
   results: [ProcessVersion!]
 }
 
+input ProcessVersionFilterDeployer {
+  isNil: Boolean
+  eq: String
+  notEq: String
+  in: [String!]
+  lessThan: String
+  greaterThan: String
+  lessThanOrEqual: String
+  greaterThanOrEqual: String
+  contains: String
+  isDistinctFrom: String
+  isNotDistinctFrom: String
+  stringEndsWith: String
+  stringStartsWith: String
+  like: String
+  ilike: String
+}
+
 input ProcessVersionFilterDeployedAt {
   isNil: Boolean
   eq: DateTime
@@ -1280,19 +1325,6 @@ input ProcessVersionFilterDeployedAt {
   greaterThanOrEqual: DateTime
   isDistinctFrom: DateTime
   isNotDistinctFrom: DateTime
-}
-
-input ProcessVersionFilterDeployer {
-  isNil: Boolean
-  eq: JsonString
-  notEq: JsonString
-  in: [JsonString]
-  lessThan: JsonString
-  greaterThan: JsonString
-  lessThanOrEqual: JsonString
-  greaterThanOrEqual: JsonString
-  isDistinctFrom: JsonString
-  isNotDistinctFrom: JsonString
 }
 
 input ProcessVersionFilterBpmnXml {
@@ -1377,16 +1409,27 @@ input ProcessVersionFilterId {
 
 input ProcessVersionFilterInput {
   and: [ProcessVersionFilterInput!]
+
   or: [ProcessVersionFilterInput!]
+
   not: [ProcessVersionFilterInput!]
+
   id: ProcessVersionFilterId
+
   processId: ProcessVersionFilterProcessId
+
   version: ProcessVersionFilterVersion
+
   definitionsId: ProcessVersionFilterDefinitionsId
+
   bpmnXml: ProcessVersionFilterBpmnXml
-  deployer: ProcessVersionFilterDeployer
+
   deployedAt: ProcessVersionFilterDeployedAt
+
   processInstances: ProcessInstanceFilterInput
+
+  "ID of the user who deployed this version"
+  deployer: ProcessVersionFilterDeployer
 }
 
 input ProcessVersionSortInput {
@@ -1405,8 +1448,6 @@ type ProcessVersion {
 
   bpmnXml: String
 
-  deployer: JsonString
-
   deployedAt: DateTime!
 
   processInstances(
@@ -1422,6 +1463,9 @@ type ProcessVersion {
     "The number of records to skip."
     offset: Int
   ): [ProcessInstance!]!
+
+  "ID of the user who deployed this version"
+  deployer: String
 
   "The parsed BPMN process for this version, resolved from ModelCache (not the database). Null if the model has been evicted and cannot be reloaded (e.g. the source XML is gone)."
   processModel: ProcessModel

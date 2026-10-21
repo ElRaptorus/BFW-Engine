@@ -25,6 +25,7 @@ defmodule BfwEngine.Persistence.Resources.ProcessInstance do
 
   graphql do
     type :process_instance
+    field_names started_by_id: :started_by
 
     queries do
       get(:get_process_instance, :read)
@@ -155,7 +156,7 @@ defmodule BfwEngine.Persistence.Resources.ProcessInstance do
     attribute :started_at, :utc_datetime_usec, allow_nil?: false, public?: true
     attribute :finished_at, :utc_datetime_usec, public?: true
 
-    attribute :started_by, :map, public?: true
+    attribute :started_by, :map, public?: false
     attribute :started_with_context, :map, public?: true
     attribute :error_info, :map, public?: true
 
@@ -196,6 +197,13 @@ defmodule BfwEngine.Persistence.Resources.ProcessInstance do
     calculate :final_tokens, {:array, :map}, BfwEngine.Persistence.Calculations.FinalTokens do
       public? true
       description "End-event output tokens for finished PIs; nil for all other states"
+    end
+
+    calculate :started_by_id, :string, expr(started_by["id"]) do
+      public? true
+      filterable? true
+      sortable? true
+      description "ID of the user who started this instance"
     end
 
     calculate :id_text, :string, expr(fragment("?::text", id)) do

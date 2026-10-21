@@ -37,6 +37,7 @@ defmodule BfwEngine.Persistence.Resources.DecisionVersion do
 
   graphql do
     type :decision_version
+    field_names deployer_id: :deployer
 
     queries do
       get(:get_decision_version, :read)
@@ -111,7 +112,7 @@ defmodule BfwEngine.Persistence.Resources.DecisionVersion do
       public? true
     end
 
-    attribute :deployer, :map, public?: true
+    attribute :deployer, :map, public?: false
 
     attribute :deleted, :boolean do
       allow_nil? false
@@ -133,6 +134,15 @@ defmodule BfwEngine.Persistence.Resources.DecisionVersion do
     belongs_to :decision_definition, BfwEngine.Persistence.Resources.DecisionDefinition do
       attribute_writable? true
       define_attribute? false
+    end
+  end
+
+  calculations do
+    calculate :deployer_id, :string, expr(deployer["id"]) do
+      public? true
+      filterable? true
+      sortable? true
+      description "ID of the user who deployed this version"
     end
   end
 end

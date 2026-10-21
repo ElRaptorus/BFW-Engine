@@ -4,9 +4,22 @@
 
 All REST responses and WebSocket event envelopes use **camelCase** structural keys (for example `processInstanceId`, `processModelId`, `createdAt`). GraphQL already uses camelCase via AshGraphql, so all three API surfaces now speak the same convention.
 
-**Opaque payload boundary rule:** user-payload subtrees are passed through unchanged. The encoder converts structural field names but does **not** recurse into fields designated as opaque (for example `payload`, `inputToken`, `outputToken`, `startedWithContext`, `startedBy`, `deployer`, `claims`, `typeProperties`, `errorInfo`, `violations`). This means keys inside a process token's `payload` are exactly what the process author set — the engine never rewrites them. Engine-structural error fields like `failures` and `conflicts` are **not** opaque — their nested keys (e.g. `processModelId`, `rulesetFailures`) are camelCased normally.
+**Opaque payload boundary rule:** user-payload subtrees are passed through unchanged. The encoder converts structural field names but does **not** recurse into fields designated as opaque (for example `payload`, `inputToken`, `outputToken`, `startedWithContext`, `claims`, `typeProperties`, `errorInfo`, `violations`). This means keys inside a process token's `payload` are exactly what the process author set — the engine never rewrites them. Engine-structural error fields like `failures` and `conflicts` are **not** opaque — their nested keys (e.g. `processModelId`, `rulesetFailures`) are camelCased normally.
 
 The boundary is enforced in `BfwEngine.Types.Wire` (`apps/core_types/lib/bfw_engine/types/wire.ex`). Jason.Encoder implementations for all event structs live in `apps/core_events/lib/bfw_engine/events/json_encoders.ex`.
+
+### Identity Fields on the Wire
+
+A user appears on every API surface as their identity `id` (the JWT `sub`) only; roles, groups, claims, and tokens never leave the Engine. The database still stores the full identity snapshot (`process_versions.deployer`, `decision_versions.deployer`, `process_instances.started_by`, `*.deleted_by`) for policies and audit.
+
+| Surface | Field | Value |
+|---------|-------|-------|
+| REST `GET /processes/:id`, `/processes/:id/versions`, `GET /decisions/:id`, `/decisions/:id/versions` | `deployer` | ID string; `null` when the version was deployed without a recorded ID (anonymous) |
+| GraphQL `ProcessVersion`, `DecisionVersion` | `deployer: String` | Calculation `deployer_id` (`expr(deployer["id"])`), renamed via `field_names`; string filters and sorting |
+| GraphQL `ProcessInstance` | `startedBy: String` | Calculation `started_by_id`, same pattern |
+| WebSocket events | `startedById`, `retriedBy` | ID string |
+
+The snapshot attributes are `public?: false`, so neither the attribute nor a JSON filter on it is reachable through GraphQL. A new resource attribute that holds an identity follows the same pattern. `IdentityExposureTest` (`test/integration/security/identity_exposure_test.exs`) asserts that none of these responses contains `claims`, `roles`, or `groups`.
 
 ### Centralized Error Responses
 

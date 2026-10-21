@@ -17,6 +17,6 @@ export interface ProcessVersion {
   deployedAt: string;
   /** Raw BPMN XML of this version. Only populated when explicitly requested. */
   bpmnXml?: string | null;
-  /** Identity of the user/system that deployed this version. */
-  deployer?: Record<string, unknown> | null;
+  /** ID of the user who deployed this version, or `null` when not recorded. */
+  deployer?: string | null;
 }

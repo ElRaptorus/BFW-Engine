@@ -14,6 +14,6 @@ export interface DecisionVersion {
   deployedAt: string;
   /** Raw DMN XML of this version. Only populated when explicitly requested. */
   dmnXml?: string | null;
-  /** Identity of the user/system that deployed this version. */
-  deployer?: Record<string, unknown> | null;
+  /** ID of the user who deployed this version, or `null` when not recorded. */
+  deployer?: string | null;
 }

@@ -37,6 +37,7 @@ defmodule BfwEngine.Persistence.Resources.ProcessVersion do
 
   graphql do
     type :process_version
+    field_names deployer_id: :deployer
 
     queries do
       get(:get_process_version, :read)
@@ -112,7 +113,7 @@ defmodule BfwEngine.Persistence.Resources.ProcessVersion do
     end
 
     attribute :bpmn_xml, :string, public?: true
-    attribute :deployer, :map, public?: true
+    attribute :deployer, :map, public?: false
 
     attribute :deleted, :boolean do
       allow_nil? false
@@ -139,6 +140,15 @@ defmodule BfwEngine.Persistence.Resources.ProcessVersion do
     has_many :process_instances, BfwEngine.Persistence.Resources.ProcessInstance do
       destination_attribute :process_version_id
       public? true
+    end
+  end
+
+  calculations do
+    calculate :deployer_id, :string, expr(deployer["id"]) do
+      public? true
+      filterable? true
+      sortable? true
+      description "ID of the user who deployed this version"
     end
   end
 end

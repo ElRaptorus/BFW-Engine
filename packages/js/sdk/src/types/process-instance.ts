@@ -44,8 +44,8 @@ export interface ProcessInstance {
   startedAt: string;
   /** ISO 8601 timestamp when the instance reached a terminal state, or `null` if still running. */
   finishedAt: string | null;
-  /** Identity snapshot of the caller who started this instance. */
-  startedBy: Record<string, unknown> | null;
+  /** ID of the user who started this instance, or `null` when not recorded. */
+  startedBy: string | null;
   /** Initial context/payload passed at start time. */
   startedWithContext: Record<string, unknown> | null;
   /** Tokens that reached end events. `null` until the instance finishes. */

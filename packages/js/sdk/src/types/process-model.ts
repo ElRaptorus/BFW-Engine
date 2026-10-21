@@ -27,8 +27,8 @@ export interface ProcessModel {
   createdAt?: string;
   /** ISO 8601 timestamp when this version was deployed. REST-only. */
   deployedAt?: string;
-  /** Identity snapshot of the deployer. REST-only. */
-  deployer?: Record<string, unknown> | null;
+  /** ID of the user who deployed this version, or `null` when not recorded. REST-only. */
+  deployer?: string | null;
   /** Raw BPMN XML, included when requested via `?includeXml=true`. REST-only. */
   bpmnXml?: string;
   /** Populated when loaded via GraphQL `include: { versions }`. */

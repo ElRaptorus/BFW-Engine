@@ -536,7 +536,7 @@ defmodule BfwEngineWeb.Http.DecisionController do
           name: definition.name,
           enabled: definition.enabled,
           deployed_at: version.deployed_at,
-          deployer: version.deployer
+          deployer: identity_id(version.deployer)
         }
 
         if include_xml?, do: Map.put(base, :dmn_xml, version.dmn_xml), else: base
@@ -560,7 +560,7 @@ defmodule BfwEngineWeb.Http.DecisionController do
       name: definition.name,
       enabled: definition.enabled,
       deployed_at: version.deployed_at,
-      deployer: version.deployer
+      deployer: identity_id(version.deployer)
     }
 
     if include_xml?, do: Map.put(entry, :dmn_xml, version.dmn_xml), else: entry
@@ -602,6 +602,10 @@ defmodule BfwEngineWeb.Http.DecisionController do
       identity -> identity
     end
   end
+
+  defp identity_id(%{"id" => id}) when is_binary(id), do: id
+  defp identity_id(%{id: id}) when is_binary(id), do: id
+  defp identity_id(_identity_snapshot), do: nil
 
   defp deployer_identity(conn) do
     case conn.assigns[:identity] do

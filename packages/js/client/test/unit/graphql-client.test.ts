@@ -348,7 +348,7 @@ describe('GraphqlClient', () => {
               {
                 id: 'pi-1',
                 state: 'running',
-                started_by: '[{"id":"user-1"}]',
+                started_with_context: '[{"id":"user-1"}]',
               },
             ],
             count: 1,
@@ -358,10 +358,10 @@ describe('GraphqlClient', () => {
       const client = new GraphqlClient(transport);
 
       const result = await client.queryProcessInstances({
-        fields: ['id', 'state', 'startedBy'],
+        fields: ['id', 'state', 'startedWithContext'],
       });
 
-      expect(Array.isArray(result.data[0]!.startedBy)).toBe(true);
+      expect(Array.isArray(result.data[0]!.startedWithContext)).toBe(true);
     });
 
     it('leaves non-JSON strings unchanged', async () => {

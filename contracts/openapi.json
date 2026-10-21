@@ -395,9 +395,9 @@
             "type": "string"
           },
           "deployer": {
-            "additionalProperties": true,
+            "description": "ID of the user who deployed this version; null when not recorded.",
             "nullable": true,
-            "type": "object"
+            "type": "string"
           },
           "dmnXml": {
             "description": "DMN XML of the latest active version. Only present when `?includeXml=true` is set.",
@@ -559,9 +559,9 @@
             "type": "string"
           },
           "deployer": {
-            "additionalProperties": true,
+            "description": "ID of the user who deployed this version; null when not recorded.",
             "nullable": true,
-            "type": "object"
+            "type": "string"
           },
           "dmnXml": {
             "description": "DMN XML content. Only present when `?includeXml=true` is set.",
@@ -1303,10 +1303,9 @@
             "type": "string"
           },
           "deployer": {
-            "additionalProperties": true,
-            "description": "Identity snapshot of the deployer when available.",
+            "description": "ID of the user who deployed this version; null when not recorded.",
             "nullable": true,
-            "type": "object"
+            "type": "string"
           },
           "enabled": {
             "type": "boolean"
@@ -1502,10 +1501,9 @@
             "type": "string"
           },
           "deployer": {
-            "additionalProperties": true,
-            "description": "Identity snapshot of the deployer when available.",
+            "description": "ID of the user who deployed this version; null when not recorded.",
             "nullable": true,
-            "type": "object"
+            "type": "string"
           },
           "enabled": {
             "type": "boolean"

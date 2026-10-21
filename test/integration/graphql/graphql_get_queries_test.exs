@@ -158,6 +158,7 @@ defmodule BfwEngine.Integration.Graphql.GraphqlGetQueriesTest do
       decisionDefinitionId
       dmnXml
       deployedAt
+      deployer
     }
   }
   """
@@ -248,9 +249,7 @@ defmodule BfwEngine.Integration.Graphql.GraphqlGetQueriesTest do
       assert is_binary(process_version["bpmnXml"])
       assert String.contains?(process_version["bpmnXml"], @process_model_id)
       assert process_version["deployedAt"] != nil
-      deployer = Jason.decode!(process_version["deployer"])
-      assert is_map(deployer)
-      assert deployer["id"] == "test-user"
+      assert process_version["deployer"] == "test-user"
     end
 
     test "returns null for non-existent UUID" do
@@ -282,9 +281,7 @@ defmodule BfwEngine.Integration.Graphql.GraphqlGetQueriesTest do
       assert process_instance["id"] == process_instance_id
       assert process_instance["state"] == "finished"
       assert process_instance["startedAt"] != nil
-      started_by = Jason.decode!(process_instance["startedBy"])
-      assert is_map(started_by)
-      assert started_by["id"] == "test-user"
+      assert process_instance["startedBy"] == "test-user"
       assert is_binary(process_instance["processVersionId"])
     end
 
@@ -408,6 +405,7 @@ defmodule BfwEngine.Integration.Graphql.GraphqlGetQueriesTest do
       assert is_binary(decision_version["dmnXml"])
       assert String.contains?(decision_version["dmnXml"], @decision_definition_id)
       assert decision_version["deployedAt"] != nil
+      assert decision_version["deployer"] == "test-user"
     end
 
     test "returns null for non-existent UUID" do
