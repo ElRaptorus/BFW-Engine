@@ -187,10 +187,10 @@ defmodule BfwEngine.Conformance.ConformanceTest do
 
   @tag :slow
   test "C117: Pending signal TTL expiry — expired signal not delivered" do
-    Application.put_env(:core_events, :signal_pending_ttl, "PT1S")
+    Application.put_env(:bfw_engine, :signal_pending_ttl, "PT1S")
 
     on_exit(fn ->
-      Application.put_env(:core_events, :signal_pending_ttl, "PT60S")
+      Application.put_env(:bfw_engine, :signal_pending_ttl, "PT60S")
     end)
 
     identity = %BfwEngine.Types.Identity{

@@ -9,8 +9,8 @@ defmodule BfwEngine.Integration.Execution.ScriptTaskExecutionTest do
   alias BfwEngine.Test.ExamplePlugin
 
   defp register_test_plugin do
-    Application.put_env(:core_execution, :service_task_dispatch, BfwEngine.Plugins.RegistryDispatch)
-    Application.put_env(:core_execution, :script_dispatch, BfwEngine.Plugins.ScriptRegistryDispatch)
+    Application.put_env(:bfw_engine, :service_task_dispatch, BfwEngine.Plugins.RegistryDispatch)
+    Application.put_env(:bfw_engine, :script_dispatch, BfwEngine.Plugins.ScriptRegistryDispatch)
     facade = FacadeBuilder.build("evil:test_script_task")
     ExamplePlugin.on_load(facade)
   end

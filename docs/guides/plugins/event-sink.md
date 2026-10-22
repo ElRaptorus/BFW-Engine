@@ -92,7 +92,7 @@ All events are structs under `BfwEngine.Types.Event.*`:
 - `EngineStarted`, `EngineShutdown`
 - `SinkFailed`, `PluginQuarantined`
 - PI and FNI lifecycle events
-- And more — see the `core_types` module documentation
+- And more — see the `BfwEngine.Types` module documentation
 
 ## Related
 

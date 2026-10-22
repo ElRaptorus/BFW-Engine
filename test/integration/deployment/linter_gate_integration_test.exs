@@ -2,13 +2,13 @@ defmodule BfwEngine.Integration.Deployment.LinterGateIntegrationTest do
   use ExUnit.Case, async: false
 
   setup do
-    previous = Application.get_env(:core_bpmn, :linter_gate)
+    previous = Application.get_env(:bfw_engine, :linter_gate)
 
     on_exit(fn ->
       if previous == nil do
-        Application.delete_env(:core_bpmn, :linter_gate)
+        Application.delete_env(:bfw_engine, :linter_gate)
       else
-        Application.put_env(:core_bpmn, :linter_gate, previous)
+        Application.put_env(:bfw_engine, :linter_gate, previous)
       end
     end)
 
@@ -42,7 +42,7 @@ defmodule BfwEngine.Integration.Deployment.LinterGateIntegrationTest do
   test "check/1 returns {:ok, :passed} when config thresholds pass" do
     definitions = sample_definitions()
 
-    Application.put_env(:core_bpmn, :linter_gate,
+    Application.put_env(:bfw_engine, :linter_gate,
       rules: %{
         "bfw-default" => %{
           "minScorePercent" => 90,
@@ -57,7 +57,7 @@ defmodule BfwEngine.Integration.Deployment.LinterGateIntegrationTest do
   test "check/1 returns {:error, failures} when config fails" do
     definitions = sample_definitions(score: 70)
 
-    Application.put_env(:core_bpmn, :linter_gate,
+    Application.put_env(:bfw_engine, :linter_gate,
       rules: %{
         "bfw-default" => %{
           "minScorePercent" => 85

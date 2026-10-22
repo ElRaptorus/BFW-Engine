@@ -1,10 +1,11 @@
 defmodule BfwEngine.Integration.Execution.TransactionCancelTest do
   @moduledoc """
-  Umbrella-level integration tests for Transaction Subprocess + Cancel Events (TX-1–TX-15).
+  Integration tests for Transaction Subprocess + Cancel Events (TX-1–TX-10).
+  The retry rules inside a transaction scope are conformance specs C240–C244.
 
   Uses real BPMN XML fixtures deployed via the HTTP API. Verifies PI state,
-  FNI states, automatic compensation (LIFO), Cancel Boundary routing, hazard
-  behaviour, and retry restrictions against a real database.
+  FNI states, automatic compensation (LIFO), Cancel Boundary routing, and hazard
+  behaviour against a real database.
 
   Scenarios covered:
   - TX-1:  Happy path — Transaction succeeds, Cancel Boundary NOT fired
@@ -365,153 +366,6 @@ defmodule BfwEngine.Integration.Execution.TransactionCancelTest do
       end_cancelled_fni = Enum.find(parent_fnis, &(&1.flow_node_id == "End_Cancelled"))
       assert end_cancelled_fni == nil,
              "End_Cancelled must NOT be reached — compensation failure prevents successful cancel"
-    end
-  end
-
-  # ---------------------------------------------------------------------------
-  # TX-11: :cancelled PI is not retryable
-  # ---------------------------------------------------------------------------
-
-  describe "TX-11: cancelled PI is not retryable" do
-    test "attempt to retry a :cancelled child PI returns 422 process_instance_not_retriable" do
-      {201, _} = http_deploy("transaction_cancel_basic.bpmn")
-
-      {201, body} = http_start("transaction_cancel_basic")
-      pi_id = body["processInstanceId"]
-
-      wait_for_process_instance(pi_id, @default_timeout)
-      assert_pi_state!(pi_id, "finished")
-
-      [child_pi_id] = await_child_process_instance_ids(pi_id)
-      assert_pi_state!(child_pi_id, "cancelled")
-
-      {422, error_body} = http_retry_process_instance(child_pi_id)
-      assert error_body["error"] == "process_instance_not_retriable",
-             "Expected process_instance_not_retriable, got: #{inspect(error_body)}"
-    end
-  end
-
-  # ---------------------------------------------------------------------------
-  # TX-12: Retry of direct transaction child PI is blocked
-  # ---------------------------------------------------------------------------
-  # When a transaction hazards (fatal), the transaction child PI is in "fatal"
-  # state. Even though "fatal" is normally retryable, the engine blocks retry
-  # for any PI spawned directly by a transaction subprocess shell FNI.
-
-  describe "TX-12: retry of direct transaction child PI is blocked" do
-    test "transaction hazard: child PI fatal, retry child PI → 422 retry_inside_transaction_scope" do
-      {201, _} = http_deploy("transaction_hazard_error.bpmn")
-
-      {201, body} = http_start("transaction_hazard_error")
-      pi_id = body["processInstanceId"]
-
-      wait_for_process_instance(pi_id, @default_timeout)
-      assert_pi_state!(pi_id, "fatal")
-
-      [child_pi_id] = await_child_process_instance_ids(pi_id)
-      assert_pi_state!(child_pi_id, "fatal")
-
-      {422, error_body} = http_retry_process_instance(child_pi_id)
-
-      assert error_body["error"] == "retry_inside_transaction_scope",
-             "Expected retry_inside_transaction_scope when retrying the direct transaction child PI. Got: #{inspect(error_body)}"
-    end
-  end
-
-  # ---------------------------------------------------------------------------
-  # TX-13: TX-RETRY-NESTED-SP — retry of nested SP child PI blocked
-  # ---------------------------------------------------------------------------
-
-  describe "TX-13: retry of nested SP child is blocked" do
-    test "transaction → SP → SP child fatals. Retry SP child → 422 retry_inside_transaction_scope" do
-      {201, _} = http_deploy("transaction_retry_nested_sp.bpmn")
-
-      {201, body} = http_start("transaction_retry_nested_sp")
-      pi_id = body["processInstanceId"]
-
-      wait_for_process_instance(pi_id, @default_timeout)
-      assert_pi_state!(pi_id, "fatal")
-
-      [tx_child_pi_id] = await_child_process_instance_ids(pi_id)
-      assert_pi_state!(tx_child_pi_id, "fatal")
-
-      [sp_child_pi_id] = await_child_process_instance_ids(tx_child_pi_id)
-      assert_pi_state!(sp_child_pi_id, "fatal")
-
-      {422, error_body} = http_retry_process_instance(sp_child_pi_id)
-
-      assert error_body["error"] == "retry_inside_transaction_scope",
-             "Expected retry_inside_transaction_scope when retrying PI below a transaction. Got: #{inspect(error_body)}"
-    end
-  end
-
-  # ---------------------------------------------------------------------------
-  # TX-14: TX-RETRY-NESTED-CA — retry of nested CA child PI blocked
-  # ---------------------------------------------------------------------------
-
-  describe "TX-14: retry of nested CA child is blocked" do
-    test "transaction → CA → CA child fatals. Retry CA child → 422 retry_inside_transaction_scope" do
-      {201, _} = http_deploy("transaction_retry_nested_ca_child.bpmn")
-      {201, _} = http_deploy("transaction_retry_nested_ca.bpmn")
-
-      {201, body} = http_start("transaction_retry_nested_ca")
-      pi_id = body["processInstanceId"]
-
-      wait_for_process_instance(pi_id, @default_timeout)
-      assert_pi_state!(pi_id, "fatal")
-
-      [tx_child_pi_id] = await_child_process_instance_ids(pi_id)
-      assert_pi_state!(tx_child_pi_id, "fatal")
-
-      [ca_child_pi_id] = await_child_process_instance_ids(tx_child_pi_id)
-      assert_pi_state!(ca_child_pi_id, "fatal")
-
-      {422, error_body} = http_retry_process_instance(ca_child_pi_id)
-
-      assert error_body["error"] == "retry_inside_transaction_scope",
-             "Expected retry_inside_transaction_scope when retrying PI below a transaction. Got: #{inspect(error_body)}"
-    end
-  end
-
-  # ---------------------------------------------------------------------------
-  # TX-15: TX-RETRY-NESTED-DEEP — retry blocked at all levels below transaction
-  # ---------------------------------------------------------------------------
-
-  describe "TX-15: retry blocked at all levels below transaction" do
-    test "TX → SP → CA → grandchild fatals: retry grandchild, SP child both rejected; TX shell retry succeeds" do
-      {201, _} = http_deploy("transaction_retry_nested_deep_grandchild.bpmn")
-      {201, _} = http_deploy("transaction_retry_nested_deep.bpmn")
-
-      {201, body} = http_start("transaction_retry_nested_deep")
-      pi_id = body["processInstanceId"]
-
-      wait_for_process_instance(pi_id, @default_timeout)
-      assert_pi_state!(pi_id, "fatal")
-
-      [tx_child_pi_id] = await_child_process_instance_ids(pi_id)
-      assert_pi_state!(tx_child_pi_id, "fatal")
-
-      [sp_child_pi_id] = await_child_process_instance_ids(tx_child_pi_id)
-      assert_pi_state!(sp_child_pi_id, "fatal")
-
-      [ca_child_pi_id] = await_child_process_instance_ids(sp_child_pi_id)
-      assert_pi_state!(ca_child_pi_id, "fatal")
-
-      {422, grandchild_error} = http_retry_process_instance(ca_child_pi_id)
-
-      assert grandchild_error["error"] == "retry_inside_transaction_scope",
-             "Grandchild (CA child) retry must be blocked. Got: #{inspect(grandchild_error)}"
-
-      {422, sp_error} = http_retry_process_instance(sp_child_pi_id)
-
-      assert sp_error["error"] == "retry_inside_transaction_scope",
-             "SP child retry must be blocked. Got: #{inspect(sp_error)}"
-
-      {204, nil} = http_retry_process_instance(pi_id)
-
-      assert {:ok, _pid} = poll_pi_alive(pi_id, 5_000)
-      wait_for_process_instance(pi_id, @default_timeout)
-      assert_pi_state!(pi_id, "fatal")
     end
   end
 end

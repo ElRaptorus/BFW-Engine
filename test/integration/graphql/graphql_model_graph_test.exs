@@ -328,19 +328,19 @@ defmodule BfwEngine.Integration.Graphql.GraphqlModelGraphTest do
     end
 
     test "returns null processModel when ModelCache.fetch returns not_found" do
-      previous_loader = Application.get_env(:core_bpmn, :model_cache_loader)
+      previous_loader = Application.get_env(:bfw_engine, :bpmn_model_cache_loader)
 
       Application.put_env(
-        :core_bpmn,
-        :model_cache_loader,
+        :bfw_engine,
+        :bpmn_model_cache_loader,
         {__MODULE__, :not_found_loader}
       )
 
       on_exit(fn ->
         if previous_loader do
-          Application.put_env(:core_bpmn, :model_cache_loader, previous_loader)
+          Application.put_env(:bfw_engine, :bpmn_model_cache_loader, previous_loader)
         else
-          Application.delete_env(:core_bpmn, :model_cache_loader)
+          Application.delete_env(:bfw_engine, :bpmn_model_cache_loader)
         end
       end)
 

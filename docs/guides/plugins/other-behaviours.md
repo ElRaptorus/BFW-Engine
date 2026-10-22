@@ -2,7 +2,7 @@
 
 Beyond Service Task handlers, Event Sinks, and REST API extensions, the engine ships two more live capability types: **NamedScript** and **AuthProvider**.
 
-PersistenceAdapter, MonitoringPanel, TimerSource, and DataStoreAdapter plugin capabilities **do not exist** — do not register them. Execution persistence is `BfwEngine.Execution.Persistence` (config `:core_execution, :persistence_adapter`). BPMN `<bpmn:dataStoreReference>` elements are parsed and data associations may target one, but the Engine never reads or writes the store, and there is no `DataStoreAdapter` to plug in.
+PersistenceAdapter, MonitoringPanel, TimerSource, and DataStoreAdapter plugin capabilities **do not exist** — do not register them. Execution persistence is `BfwEngine.Execution.Persistence` (config `:bfw_engine, :persistence_adapter`). BPMN `<bpmn:dataStoreReference>` elements are parsed and data associations may target one, but the Engine never reads or writes the store, and there is no `DataStoreAdapter` to plug in.
 
 ## NamedScript
 
@@ -25,7 +25,7 @@ facade.register_named_script.("my_validation", MyPlugin.CustomScript)
 
 ## AuthProvider
 
-Replaces the built-in JWT verifier. Unique (singleton, first-writer wins). A second plugin that registers another provider receives `{:error, :conflict, incumbent_plugin_name}` and is quarantined. If no plugin registers a provider, the built-in JWT provider in `api_auth` is used.
+Replaces the built-in JWT verifier. Unique (singleton, first-writer wins). A second plugin that registers another provider receives `{:error, :conflict, incumbent_plugin_name}` and is quarantined. If no plugin registers a provider, the built-in JWT provider in `BfwEngine.Auth` is used.
 
 ```elixir
 @behaviour BfwEngine.Plugin.AuthProvider

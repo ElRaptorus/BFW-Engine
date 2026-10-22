@@ -36,7 +36,7 @@ matches `orchestrated-process`.
 
 ## Tests
 
-Run from the umbrella root (after wiring `Code.require_file/1` or equivalent so
+Run from the repository root (after wiring `Code.require_file/1` or equivalent so
 example modules compile in your test Mix project):
 
 ```bash

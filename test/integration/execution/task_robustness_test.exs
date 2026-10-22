@@ -13,13 +13,13 @@ defmodule BfwEngine.Integration.Execution.TaskRobustnessTest do
 
   describe "E6: concurrency cap" do
     setup do
-      previous_cap = Application.get_env(:core_execution, :max_concurrent_process_instances)
+      previous_cap = Application.get_env(:bfw_engine, :max_concurrent_process_instances)
 
       on_exit(fn ->
         if previous_cap do
-          Application.put_env(:core_execution, :max_concurrent_process_instances, previous_cap)
+          Application.put_env(:bfw_engine, :max_concurrent_process_instances, previous_cap)
         else
-          Application.delete_env(:core_execution, :max_concurrent_process_instances)
+          Application.delete_env(:bfw_engine, :max_concurrent_process_instances)
         end
       end)
 
@@ -30,7 +30,7 @@ defmodule BfwEngine.Integration.Execution.TaskRobustnessTest do
       {201, _} = http_deploy("call_activity_resume_child.bpmn")
       {201, _} = http_deploy("call_activity_resume_parent.bpmn")
 
-      Application.put_env(:core_execution, :max_concurrent_process_instances, Execution.count_active() + 1)
+      Application.put_env(:bfw_engine, :max_concurrent_process_instances, Execution.count_active() + 1)
 
       {201, body} = http_start("CallActivityResumeParent")
       parent_process_instance_id = body["processInstanceId"]
@@ -38,7 +38,7 @@ defmodule BfwEngine.Integration.Execution.TaskRobustnessTest do
       [child_process_instance_id] = await_child_process_instance_ids(parent_process_instance_id)
       child_user_task = poll_fni_state(child_process_instance_id, "user_task", "waiting")
 
-      Application.put_env(:core_execution, :max_concurrent_process_instances, Execution.count_active())
+      Application.put_env(:bfw_engine, :max_concurrent_process_instances, Execution.count_active())
       assert {503, %{"error" => "engine_at_capacity"}} = http_start("CallActivityResumeParent")
 
       {204, _} = http_finish_user_task(child_user_task.id, %{"result" => "done"})
@@ -50,7 +50,7 @@ defmodule BfwEngine.Integration.Execution.TaskRobustnessTest do
     test "an Embedded SubProcess starts its child at the cap" do
       {201, _} = http_deploy("embedded_subprocess_user_task.bpmn")
 
-      Application.put_env(:core_execution, :max_concurrent_process_instances, Execution.count_active() + 1)
+      Application.put_env(:bfw_engine, :max_concurrent_process_instances, Execution.count_active() + 1)
 
       {201, body} = http_start("EmbeddedSubprocessUserTask")
       parent_process_instance_id = body["processInstanceId"]
@@ -67,7 +67,7 @@ defmodule BfwEngine.Integration.Execution.TaskRobustnessTest do
     test "an Event Subprocess starts its child at the cap" do
       {201, _} = http_deploy("event_subprocess_message_non_interrupting.bpmn")
 
-      Application.put_env(:core_execution, :max_concurrent_process_instances, Execution.count_active() + 1)
+      Application.put_env(:bfw_engine, :max_concurrent_process_instances, Execution.count_active() + 1)
 
       {201, body} = http_start("EventSubprocessMessageNonInterrupting")
       process_instance_id = body["processInstanceId"]

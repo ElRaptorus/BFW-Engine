@@ -1,206 +1,47 @@
-# Integration Testing — Reference Tables
+# Integration Testing — Reference
 
-Companion to [SKILL.md](./SKILL.md). Contains detailed API surfaces and mapping
-tables for test infrastructure components.
+Layout and suite overview: `docs/architecture/testing.md` §Test layout.
 
----
+## Case templates
 
-## CaseTemplate API
+| Module | File | Setup | Imports / provides |
+|--------|------|-------|--------------------|
+| `BfwEngine.Persistence.DataCase` | `test/unit/persistence/support/data_case.ex` | Sandbox checkout of `Repo` and `ReadRepo`, shared mode | `import BfwEngine.Persistence.DataCase` |
+| `BfwEngine.IntegrationCase` | `test/support/integration_case.ex` | Restarts `EngineEventBus`, plugin registry, auth provider registry and BPMN `ModelCache` through `BfwEngine.Test.ServiceReset`; sets the test HS256 secret; terminates running PIs; sandbox checkout when the pool is a sandbox | `Plug.Test`, `Plug.Conn`, `conn_with_auth/3`, `route/1`, `sign_jwt/1` |
+| `BfwEngine.ExecutionCase` | `test/support/execution_case.ex` | `IntegrationCase` reset plus message and signal subscriptions; event collector setup | Imports `DbAssertions`, `EventCollector`, `BpmnLoader`, `ProcessInteractions`; `http_*` helpers for every REST operation (deploy, start, user/manual tasks, abort, retry, triggers, catalog, GraphQL, DMN, ad-hoc), `poll_pi_state/3`, `poll_fni_state/4`, `wait_for_process_instance/2`, `fetch_data_object*/2` |
 
-### DataCase
+Unit tests use `ExUnit.Case` and reset GenServers through `BfwEngine.Test.ServiceReset` (`test/unit/harness/support/service_reset.ex`).
 
-```elixir
-defmodule BfwEngine.DataCase do
-  use ExUnit.CaseTemplate
+## Harness modules (`test/support/`)
 
-  using do
-    quote do
-      alias BfwEngine.Repo
-      import Ecto.Changeset
-      import Ecto.Query
-      import BfwEngine.DataCase
-    end
-  end
+| Module | Purpose |
+|--------|---------|
+| `BfwEngine.Test.DbAssertions` | Row reads and assertions: `fetch_process_instance!/1`, `fetch_flow_node_instances/1`, `assert_pi_state!/3`, `assert_execution_chain!/2`, `assert_all_fnis_terminal!/1`, `assert_flow_node_instance_count!/2`, `find_fni_by_flow_node_id/2`, `assert_no_running_fnis!/1`, `await_child_process_instance_ids/2` |
+| `BfwEngine.Test.ProcessInteractions` | Drive a running PI: finish/cancel user and manual tasks, finish/fail async service tasks, `await_process_instance_state/3`, `await_waiting_fni_by_node_id/3`, `await_finished_fni_by_node_id/3`, `await_child_process_instance_state/2` |
+| `BfwEngine.Test.EventCollector` | EventSink that forwards every engine event to the test: `start_link/1`, `get_events/1`, `await_events/3`, `silence/1` |
+| `BfwEngine.Test.PayloadCapFixtures` | `mint_payload/1` (exact JSON byte size), `oversize_payload/0`, `exactly_at_limit_payload/0`, `json_byte_size/1` |
+| `BfwEngine.Test.BpmnLoader` | `deploy_fixture/2` for a fixture under `test/fixtures/bpmns/` |
+| `BfwEngine.Test.ConformanceRunner`, `ConformanceSteps`, `DmnConformanceRunner` | Execute the YAML specs in `test/conformance/` |
+| `BfwEngine.Test.ClientEndpoint` | Loopback Bandit listener for the Elixir client tests |
+| `BfwEngine.Test.LoadHelpers`, `BenchmarkReporter`, `LoadRunnerReport`, `CompletionCounter` | Load suite only |
 
-  setup tags do
-    BfwEngine.DataCase.setup_sandbox(tags)
-    :ok
-  end
-end
-```
+JWTs are signed with `BfwEngine.Test.AuthHelper.sign_jwt/1` (`test/unit/auth/support/auth_helper.ex`); the case templates' `sign_jwt/1` delegate to it.
 
-**Setup callbacks**: `setup_sandbox/1` — checks out an Ecto sandbox connection.
-**Imported modules**: `Ecto.Changeset`, `Ecto.Query`, `BfwEngine.DataCase`.
+## Assertion checklist for an execution scenario
 
-### ConnCase
+1. **Flow nodes** — the set of FNIs equals the expected set (no missing, no extra); MI iteration count equals the collection length.
+2. **Final state** — every PI and FNI reaches its expected terminal state; no `:active` / `:waiting` FNI remains after the root PI is terminal; no child PI is left `running`.
+3. **Tokens** — terminal FNI outputs and Data Object values match (deep equality); a Call Activity's child result and the mapped parent value are asserted separately.
+4. **Data Object writes** — `data_object_writes` rows ordered by `created_at` match; the last row's `value` equals `data_objects.value`; a contract violation leaves zero writes and the FNI `fatal`.
+5. **Parent / child** — `child.parent_process_instance_id == parent.id`; the child's `process_version_id` is the latest non-deleted version at spawn time.
+6. **Events** — when the scenario is about observability, assert the typed events through `EventCollector`, not log output.
 
-```elixir
-defmodule BfwEngine.ConnCase do
-  use ExUnit.CaseTemplate
+## Environment variables relevant to tests
 
-  using do
-    quote do
-      import Plug.Conn
-      import Phoenix.ConnTest
-      import BfwEngine.ConnCase
-      alias BfwEngine.Router.Helpers, as: Routes
-      @endpoint BfwEngine.Endpoint
-    end
-  end
-
-  setup tags do
-    BfwEngine.DataCase.setup_sandbox(tags)
-    {:ok, conn: Phoenix.ConnTest.build_conn()}
-  end
-end
-```
-
-**Setup callbacks**: `setup_sandbox/1` + builds a `%Plug.Conn{}`.
-**Imported modules**: `Plug.Conn`, `Phoenix.ConnTest`, route helpers.
-**Provides**: `%{conn: conn}` in test context.
-
-### EngineCase
-
-```elixir
-defmodule BfwEngine.EngineCase do
-  use ExUnit.CaseTemplate
-
-  using do
-    quote do
-      import BfwEngine.EngineCase
-      alias BfwEngine.Test.{AuthHelper, FixtureProvider, ProcessInteraction, AssertionBundle}
-    end
-  end
-
-  setup tags do
-    BfwEngine.DataCase.setup_sandbox(tags)
-    {:ok, _} = start_supervised(BfwEngine.Supervisor)
-    {:ok, conn: Phoenix.ConnTest.build_conn()}
-  end
-end
-```
-
-**Setup callbacks**: sandbox + starts the full engine supervision tree.
-**Imported modules**: all test helpers.
-**Provides**: `%{conn: conn}` + running engine.
-
----
-
-## FixtureProvider Function Table
-
-| Function | Arguments | Returns | Purpose |
-|----------|-----------|---------|---------|
-| `load_bpmn/1` | `fixture_name :: String.t()` | `{:ok, bpmn_xml :: String.t()}` | Reads `.bpmn` from `test/fixtures/` |
-| `load_spec/1` | `fixture_name :: String.t()` | `{:ok, spec :: map()}` | Reads + parses `.yaml` test spec |
-| `load_fixture/1` | `fixture_name :: String.t()` | `{:ok, %{bpmn: String.t(), spec: map()}}` | Loads both BPMN + YAML |
-| `deploy_fixture/2` | `fixture_name, identity` | `{:ok, process_version}` | Deploys BPMN via REST, returns version |
-| `mint_payload/1` | `n_bytes :: pos_integer()` | `map()` | Generates a JSON payload of exactly `n_bytes` |
-| `oversize_payload/0` | — | `map()` | `mint_payload(BFE_TOKEN_MAX_BYTES + 1)` |
-| `register_test_plugin/2` | `module_or_name` | `:ok` | Registers an in-BEAM plugin for the test session |
-| `unregister_test_plugin/1` | `module_or_name` | `:ok` | Removes a test plugin |
-| `test_process_payload/0` | — | `map()` | Standard valid payload for process start |
-| `test_user_task_result/0` | — | `map()` | Standard valid result for User Task completion |
-
----
-
-## Scenario-to-Fixture Mapping
-
-| Scenario | Fixture file | Description |
-|----------|-------------|-------------|
-| S1 | `linear_happy_path.bpmn` | Start → UserTask → ServiceTask → End |
-| S2 | `parallel_gateway.bpmn` | Parallel fan-out + join |
-| S3 | `exclusive_gateway.bpmn` | Condition-driven routing + default |
-| S4 | `parallel_multi_instance_service.bpmn` | N parallel iterations |
-| S5 | `sequential_multi_instance_user.bpmn` | N sequential iterations |
-| S6 | `subprocess_boundary_timer.bpmn` | Interrupting timer mid-subprocess |
-| S7 | `call_activity_single.bpmn` | Single-level CA, input/result mapping |
-| S8 | `call_activity_deep_chain.bpmn` + children | 5–6 level deep CA chain |
-| S9 | `mixed_scopes_deep.bpmn` + children | Alternating Subprocess + CA, 6 scopes |
-| S10 | `cross_pi_message.bpmn` | Single-recipient intermediate messaging |
-| S10a | `cross_pi_broadcast.bpmn` | Broadcast-within-key (3 siblings) |
-| S10b | `catch_wins_over_start.bpmn` | Catch suppresses Start Event |
-| S10c | `pending_ttl_rematch.bpmn` | Pending message rematched within TTL |
-| S10d | `pending_ttl_expiry.bpmn` | Pending message expires |
-| S10e | `pending_rematch_restart.bpmn` | Pending rematch after SIGKILL restart |
-| S10f | `mixed_catch_boundary.bpmn` | Intermediate catch + boundary on same key |
-| S11 | `error_boundary_retry.bpmn` | Fatal FNI → boundary → retry |
-| S12 | `compensation_flow.bpmn` | Compensation handler on error |
-| S13 | `timer_concurrency.bpmn` | Scheduled timer, many concurrent PIs |
-| S14 | `multi_instance_call_activity.bpmn` | Parallel MI over CA |
-| S15 | `escalation_interrupting.bpmn` + children | 3-level interrupting escalation |
-| S15a | `escalation_non_interrupting.bpmn` + children | 3-level non-interrupting escalation |
-| S15b | `escalation_uncaught_end.bpmn` + children | Uncaught via Escalation End |
-| S15c | `escalation_uncaught_intermediate.bpmn` + children | Uncaught via Intermediate Throw |
-
----
-
-## Assertion Bundle Checklist
-
-### 1. Flow-Node execution correctness
-
-- [ ] Every expected FNI exists (keyed by `process_instance_id, flow_node_id, iteration_index`)
-- [ ] FNI set is **equal** to fixture's expected set (no missing, no extra)
-- [ ] `started_at` / `finished_at` strictly monotonic per PI
-- [ ] Multi-instance FNI count equals declared cardinality
-- [ ] Sequential MI: `started_at` is a total order
-- [ ] Parallel MI: all within parent scope's active window
-
-### 2. Final state
-
-- [ ] Every PI reaches declared terminal state exactly
-- [ ] Every FNI reaches declared terminal state exactly
-- [ ] `PI.finished_at` non-null iff terminal
-- [ ] No `active` FNIs remain after root PI is terminal
-- [ ] No orphan child PIs with `state = 'running'`
-
-### 3. Token payload
-
-- [ ] Terminal FNI payloads match fixture (deep equality)
-- [ ] Data Object final values match fixture
-- [ ] Call Activity raw child result + mapping-applied parent value asserted independently
-- [ ] Multi-instance: full per-iteration payload list + aggregated payload at join
-
-### 4. Data Object write audit
-
-- [ ] `data_object_writes` sequence matches fixture exactly (ordered by `created_at`)
-- [ ] Every `flow_node_instance_id` resolves to a valid FNI
-- [ ] Writing FNI's Flow Node model has a `dataOutputAssociation` targeting the DO
-- [ ] Last row's `value` equals `data_objects.value`
-- [ ] With DB sink ON: 1:1 correspondence with `data_object.written` events
-- [ ] Contract violation: zero writes, zero events, FNI → `fatal`
-
-### 5. Audit trail (DB sink ON)
-
-- [ ] Every declared event row present (matched by `event_type, fni_id, prev_fni_id`)
-- [ ] No unexpected event rows (set-equality)
-- [ ] Referential integrity: all `fni_id` references resolve
-- [ ] `previous_flow_node_instance_id` chains form valid DAG
-
-### 6. Parent/child correlation
-
-- [ ] `child.parent_process_instance_id == parent.id`
-- [ ] Child's `process_version_id` is latest non-deleted at spawn time
-- [ ] CA FNI `finished` iff child PI `finished`
-
-### 7. Engine invariants
-
-- [ ] Zero `engine.crashes` telemetry counter increment
-- [ ] No `FATAL`-level JSON log
-- [ ] All internal queues return to baseline (0) before assertions
-- [ ] `engine.pi.spawned` increment equals fixture's total PI count
-- [ ] `engine.fni.executed` increment equals fixture's total FNI count
-
----
-
-## Environment Variables for Test Config
-
-| Variable | Test default | Override for | Relevant scenarios |
-|----------|-------------|-------------|-------------------|
-| `BFE_TOKEN_MAX_BYTES` | `65536` | Cap-rejection / cap-configurable | CAP-* scenarios |
-| `BFE_AUTH_DISABLED` | `false` | Unit tests (set `true`) vs integration (`false`) | Auth-sensitive tests |
-| `BFE_MESSAGE_PENDING_TTL` | `PT30S` | Pending message TTL tests | S10c, S10d, S10e |
-| `BFE_SIGNAL_PENDING_TTL` | `PT30S` | Pending signal TTL tests | Signal variants |
-| `BFE_JWT_HS256_SECRET` | `test-secret-min-32-bytes-long!!!` | AuthHelper token signing | All authenticated tests |
-| `BFE_PARTITION_AHEAD_MONTHS` | `1` | Partition creation for tests | Partition tests |
-| `BFE_RETENTION_FINISHED_DAYS` | unset | Retention runner tests | Retention scenarios |
-| `BFE_RETENTION_ENGINE_AUDIT_DAYS` | unset | Engine audit retention | Audit retention tests |
+| Variable | Effect in tests |
+|----------|-----------------|
+| `BFE_TOKEN_MAX_BYTES` | Payload cap for the `CAP-*` scenarios |
+| `BFE_AUTH_DISABLED` | Must stay `false` in integration tests; auth rejection is part of the coverage |
+| `BFE_JWT_HS256_SECRET` | Secret used by `AuthHelper` when set; the case templates fall back to a fixed test secret |
+| `BFE_MESSAGE_PENDING_TTL`, `BFE_SIGNAL_PENDING_TTL` | Pending-message / pending-signal TTL scenarios |
+| `BFE_PARTITION_AHEAD_MONTHS` | Partitions the runners create at start (`Partitions.ensure_partitions/0`) |

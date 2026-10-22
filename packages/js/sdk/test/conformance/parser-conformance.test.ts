@@ -8,7 +8,7 @@
  *
  * Fixture directories (relative to the engine project root):
  *   - test/fixtures/bpmns/                 (integration-level fixtures)
- *   - apps/core_bpmn/test/fixtures/bpmns/  (parser-level fixtures)
+ *   - test/unit/bpmn/fixtures/bpmns/  (parser-level fixtures)
  *   - packages/js/client/test/integration/fixtures/  (documents the client suite deploys)
  *
  * The fixture list is derived from the filesystem, never hand-maintained. A
@@ -27,7 +27,7 @@ import { parseBpmn } from '../../src/index.js';
 const PROJECT_ROOT = resolve(__dirname, '../../../../..');
 const SNAPSHOT_DIR = resolve(__dirname, 'snapshots');
 const ROOT_FIXTURES = join(PROJECT_ROOT, 'test/fixtures/bpmns');
-const CORE_FIXTURES = join(PROJECT_ROOT, 'apps/core_bpmn/test/fixtures/bpmns');
+const CORE_FIXTURES = join(PROJECT_ROOT, 'test/unit/bpmn/fixtures/bpmns');
 const CLIENT_FIXTURES = join(PROJECT_ROOT, 'packages/js/client/test/integration/fixtures');
 
 function walk(directory: string, extension: string): string[] {
@@ -58,7 +58,7 @@ function byteCompare(left: string, right: string): number {
 /**
  * Maps fixture basename to absolute path, mirroring the generator's resolution
  * exactly: it sorts full paths and de-duplicates by basename, keeping the first
- * match. `apps/...` sorts before `test/...`, so CORE_FIXTURES wins a collision.
+ * match. `test/fixtures/...` sorts before `test/unit/...`, so ROOT_FIXTURES wins a collision.
  * Diverging from that would silently compare a fixture against another file's
  * snapshot.
  */

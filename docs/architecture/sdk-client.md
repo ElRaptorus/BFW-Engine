@@ -183,11 +183,11 @@ BRT DMN `typeProperties` fields (see `docs/architecture/dmn.md` §`type_properti
 
 ## DMN Parser Conformance
 
-The SDK DMN parser (`parseDmn`) has its own conformance test suite in `sdk/test/conformance/dmn-parser-conformance.test.ts`. Snapshot JSON files are generated from the Elixir `core_dmn` parser via `scripts/generate-dmn-parser-snapshots.exs`. This ensures the TypeScript and Elixir parsers produce structurally equivalent output for all DMN fixtures.
+The SDK DMN parser (`parseDmn`) has its own conformance test suite in `sdk/test/conformance/dmn-parser-conformance.test.ts`. Snapshot JSON files are generated from the Elixir `BfwEngine.DMN` parser via `scripts/generate-dmn-parser-snapshots.exs`. This ensures the TypeScript and Elixir parsers produce structurally equivalent output for all DMN fixtures.
 
 ## Elixir Client
 
-`packages/elixir/bfw_engine_client/` (app `:bfw_engine_client`, module namespace `BfwEngine.Client`) is a standalone Elixir client for host applications — such as a Fabricator-generated Phoenix app — that embed the Engine as an external service. It is not part of the umbrella and not published to Hex in v1; the umbrella root depends on it only as a `:test`-only path dependency (`packages/elixir/bfw_engine_client`) so its integration tests can run against a live endpoint inside the existing test suite.
+`packages/elixir/bfw_engine_client/` (app `:bfw_engine_client`, module namespace `BfwEngine.Client`) is a standalone Elixir client for host applications — such as a Fabricator-generated Phoenix app — that embed the Engine as an external service. It is not part of `:bfw_engine` and not published to Hex in v1; the engine depends on it only as a `:test`-only path dependency (`packages/elixir/bfw_engine_client`) so its integration tests can run against a live endpoint inside the existing test suite.
 
 ### Package layout
 
@@ -257,4 +257,4 @@ Jobs, in order:
 | **integration** (needs lint-build-unit) | Compiles a `MIX_ENV=prod` OTP release (Erlang/OTP 29.0.5, Elixir 1.20.3-otp-29, Rust 1.98.0 for the FEEL NIF) with `mix compile --force` so the mix.lock-only `_build` cache cannot serve a stale GraphQL schema, migrates Postgres, daemonizes the release on port 4100, runs `pnpm --filter @elraptorus/bfw_engine_client run test:integration` |
 | **publish** (needs integration) | Resolves version from the release tag or by incrementing the GitHub Packages `pnpm view` result, then `pnpm publish` of SDK then client (`workspace:*` is rewritten to the published SDK version) |
 
-The integration job must install a Rust toolchain. `mix compile` of `core_expressions` builds the Rustler NIF; without `rustc` the release (and therefore publish) fails.
+The integration job must install a Rust toolchain. `mix compile` of `BfwEngine.Expressions` builds the Rustler NIF; without `rustc` the release (and therefore publish) fails.

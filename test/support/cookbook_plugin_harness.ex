@@ -481,18 +481,18 @@ defmodule BfwEngine.Test.CookbookPluginHarness do
         collector: collector_name
       )
 
-    previous_inbeam = Application.get_env(:engine_plugins, :inbeam_apps)
-    previous_include = Application.get_env(:engine_plugins, :include_plugins)
-    previous_exclude = Application.get_env(:engine_plugins, :exclude_plugins)
-    previous_plugin_module = Application.get_env(:peripheral_telemetry, :plugin_module)
+    previous_inbeam = Application.get_env(:bfw_engine, :inbeam_apps)
+    previous_include = Application.get_env(:bfw_engine, :include_plugins)
+    previous_exclude = Application.get_env(:bfw_engine, :exclude_plugins)
+    previous_plugin_module = Application.get_env(:bfw_engine, :plugin_module)
 
     try do
-      Application.put_env(:engine_plugins, :inbeam_apps, [:peripheral_telemetry])
-      Application.put_env(:engine_plugins, :include_plugins, [])
-      Application.put_env(:engine_plugins, :exclude_plugins, [])
+      Application.put_env(:bfw_engine, :inbeam_apps, [:bfw_engine])
+      Application.put_env(:bfw_engine, :include_plugins, [])
+      Application.put_env(:bfw_engine, :exclude_plugins, [])
 
       Application.put_env(
-        :peripheral_telemetry,
+        :bfw_engine,
         :plugin_module,
         Examples.Plugins.QuarantineDemo.QuarantineDemoPlugin
       )
@@ -504,10 +504,10 @@ defmodule BfwEngine.Test.CookbookPluginHarness do
 
       :ok
     after
-      restore_env(:engine_plugins, :inbeam_apps, previous_inbeam)
-      restore_env(:engine_plugins, :include_plugins, previous_include)
-      restore_env(:engine_plugins, :exclude_plugins, previous_exclude)
-      restore_env(:peripheral_telemetry, :plugin_module, previous_plugin_module)
+      restore_env(:bfw_engine, :inbeam_apps, previous_inbeam)
+      restore_env(:bfw_engine, :include_plugins, previous_include)
+      restore_env(:bfw_engine, :exclude_plugins, previous_exclude)
+      restore_env(:bfw_engine, :plugin_module, previous_plugin_module)
       stop_named_process(collector_name)
     end
   end

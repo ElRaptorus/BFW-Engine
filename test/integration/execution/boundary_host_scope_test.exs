@@ -49,7 +49,7 @@ defmodule BfwEngine.Integration.Execution.BoundaryHostScopeTest do
   describe "C14/C15: error boundary on concurrent instances of one activity" do
     setup do
       Application.put_env(
-        :core_execution,
+        :bfw_engine,
         :service_task_dispatch,
         BfwEngine.Plugins.RegistryDispatch
       )

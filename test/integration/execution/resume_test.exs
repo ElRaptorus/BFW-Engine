@@ -86,6 +86,7 @@ defmodule BfwEngine.Integration.Execution.ResumeTest do
 
       wait_for_process_instance(process_instance_id)
       assert_pi_state!(process_instance_id, "finished")
+      assert_all_fnis_state!(process_instance_id, "finished")
     end
   end
 
@@ -149,39 +150,6 @@ defmodule BfwEngine.Integration.Execution.ResumeTest do
   end
 
   # -------------------------------------------------------------------
-  # I5: Resume + complete + verify DB
-  # -------------------------------------------------------------------
-
-  describe "I5: resume + complete + verify DB" do
-    test "DB shows finished state after resume and completion", %{collector: _collector} do
-      register_test_plugin()
-
-      process_instance_id =
-        http_deploy_and_start("service_task_async_park.bpmn", "ServiceTaskAsyncPark")
-
-      st_fni = poll_fni_state(process_instance_id, "service_task", "waiting")
-
-      terminate_process_instance(process_instance_id)
-      await_process_exit(process_instance_id)
-      assert_pi_state!(process_instance_id, "running")
-
-      {:ok, _} = ResumeRunner.resume_all()
-
-      {:ok, process_instance_pid} = poll_pi_alive(process_instance_id)
-
-      assert :ok =
-               ProcessInstance.finish_async_service_task(process_instance_pid, st_fni.id, %{
-                 "done" => true
-               })
-
-      wait_for_process_instance(process_instance_id)
-
-      assert_pi_state!(process_instance_id, "finished")
-      assert_all_fnis_state!(process_instance_id, "finished")
-    end
-  end
-
-  # -------------------------------------------------------------------
   # I6: Resume skips finished PIs
   # -------------------------------------------------------------------
 
@@ -230,14 +198,14 @@ defmodule BfwEngine.Integration.Execution.ResumeTest do
 
   describe "I_paginate: ResumeRunner drives the pagination loop across batches" do
     setup do
-      previous_batch_size = Application.get_env(:core_execution, :resume_batch_size)
-      Application.put_env(:core_execution, :resume_batch_size, 5)
+      previous_batch_size = Application.get_env(:bfw_engine, :resume_batch_size)
+      Application.put_env(:bfw_engine, :resume_batch_size, 5)
 
       on_exit(fn ->
         if previous_batch_size do
-          Application.put_env(:core_execution, :resume_batch_size, previous_batch_size)
+          Application.put_env(:bfw_engine, :resume_batch_size, previous_batch_size)
         else
-          Application.delete_env(:core_execution, :resume_batch_size)
+          Application.delete_env(:bfw_engine, :resume_batch_size)
         end
       end)
 
@@ -277,13 +245,13 @@ defmodule BfwEngine.Integration.Execution.ResumeTest do
 
   describe "I_cap: cap is bypassed during resume but enforced for new starts" do
     setup do
-      previous_cap = Application.get_env(:core_execution, :max_concurrent_process_instances)
+      previous_cap = Application.get_env(:bfw_engine, :max_concurrent_process_instances)
 
       on_exit(fn ->
         if previous_cap do
-          Application.put_env(:core_execution, :max_concurrent_process_instances, previous_cap)
+          Application.put_env(:bfw_engine, :max_concurrent_process_instances, previous_cap)
         else
-          Application.delete_env(:core_execution, :max_concurrent_process_instances)
+          Application.delete_env(:bfw_engine, :max_concurrent_process_instances)
         end
       end)
 
@@ -310,7 +278,7 @@ defmodule BfwEngine.Integration.Execution.ResumeTest do
           process_instance_id
         end)
 
-      Application.put_env(:core_execution, :max_concurrent_process_instances, cap)
+      Application.put_env(:bfw_engine, :max_concurrent_process_instances, cap)
 
       {:ok, resumed_count} = ResumeRunner.resume_all()
       assert resumed_count == total
@@ -378,7 +346,7 @@ defmodule BfwEngine.Integration.Execution.ResumeTest do
 
   defp register_test_plugin do
     Application.put_env(
-      :core_execution,
+      :bfw_engine,
       :service_task_dispatch,
       BfwEngine.Plugins.RegistryDispatch
     )

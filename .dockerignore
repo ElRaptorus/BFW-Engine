@@ -1,6 +1,8 @@
 # Build artifacts
 _build/
 deps/
+**/native/**/target/
+**/priv/native/
 cover/
 doc/
 priv/plts/*.plt

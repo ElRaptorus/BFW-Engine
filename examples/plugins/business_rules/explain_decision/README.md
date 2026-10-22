@@ -105,7 +105,7 @@ flowchart LR
 ## Further reading
 
 - [Plugin Development — Getting Started](https://github.com/ElRaptorus/BFW-Engine/blob/main/docs/guides/plugins/getting-started.md)
-- [NamedScript behaviour](https://github.com/ElRaptorus/BFW-Engine/blob/main/apps/engine_sdk/lib/bfw_engine/plugin/named_script.ex)
+- [NamedScript behaviour](https://github.com/ElRaptorus/BFW-Engine/blob/main/lib/bfw_engine/plugin/named_script.ex)
 - [Business Rule Tasks handbook](https://github.com/ElRaptorus/BFW-Engine/blob/main/docs/guides/handbook/business-rule-tasks.md)
 - [DMN architecture — evaluation trace](https://github.com/ElRaptorus/BFW-Engine/blob/main/docs/architecture/dmn.md)
 - [Script Tasks handbook](https://github.com/ElRaptorus/BFW-Engine/blob/main/docs/guides/handbook/script-tasks.md)

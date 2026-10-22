@@ -145,14 +145,14 @@ jobs:
 
       - name: Create and migrate test database
         run: |
-          mix do --app peripheral_persistence ecto.create
-          mix do --app peripheral_persistence ecto.migrate
+          mix ecto.create
+          mix ecto.migrate
 
       - name: Run tests with coverage
         timeout-minutes: 45
         run: |
           mix test.coverdata
-          mix coveralls --umbrella --import-cover cover
+          mix coveralls --import-cover cover
 
   docker:
     name: Docker Build & Smoke Test

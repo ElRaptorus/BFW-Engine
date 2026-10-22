@@ -1,6 +1,6 @@
 defmodule BfwEngine.Integration.AdHocSubprocessTest do
   @moduledoc """
-  Umbrella-level integration tests for `<bpmn:adHocSubProcess>` execution.
+  Integration tests for `<bpmn:adHocSubProcess>` execution.
 
   Exercises the full HTTP deploy → start → interact → assert lifecycle against
   real PostgreSQL persistence and real BPMN files, covering:

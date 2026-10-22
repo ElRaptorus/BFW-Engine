@@ -1,6 +1,6 @@
 defmodule BfwEngine.Integration.Execution.CompensationEventTest do
   @moduledoc """
-  Umbrella-level integration tests for Compensation Events (COMP-1–COMP-10).
+  Integration tests for Compensation Events (COMP-1–COMP-10).
 
   Uses real BPMN XML fixtures deployed via the HTTP API. Verifies
   PI state, FNI states, compensation handler execution, LIFO ordering,
@@ -592,9 +592,9 @@ defmodule BfwEngine.Integration.Execution.CompensationEventTest do
     end
 
     test "fatals the throw and the instance when the handler row cannot be persisted" do
-      previous_adapter = Application.get_env(:core_execution, :persistence_adapter)
-      on_exit(fn -> Application.put_env(:core_execution, :persistence_adapter, previous_adapter) end)
-      Application.put_env(:core_execution, :persistence_adapter, HandlerCreateFailingAdapter)
+      previous_adapter = Application.get_env(:bfw_engine, :persistence_adapter)
+      on_exit(fn -> Application.put_env(:bfw_engine, :persistence_adapter, previous_adapter) end)
+      Application.put_env(:bfw_engine, :persistence_adapter, HandlerCreateFailingAdapter)
 
       process_instance_id =
         http_deploy_and_start("compensation_basic_throw.bpmn", "CompensationBasicThrow")

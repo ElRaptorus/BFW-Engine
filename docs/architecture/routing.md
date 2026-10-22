@@ -53,7 +53,7 @@ A published message `(name, payload, correlation_value)` flows through
 5. **Catch-wins-over-Start rule**: if step 2 yielded **zero** matching subscriptions, start new PIs from matching Message Start Events under the start discovery rule below (each seeding its own correlation value via §3.5.2). If step 2 yielded at least one match, Message Start Events are **not** triggered for this publish — the message is considered consumed by the subscription(s).
 6. If step 2 yielded zero matching subscriptions **and** start discovery started no PI, move to §3.5.4.
 
-**Start discovery rule.** A message start, a signal start (§3.5.6), and a cycle timer start fire (see [timers.md](./timers.md)) create **at most one PI per enabled process**, on that process's **latest live version** (newest `deployed_at` among enabled, non-deleted versions, resolved by `CalledElementResolver.resolve_latest_version/1`), and only if that version itself has the matching start event. An older version that still has the start event never starts a PI; a process whose latest live version dropped the start event starts nothing. The filter lives in `BfwEngine.Execution.StartEventDiscovery` (`latest_live_starts/1` for message and signal candidates from the `ModelCache` start-event index, `latest_live_version?/2` for cycle fires). The index is warmed at boot from the latest version of every process (`BfwEngine.Persistence.Application.warm_start_event_index/0`, before `ResumeRunner` opens the subscription registries), and soft-deleting a version fetches the new latest version into `ModelCache`. Stale index entries for older versions are harmless because the filter drops them.
+**Start discovery rule.** A message start, a signal start (§3.5.6), and a cycle timer start fire (see [timers.md](./timers.md)) create **at most one PI per enabled process**, on that process's **latest live version** (newest `deployed_at` among enabled, non-deleted versions, resolved by `CalledElementResolver.resolve_latest_version/1`), and only if that version itself has the matching start event. An older version that still has the start event never starts a PI; a process whose latest live version dropped the start event starts nothing. The filter lives in `BfwEngine.Execution.StartEventDiscovery` (`latest_live_starts/1` for message and signal candidates from the `ModelCache` start-event index, `latest_live_version?/2` for cycle fires). The index is warmed at boot from the latest version of every process (`BfwEngine.Persistence.Supervisor.warm_start_event_index/0`, before `ResumeRunner` opens the subscription registries), and soft-deleting a version fetches the new latest version into `ModelCache`. Stale index entries for older versions are harmless because the filter drops them.
 
 **Event Subprocess Message Start interaction.** An ESP Message Start registers with the informational `:event_subprocess_start` kind but is **excluded from the delivery set** in step 2 — it is a gated Start Event, not a fan-out delivery. The full precedence ladder for a message `(name, correlation)` is: **(1)** inline Message Catch / Message Boundary (the broadcast-within-key fan-out of step 2), **(2)** ESP Message Start of a running scope (fires only when step 2 delivered to zero catch/boundary subscriptions, correlated at scope activation), **(3)** standalone Message Start Event (new PI). On a live publish a waiting Catch/Boundary therefore **always** beats an ESP Message Start, and an ESP Message Start beats a standalone Message Start (a running instance consumes the message before a new PI is created). A message held pending is drained by the first subscription that registers for its key, which can be an ESP start (§3.5.4). See §3.5.8.
 
@@ -115,13 +115,13 @@ until `SignalSubscriptions.mark_ready/0` is called by the resume pipeline
 
 | Module | Domain | Purpose |
 |--------|--------|---------|
-| `BfwEngine.Events.SignalPublisher` | core_events | Orchestrates the broadcast pipeline |
-| `BfwEngine.Events.SignalSubscriptions` | core_events | ETS-backed GenServer for in-memory subscriptions |
-| `BfwEngine.Events.SignalPersistence` | core_events | Behaviour for signal audit + pending persistence |
-| `BfwEngine.Persistence.SignalPersistenceAdapter` | peripheral_persistence | Ash-backed implementation |
-| `BfwEngine.Execution.SignalStartHandler` | core_execution | Starts PIs from Signal Start Events |
-| `BfwEngineWeb.Http.SignalController` | api_web | REST endpoint `POST /signals/:signal_name/trigger` |
-| `BfwEngine.EngineFacade.Signals` | engine_sdk | Plugin facade namespace (`signals.publish/1`) |
+| `BfwEngine.Events.SignalPublisher` | BfwEngine.Events | Orchestrates the broadcast pipeline |
+| `BfwEngine.Events.SignalSubscriptions` | BfwEngine.Events | ETS-backed GenServer for in-memory subscriptions |
+| `BfwEngine.Events.SignalPersistence` | BfwEngine.Events | Behaviour for signal audit + pending persistence |
+| `BfwEngine.Persistence.SignalPersistenceAdapter` | BfwEngine.Persistence | Ash-backed implementation |
+| `BfwEngine.Execution.SignalStartHandler` | BfwEngine.Execution | Starts PIs from Signal Start Events |
+| `BfwEngineWeb.Http.SignalController` | BfwEngineWeb | REST endpoint `POST /signals/:signal_name/trigger` |
+| `BfwEngine.EngineFacade.Signals` | BfwEngine.EngineFacade | Plugin facade namespace (`signals.publish/1`) |
 
 **Broadcast pipeline.** `SignalPublisher.publish_signal/1` runs:
 
@@ -147,7 +147,7 @@ time.
 **Pending signal behavior.** When a signal has zero listeners and zero start
 events at publish time, it is cached in `pending_signals` with a configurable
 TTL (default `PT60S`, env `BFE_SIGNAL_PENDING_TTL`, wired as
-`config :core_events, :signal_pending_ttl`). The first subscriber that
+`config :bfw_engine, :signal_pending_ttl`). The first subscriber that
 registers and claims a pending row consumes it (FIFO drain per
 `signal_name`, one row per registration, oldest first) — subsequent
 subscribers do not receive that pending signal. Live publishes claim a

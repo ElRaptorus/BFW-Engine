@@ -85,7 +85,7 @@ mix test examples/plugins/business_rules/decision_service_smoke_tester/test/smok
 Or load all example tests via:
 
 ```bash
-mix test apps/engine_plugins/test/examples/decision_service_smoke_tester_from_examples_test.exs
+mix test test/unit/plugins/examples/decision_service_smoke_tester_from_examples_test.exs
 ```
 
 ## Architecture: facade-driven, no BRT execution
@@ -117,8 +117,8 @@ Plugins observe and validate DMN through the facade; they do not replace Busines
 
 ## Further reading
 
-- [`BfwEngine.Plugin`](../../../../apps/engine_sdk/lib/bfw_engine/plugin.ex) — lifecycle callbacks
-- [`BfwEngine.EngineFacade.Decisions`](../../../../apps/engine_sdk/lib/bfw_engine/engine_facade/decisions.ex) — facade closure surface including `evaluate_service`
+- [`BfwEngine.Plugin`](../../../../lib/bfw_engine/plugin.ex) — lifecycle callbacks
+- [`BfwEngine.EngineFacade.Decisions`](../../../../lib/bfw_engine/engine_facade/decisions.ex) — facade closure surface including `evaluate_service`
 - [`docs/architecture/dmn.md`](../../../../docs/architecture/dmn.md) — Decision Service evaluation
 - [`docs/architecture/plugins.md`](../../../../docs/architecture/plugins.md) — plugin loading and facade wiring
 - [`examples/plugins/business_rules/decision_regression_tester/README.md`](../decision_regression_tester/README.md) — similar facade-store worker pattern

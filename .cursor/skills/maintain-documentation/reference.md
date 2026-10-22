@@ -29,7 +29,7 @@
 | New term introduced or existing term redefined | `docs/Glossary.md` |
 | Database table added, column changed, index added | `docs/Schema.md` (ER diagram) |
 | New architecture topic created | `docs/architecture/index.md` |
-| Umbrella app added or renamed | `docs/Architecture.md` (layer diagram) |
+| Subsystem boundary added or renamed | `docs/Architecture.md` (layout and §Subsystem Boundaries) |
 
 ## Common Update Patterns
 
@@ -73,12 +73,11 @@
 2. Update the ER diagram in `docs/Schema.md`
 3. If partitioning or retention changes, also update `docs/architecture/configuration.md`
 
-### Adding a new umbrella app
+### Adding a new subsystem boundary
 
-1. Update the layer diagram in `docs/Architecture.md`
-2. Add the app to the umbrella app table in the `project-context.mdc` rule
-3. Add the app to the table in the `umbrella-navigation.mdc` rule
-4. Update the "Key Apps by Domain Layer" tables in the `understand-codebase` skill
+1. Update the layout and §Subsystem Boundaries in `docs/Architecture.md`
+2. Add the boundary to the subsystem table in `AGENTS.md` and in the `project-context.mdc` rule
+3. Update the "Key Subsystems by Domain Layer" tables in the `understand-codebase` skill
 
 ## Verification
 

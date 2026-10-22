@@ -13,11 +13,11 @@ Test-harness and CI rules live in [`testing.md`](testing.md).
 
 ## Core must not import Peripheral — use a Persistence behaviour
 
-**Mistake:** Calling `Ash.create/3` from `core_execution` to persist PI/FNI state.
+**Mistake:** Calling `Ash.create/3` from `BfwEngine.Execution` to persist PI/FNI state.
 
-**Why:** Core must not depend on Peripheral. Ash lives in `peripheral_persistence`.
+**Why:** Core must not depend on Peripheral. Ash lives in `BfwEngine.Persistence`.
 
-**Correct approach:** `@behaviour BfwEngine.Execution.Persistence` in Core. Wire `BfwEngine.Persistence.ExecutionAdapter` via `:core_execution, :persistence_adapter`. Tests use `NoOp`. See [execution.md](execution.md).
+**Correct approach:** `@behaviour BfwEngine.Execution.Persistence` in Core. Wire `BfwEngine.Persistence.ExecutionAdapter` via `:bfw_engine, :persistence_adapter`. Tests use `NoOp`. See [execution.md](execution.md).
 
 ---
 
@@ -353,7 +353,7 @@ Test-harness and CI rules live in [`testing.md`](testing.md).
 
 ## Production Timer Start persistence is not NoOp
 
-**Mistake:** Leaving `:core_timers, :persistence_module` on `NoOp` in production.
+**Mistake:** Leaving `:bfw_engine, :persistence_module` on `NoOp` in production.
 
 **Why:** NoOp is the test default. Cycle Timer Starts then vanish across restart.
 

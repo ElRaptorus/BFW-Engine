@@ -92,20 +92,7 @@ defmodule BfwEngine.Test.ProcessInteractions do
     do: finish_user_task(process_instance_id, flow_node_instance.id, result)
 
   defp sign_test_jwt do
-    secret =
-      Application.get_env(:api_auth, :hs256_secret) || "test_only_secret_at_least_32_bytes!"
-
-    jwk = JOSE.JWK.from_oct(secret)
-
-    claims = %{
-      "sub" => "test-user",
-      "exp" => DateTime.utc_now() |> DateTime.add(3600) |> DateTime.to_unix(),
-      "iat" => DateTime.utc_now() |> DateTime.to_unix(),
-      "lane:default" => "write"
-    }
-
-    {_, compact} = JOSE.JWT.sign(jwk, %{"alg" => "HS256"}, claims) |> JOSE.JWS.compact()
-    compact
+    BfwEngine.Test.AuthHelper.sign_jwt(%{"sub" => "test-user", "lane:default" => "write"})
   end
 
   defp send_through_endpoint(conn) do

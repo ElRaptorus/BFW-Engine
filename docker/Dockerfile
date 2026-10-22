@@ -13,9 +13,11 @@
 #   Layer 2 — Hex/Rebar setup (changes: never)
 #   Layer 3 — mix.exs + mix.lock only (changes: when deps change)
 #   Layer 4 — deps.get + deps.compile with BuildKit caches (changes: when deps change)
-#   Layer 5 — app source + compile + release (changes: on every code change)
+#   Layer 5 — FEEL NIF crate pre-build into the Cargo target cache (changes: when native/ changes)
+#   Layer 6 — app source + compile + release (changes: on every code change)
 #
-#   Source-only rebuilds skip layers 1–4 and take ~1-2 min instead of ~10 min.
+#   Every Cargo step shares the CARGO_TARGET_DIR cache mount, so Rustler's
+#   compile inside `mix compile` reuses the dsntk build instead of starting over.
 
 ARG ELIXIR_VERSION=1.20.3
 ARG OTP_VERSION=29.0.5
@@ -47,7 +49,8 @@ WORKDIR /app
 
 ENV MIX_ENV="prod" \
     LANG="C.UTF-8" \
-    LC_ALL="C.UTF-8"
+    LC_ALL="C.UTF-8" \
+    CARGO_TARGET_DIR="/cargo-target"
 
 RUN mix local.hex --force && mix local.rebar --force
 
@@ -55,38 +58,41 @@ RUN mix local.hex --force && mix local.rebar --force
 # Copy ONLY the dependency manifests — not the app source. This ensures
 # deps.get + deps.compile layers survive source-only changes.
 COPY mix.exs mix.lock ./
-COPY apps/api_auth/mix.exs apps/api_auth/mix.exs
-COPY apps/api_facade/mix.exs apps/api_facade/mix.exs
-COPY apps/api_web/mix.exs apps/api_web/mix.exs
-COPY apps/core_bpmn/mix.exs apps/core_bpmn/mix.exs
-COPY apps/core_dmn/mix.exs apps/core_dmn/mix.exs
-COPY apps/core_events/mix.exs apps/core_events/mix.exs
-COPY apps/core_execution/mix.exs apps/core_execution/mix.exs
-COPY apps/core_expressions/mix.exs apps/core_expressions/mix.exs
-COPY apps/core_timers/mix.exs apps/core_timers/mix.exs
-COPY apps/core_types/mix.exs apps/core_types/mix.exs
-COPY apps/engine_sdk/mix.exs apps/engine_sdk/mix.exs
-COPY apps/peripheral_persistence/mix.exs apps/peripheral_persistence/mix.exs
-COPY apps/engine_plugins/mix.exs apps/engine_plugins/mix.exs
-COPY apps/peripheral_telemetry/mix.exs apps/peripheral_telemetry/mix.exs
 
 RUN --mount=type=cache,target=/root/.cache/hex \
     mix deps.get --only prod
 
+# Compile-time config must be present before deps.compile: Ash, Spark and
+# Phoenix read it via compile_env, and Mix recompiles them when it appears later.
+COPY config/config.exs config/prod.exs config/
+
 # Compile deps with BuildKit caches for Cargo registry + build artifacts.
-# The Rust NIF (core_expressions) is the most expensive dep to compile;
+# The Rust NIF is the most expensive part of the build;
 # persistent Cargo caches avoid re-downloading crates on cache misses.
 RUN --mount=type=cache,target=/root/.cargo/registry \
     --mount=type=cache,target=/root/.cargo/git \
+    --mount=type=cache,target=/cargo-target \
     mix deps.compile
 
+# --- FEEL NIF layer (rebuilt only when the crate changes) --------------------
+COPY native/ native/
+
+RUN --mount=type=cache,target=/root/.cargo/registry \
+    --mount=type=cache,target=/root/.cargo/git \
+    --mount=type=cache,target=/cargo-target \
+    cargo build --release --manifest-path native/feel_nif/Cargo.toml
+
 # --- Application layer (rebuilt on every source change) ----------------------
-COPY apps/ apps/
+COPY lib/ lib/
+COPY priv/ priv/
 COPY config/ config/
 COPY rel/ rel/
 COPY host/ host/
 
-RUN mix compile && mix release
+RUN --mount=type=cache,target=/root/.cargo/registry \
+    --mount=type=cache,target=/root/.cargo/git \
+    --mount=type=cache,target=/cargo-target \
+    mix compile && mix release
 
 # ==============================================================================
 # Run stage

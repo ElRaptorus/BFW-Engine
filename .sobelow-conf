@@ -1,0 +1,7 @@
+[
+  verbose: false,
+  private: false,
+  ignore: ["Config.HTTPS"],
+  router: "lib/bfw_engine_web/http/router.ex",
+  threshold: "medium"
+]

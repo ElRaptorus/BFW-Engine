@@ -2,9 +2,9 @@
 
 The engine is extensible through a behaviour-based plugin system. This guide covers the plugin lifecycle, loading model, and available extension points.
 
-## The SDK
+## Plugin contracts
 
-The `engine_sdk` OTP application re-exports all plugin behaviours and types. Plugin authors depend on this package only — no direct dependency on Core or Peripheral apps.
+A plugin is an OTP application that depends on `:bfw_engine`. It implements the behaviours in `BfwEngine.Plugin` (`BfwEngine.Plugin`, `ServiceTaskHandler`, `NamedScript`, `EventSink`, `AuthProvider`, …) and talks to the engine only through the facade it receives in `on_load/1` (`BfwEngine.EngineFacade`). These are internal plugin contracts, not a separately versioned SDK.
 
 ## Plugin Lifecycle
 

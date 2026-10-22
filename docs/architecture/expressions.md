@@ -75,7 +75,7 @@ Evaluated candidates:
 
 **Architecture:**
 
-- **Rust crate**: `apps/core_expressions/native/feel_nif/` — a `cdylib` built by Rustler at `mix compile` time.
+- **Rust crate**: `native/feel_nif/` — a `cdylib` built by Rustler at `mix compile` time.
 - **NIF module**: <code>BfwEngine.Expressions.Nif</code> (private) — four NIF functions: `compile/2`, `eval_compiled/2`, `eval_expression/2`, `eval_unary_test/3`. Parse-heavy NIFs (`compile`, `eval_expression`, `eval_unary_test`) run on `DirtyCpu` schedulers; `eval_compiled` runs on normal schedulers for minimal overhead on the hot path (see §8.3.1).
 - **Precompilation**: `compile/2` parses the expression into a `dsntk AstNode`, wraps it in a `ResourceArc<CompiledExpression>` (Mutex-guarded), and returns it to Elixir as an opaque reference. The reference is reusable across evaluations — no parsing on the hot path.
 - **Scope-aware parser**: dsntk's parser requires variable names in scope at parse time. `compile/2` accepts a context-shape map (placeholder values) which is converted to a `FeelScope` for the parser.
@@ -87,7 +87,7 @@ Evaluated candidates:
 ### FEEL built-in function support
 
 Systematic audit of DMN-mandated FEEL built-in functions against the dsntk
-NIF. Test file: `apps/core_dmn/test/bfw_engine/dmn/feel_builtin_functions_test.exs`.
+NIF. Test file: `test/unit/expressions/bfw_engine/expressions/feel_builtin_functions_test.exs`.
 
 **Summary: 61/63 functions pass (97%)**
 

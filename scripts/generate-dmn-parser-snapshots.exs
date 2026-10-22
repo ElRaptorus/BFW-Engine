@@ -8,9 +8,8 @@
 # Re-run whenever the engine DMN parser changes.
 
 defmodule DmnSnapshotGenerator do
-  @fixture_dirs [
-    "apps/core_dmn/test/fixtures/dmns"
-  ]
+  @unit_fixture_dir "test/unit/dmn/fixtures/dmns"
+  @shared_fixture_dir "test/fixtures/dmns"
 
   @output_dir "packages/js/sdk/test/conformance/snapshots/dmn"
 
@@ -64,18 +63,20 @@ defmodule DmnSnapshotGenerator do
     IO.puts("\nDone: #{ok} snapshots written, #{errors} parse errors (skipped)")
   end
 
+  # Every DMN unit fixture, plus the shared fixtures that already have a
+  # snapshot (the shared folder also holds conformance-only models).
   defp collect_dmn_files do
-    @fixture_dirs
-    |> Enum.flat_map(fn dir ->
-      if File.dir?(dir) do
-        Path.wildcard(Path.join(dir, "**/*.dmn"))
-      else
-        IO.puts("  Skipping #{dir} (not found)")
-        []
-      end
-    end)
-    |> Enum.sort()
-    |> Enum.uniq_by(&Path.basename/1)
+    unit_files = Path.wildcard(Path.join(@unit_fixture_dir, "**/*.dmn"))
+    unit_names = MapSet.new(unit_files, &Path.basename/1)
+
+    shared_files =
+      @shared_fixture_dir
+      |> Path.join("*.dmn")
+      |> Path.wildcard()
+      |> Enum.reject(&MapSet.member?(unit_names, Path.basename(&1)))
+      |> Enum.filter(&File.exists?(Path.join(@output_dir, Path.basename(&1, ".dmn") <> ".json")))
+
+    Enum.sort(unit_files ++ shared_files)
   end
 
   defp process_file(path) do

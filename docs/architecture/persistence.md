@@ -117,19 +117,19 @@ Sampled every 10s by the telemetry poller via `BfwEngine.Telemetry.Measurements.
 
 | Module | Path |
 |--------|------|
-| `BfwEngine.Persistence.Repo` | `apps/peripheral_persistence/lib/bfw_engine/persistence/repo.ex` |
-| `BfwEngine.Persistence.ReadRepo` | `apps/peripheral_persistence/lib/bfw_engine/persistence/read_repo.ex` |
-| Write-schema migrations | `apps/peripheral_persistence/priv/repo/migrations/` |
-| ReadRepo Mix placeholder (empty) | `apps/peripheral_persistence/priv/read_repo/migrations/` |
-| `BfwEngine.Persistence.RepoRouter` | `apps/peripheral_persistence/lib/bfw_engine/persistence/repo_router.ex` |
-| `BfwEngine.Persistence.ExecutionAdapter` | `apps/peripheral_persistence/lib/bfw_engine/persistence/execution_adapter.ex` |
-| `BfwEngine.Persistence.ProcessInstancePurge` | `apps/peripheral_persistence/lib/bfw_engine/persistence/process_instance_purge.ex` — Mix/eval PI-tree hard-delete; retry cascade |
-| `BfwEngine.Persistence.Release` | `apps/peripheral_persistence/lib/bfw_engine/persistence/release.ex` — migrate / ensure_partitions / purge_retention |
-| `mix bfw.retention.purge` | `apps/peripheral_persistence/lib/mix/tasks/bfw.retention.purge.ex` |
-| `BfwEngine.Persistence.MessagePersistenceAdapter` | `apps/peripheral_persistence/lib/bfw_engine/persistence/message_persistence_adapter.ex` |
-| `BfwEngine.Persistence.SignalPersistenceAdapter` | `apps/peripheral_persistence/lib/bfw_engine/persistence/signal_persistence_adapter.ex` |
-| `BfwEngine.Execution.PersistenceRetry` | `apps/core_execution/lib/bfw_engine/execution/persistence_retry.ex` |
-| `BfwEngine.Telemetry.DbQueryHandler` | `apps/peripheral_telemetry/lib/bfw_engine/telemetry/db_query_handler.ex` |
+| `BfwEngine.Persistence.Repo` | `lib/bfw_engine/persistence/repo.ex` |
+| `BfwEngine.Persistence.ReadRepo` | `lib/bfw_engine/persistence/read_repo.ex` |
+| Write-schema migrations | `priv/repo/migrations/` |
+| ReadRepo Mix placeholder (empty) | `priv/read_repo/migrations/` |
+| `BfwEngine.Persistence.RepoRouter` | `lib/bfw_engine/persistence/repo_router.ex` |
+| `BfwEngine.Persistence.ExecutionAdapter` | `lib/bfw_engine/persistence/execution_adapter.ex` |
+| `BfwEngine.Persistence.ProcessInstancePurge` | `lib/bfw_engine/persistence/process_instance_purge.ex` — Mix/eval PI-tree hard-delete; retry cascade |
+| `BfwEngine.Persistence.Release` | `lib/bfw_engine/persistence/release.ex` — migrate / ensure_partitions / purge_retention |
+| `mix bfw.retention.purge` | `lib/mix/tasks/bfw.retention.purge.ex` |
+| `BfwEngine.Persistence.MessagePersistenceAdapter` | `lib/bfw_engine/persistence/message_persistence_adapter.ex` |
+| `BfwEngine.Persistence.SignalPersistenceAdapter` | `lib/bfw_engine/persistence/signal_persistence_adapter.ex` |
+| `BfwEngine.Execution.PersistenceRetry` | `lib/bfw_engine/execution/persistence_retry.ex` |
+| `BfwEngine.Telemetry.DbQueryHandler` | `lib/bfw_engine/telemetry/db_query_handler.ex` |
 
 ## Replica readiness
 

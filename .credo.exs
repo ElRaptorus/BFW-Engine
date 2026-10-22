@@ -4,16 +4,15 @@
       name: "default",
       files: %{
         included: [
-          "apps/*/lib/",
-          "apps/*/test/",
+          "lib/",
+          "test/unit/",
           "config/",
           "mix.exs"
         ],
         excluded: [
           ~r"/_build/",
           ~r"/deps/",
-          ~r"/apps/.*/priv/",
-          ~r"apps/.*/priv/resource_snapshots"
+          ~r"^priv/"
         ]
       },
       plugins: [],
@@ -22,8 +21,8 @@
       parse_timeout: 5000,
       color: true,
       checks: [
-        # Umbrella layer edges, Mix.env in lib/, and grab-bag module names
-        # are enforced by apps/api_web/test/architecture/dependency_direction_test.exs.
+        # Layer edges are enforced by the `boundary` compiler. Mix.env in lib/ and
+        # grab-bag module names are enforced by test/unit/architecture/library_conventions_test.exs.
         # api_web Ash calls are enforced by facade_enforcement_test.exs.
         {Credo.Check.Consistency.ExceptionNames, []},
         {Credo.Check.Consistency.LineEndings, []},

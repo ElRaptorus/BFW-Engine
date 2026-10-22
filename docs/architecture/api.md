@@ -6,7 +6,7 @@ All REST responses and WebSocket event envelopes use **camelCase** structural ke
 
 **Opaque payload boundary rule:** user-payload subtrees are passed through unchanged. The encoder converts structural field names but does **not** recurse into fields designated as opaque (for example `payload`, `inputToken`, `outputToken`, `startedWithContext`, `claims`, `typeProperties`, `errorInfo`, `violations`). This means keys inside a process token's `payload` are exactly what the process author set — the engine never rewrites them. Engine-structural error fields like `failures` and `conflicts` are **not** opaque — their nested keys (e.g. `processModelId`, `rulesetFailures`) are camelCased normally.
 
-The boundary is enforced in `BfwEngine.Types.Wire` (`apps/core_types/lib/bfw_engine/types/wire.ex`). Jason.Encoder implementations for all event structs live in `apps/core_events/lib/bfw_engine/events/json_encoders.ex`.
+The boundary is enforced in `BfwEngine.Types.Wire` (`lib/bfw_engine/types/wire.ex`). Jason.Encoder implementations for all event structs live in `lib/bfw_engine/events/json_encoders.ex`.
 
 ### Identity Fields on the Wire
 
@@ -23,13 +23,13 @@ The snapshot attributes are `public?: false`, so neither the attribute nor a JSO
 
 ### Centralized Error Responses
 
-All REST error responses go through `BfwEngineWeb.Http.ErrorResponse` (`apps/api_web/lib/bfw_engine_web/http/error_response.ex`). This guarantees every error body:
+All REST error responses go through `BfwEngineWeb.Http.ErrorResponse` (`lib/bfw_engine_web/http/error_response.ex`). This guarantees every error body:
 
 1. Contains at least `error` (snake_case code) and `message` fields
 2. Has all structural keys camelCased via `Wire.camelize_keys/1`
 3. Uses field names matching the SDK's `ErrorMapper` expectations
 
-Controllers use `render_error/4` (or `/5` with extras). Plugs that halt the conn before Phoenix.Controller is available use `render_error_halt/4` (or `/5`). The `api_auth` plug (`BfwEngine.Auth.Plug`) is in a separate umbrella app and uses its own `send_resp/3` calls — it cannot depend on `api_web`.
+Controllers use `render_error/4` (or `/5` with extras). Plugs that halt the conn before Phoenix.Controller is available use `render_error_halt/4` (or `/5`). The `BfwEngine.Auth` plug (`BfwEngine.Auth.Plug`) lives in the `BfwEngine.Auth` boundary and uses its own `send_resp/3` calls — it may not depend on `BfwEngineWeb`.
 
 #### Audit-trail logging
 
@@ -60,7 +60,7 @@ Additional logging beyond `ErrorResponse`:
 
 JWT bearer is required by default for authenticated routes ([authorization.md](./authorization.md)). **Public** routes (`GET /health`, `GET /info`, `GET /metrics`) bypass auth.
 
-The umbrella currently mounts **process-catalog** REST handlers at the **root** path (e.g. `POST /processes`), not under `/api/v1`. **GraphQL** is at `POST /api/v1/graphql`. OpenAPI JSON is at `GET /api/openapi`.
+The engine currently mounts **process-catalog** REST handlers at the **root** path (e.g. `POST /processes`), not under `/api/v1`. **GraphQL** is at `POST /api/v1/graphql`. OpenAPI JSON is at `GET /api/openapi`.
 
 #### 10.1.0 Process catalog & lifecycle (`ProcessController` — implemented)
 
@@ -80,7 +80,7 @@ The umbrella currently mounts **process-catalog** REST handlers at the **root** 
 
 **`GET /health`** — Liveness/readiness; **no auth**. Returns **204 No Content** (empty body). Kubernetes probes should check the status code only. Load level is **not** on `/health`; it is `engine.load` on **`GET /stats`** (`normal` / `elevated` / `critical`, derived from active PI count vs. `BFE_MAX_CONCURRENT_PIS` at 70% / 90% thresholds when the cap is finite; always `normal` when the cap is `:infinity`). This aligns with the `bfw_engine.process_instance.capacity.ratio` last-value metric and overload signaling.
 
-**`GET /metrics`** — Prometheus text exposition (public; **no auth**). Served by `api_web` when `BFE_METRICS_ENABLED` is `true` (default). Metric definitions live in `BfwEngine.Telemetry.Metrics` (`peripheral_telemetry`); scrape output is plain text per Prometheus exposition format. The router pipeline `:metrics` accepts `text/plain` (and `*/*`), not the JSON-only `:api` pipeline, so a `text/plain`-only `Accept` header (Swagger UI) is not answered with `406`. When metrics are disabled, `MetricsGatePlug` (same pipeline) halts the request before the controller with a plain-text **404** `Not Found`, identical to the devtools gate (`DevtoolsGatePlug.reject/1`). Routes stay registered because the flag is a runtime setting (`config/runtime.exs`), while Phoenix routes are compiled.
+**`GET /metrics`** — Prometheus text exposition (public; **no auth**). Served by `BfwEngineWeb` when `BFE_METRICS_ENABLED` is `true` (default). Metric definitions live in `BfwEngine.Telemetry.Metrics` (`BfwEngine.Telemetry`); scrape output is plain text per Prometheus exposition format. The router pipeline `:metrics` accepts `text/plain` (and `*/*`), not the JSON-only `:api` pipeline, so a `text/plain`-only `Accept` header (Swagger UI) is not answered with `406`. When metrics are disabled, `MetricsGatePlug` (same pipeline) halts the request before the controller with a plain-text **404** `Not Found`, identical to the devtools gate (`DevtoolsGatePlug.reject/1`). Routes stay registered because the flag is a runtime setting (`config/runtime.exs`), while Phoenix routes are compiled.
 
 **`POST /processes/{model_id}/start` — `503` / `429`** — When the admission pre-check rejects a new PI because `BFE_MAX_CONCURRENT_PIS` is reached, the facade returns `{:error, :engine_at_capacity, %{active, limit}}` and the controller responds with **503 Service Unavailable**, a `Retry-After` header, and a structured JSON body. When `BFE_PI_START_RATE_LIMIT` is greater than zero and the ETS token-bucket plug (`RateLimitPlug` on the authenticated pipeline) is exhausted, the controller responds with **429 Too Many Requests** and `Retry-After`. Env vars and defaults: [configuration.md](./configuration.md).
 
@@ -129,7 +129,7 @@ Additional trigger-style paths in the table below remain specified for v1 parity
 |---|---|---|---|
 | `POST` | `/messages/{message_name}/trigger` | Trigger a named message | `trigger_message` (`"all"`) |
 
-Body: `{payload?, correlation?}`. Returns `200` with `{messageId, correlationValue, deliveries, startedProcessInstanceIds, pending}`. Errors: `400` `bad_request` (malformed JSON, `correlation` not a string or null, `payload` not an object or null), `403` (missing `trigger_message` claim), `413` (payload too large), `503` (subscription registry not ready during resume — includes `Retry-After`). Controller: `BfwEngineWeb.Http.MessageController` (`apps/api_web/lib/bfw_engine_web/http/controllers/message_controller.ex`). Delegates to `BfwEngine.Api.publish_message/5` (claim check + `MessagePublisher`).
+Body: `{payload?, correlation?}`. Returns `200` with `{messageId, correlationValue, deliveries, startedProcessInstanceIds, pending}`. Errors: `400` `bad_request` (malformed JSON, `correlation` not a string or null, `payload` not an object or null), `403` (missing `trigger_message` claim), `413` (payload too large), `503` (subscription registry not ready during resume — includes `Retry-After`). Controller: `BfwEngineWeb.Http.MessageController` (`lib/bfw_engine_web/http/controllers/message_controller.ex`). Delegates to `BfwEngine.Api.publish_message/5` (claim check + `MessagePublisher`).
 
 #### 10.1.4 Signal triggers (`SignalController` — implemented)
 
@@ -137,7 +137,7 @@ Body: `{payload?, correlation?}`. Returns `200` with `{messageId, correlationVal
 |---|---|---|---|
 | `POST` | `/signals/{signal_name}/trigger` | Broadcast a named signal | `trigger_signal` (`"all"`) |
 
-Body: empty or `{}`; any `payload` key is silently ignored. Returns `200` with `{signalId, signalName, deliveries, startedProcessInstanceIds, pending}`. Errors: `403` (missing `trigger_signal` claim), `503` (subscription registry not ready during resume — includes `Retry-After: 5`). Signals carry no payload and no correlation — they are pure broadcast by signal name. Controller: `BfwEngineWeb.Http.SignalController` (`apps/api_web/lib/bfw_engine_web/http/controllers/signal_controller.ex`). Delegates to `BfwEngine.Api.publish_signal/3` (claim check + `SignalPublisher`).
+Body: empty or `{}`; any `payload` key is silently ignored. Returns `200` with `{signalId, signalName, deliveries, startedProcessInstanceIds, pending}`. Errors: `403` (missing `trigger_signal` claim), `503` (subscription registry not ready during resume — includes `Retry-After: 5`). Signals carry no payload and no correlation — they are pure broadcast by signal name. Controller: `BfwEngineWeb.Http.SignalController` (`lib/bfw_engine_web/http/controllers/signal_controller.ex`). Delegates to `BfwEngine.Api.publish_signal/3` (claim check + `SignalPublisher`).
 
 #### 10.1.5 Timer event manual trigger (`TimerEventController` — implemented)
 
@@ -145,7 +145,7 @@ Body: empty or `{}`; any `payload` key is silently ignored. Returns `200` with `
 |---|---|---|---|
 | `POST` | `/timer-events/{flow_node_instance_id}/trigger` | Manually fire a waiting timer FNI | `lane:<name>="write"` for the FNI's lane, or laneless FNI, or `zeeky_boogie_doog`. `"read"` / `observe_all` → **403**; invisible → **404** |
 
-Body: empty or `{}`. Returns `200` with `{triggered: true}`, or `{triggered: false}` when the handler held no armed timer (not armed yet, already fired, exhausted cycle); `BfwEngine.Api.trigger_timer_event/3` returns `{:ok, %{triggered: boolean}}`, the same answer the plugin facade gives. Errors: `404` (FNI not found or lane-invisible — indistinguishable), `403` (visible but not writable: `"read"` or `observe_all`), `409` (FNI not active/waiting or already terminal), `422` (`not_a_timer_event` — FNI is not an Intermediate Catch or Boundary timer event). Boolean `true` is not a write alias. Controller: `BfwEngineWeb.Http.TimerEventController` (`apps/api_web/lib/bfw_engine_web/http/controllers/timer_event_controller.ex`). Delegates to `BfwEngine.Api.trigger_timer_event/3`.
+Body: empty or `{}`. Returns `200` with `{triggered: true}`, or `{triggered: false}` when the handler held no armed timer (not armed yet, already fired, exhausted cycle); `BfwEngine.Api.trigger_timer_event/3` returns `{:ok, %{triggered: boolean}}`, the same answer the plugin facade gives. Errors: `404` (FNI not found or lane-invisible — indistinguishable), `403` (visible but not writable: `"read"` or `observe_all`), `409` (FNI not active/waiting or already terminal), `422` (`not_a_timer_event` — FNI is not an Intermediate Catch or Boundary timer event). Boolean `true` is not a write alias. Controller: `BfwEngineWeb.Http.TimerEventController` (`lib/bfw_engine_web/http/controllers/timer_event_controller.ex`). Delegates to `BfwEngine.Api.trigger_timer_event/3`.
 
 TypeScript client: `EventClient.triggerTimer(flowNodeInstanceId)` in `@elraptorus/bfw_engine_client` (`packages/js/client/src/rest/event-client.ts`). SDK type: `TimerTriggerResult` (`packages/js/sdk/src/types/trigger.ts`).
 
@@ -172,7 +172,7 @@ The `{id}` path parameter is the **child process instance ID** spawned by the ad
 
 **List activities** returns `{data: [{id, name, type, enabled, performedCount, activeCount}]}`. **Activate** returns `{flowNodeInstanceId: "..."}`. **Complete** returns `{completed: true}`. **Status** returns `{activeCount, performedActivities: [id], enabledActivities: [id], completionSignaled: boolean}`.
 
-Errors: `404` (PI not found or activity not found in scope), `422` (`not_adhoc_subprocess` — PI is not an ad-hoc subprocess child), `409` (`adhoc_already_completing` — completion already signaled), `403` (missing claim), `500` (`dispatch_failed`). Controller: `BfwEngineWeb.Http.AdhocSubprocessController` (`apps/api_web/lib/bfw_engine_web/http/controllers/adhoc_subprocess_controller.ex`). Delegates to `BfwEngine.Api.{get_adhoc_enabled_activities,activate_adhoc_activity,complete_adhoc_subprocess,get_adhoc_status}/3-4`.
+Errors: `404` (PI not found or activity not found in scope), `422` (`not_adhoc_subprocess` — PI is not an ad-hoc subprocess child), `409` (`adhoc_already_completing` — completion already signaled), `403` (missing claim), `500` (`dispatch_failed`). Controller: `BfwEngineWeb.Http.AdhocSubprocessController` (`lib/bfw_engine_web/http/controllers/adhoc_subprocess_controller.ex`). Delegates to `BfwEngine.Api.{get_adhoc_enabled_activities,activate_adhoc_activity,complete_adhoc_subprocess,get_adhoc_status}/3-4`.
 
 Plugin facade: `facade.adhoc_subprocesses.{get_enabled_activities,activate_activity,complete,get_status}` — same operations with `skip_claims: true`.
 
@@ -242,7 +242,7 @@ Resolver implementation: for `ProcessInstance.finalTokens` on a single-PI query,
 
 #### 10.2.2 Process Model graph
 
-Alongside the persistence resources, the GraphQL layer (`api_web`) projects the parsed `BfwEngine.BPMN.Model.*` AST into GraphQL as a **first-class structured graph** so external consumers can read the deployed process definition without re-parsing XML. These types are **not** Ash-resource-backed; their resolvers read `BfwEngine.BPMN.ModelCache` (warm path: ETS lookup; cold path: DB-backed loader — see the cold-cache pitfall below). Defined in `apps/api_web/lib/bfw_engine_web/graphql/model_types.ex`, `model_resolvers.ex`, and `dataloader/model_cache_source.ex`; wired into `schema.ex`.
+Alongside the persistence resources, the GraphQL layer (`BfwEngineWeb`) projects the parsed `BfwEngine.BPMN.Model.*` AST into GraphQL as a **first-class structured graph** so external consumers can read the deployed process definition without re-parsing XML. These types are **not** Ash-resource-backed; their resolvers read `BfwEngine.BPMN.ModelCache` (warm path: ETS lookup; cold path: DB-backed loader — see the cold-cache pitfall below). Defined in `lib/bfw_engine_web/graphql/model_types.ex`, `model_resolvers.ex`, and `dataloader/model_cache_source.ex`; wired into `schema.ex`.
 
 **As-built shape** (abbreviated — the full struct-aligned field list lives in `model_types.ex` and is enforced at compile time, see below):
 
@@ -272,7 +272,7 @@ enum FlowNodeType {
   BOUNDARY_EVENT
   UNKNOWN
 }
-# 21 values total, one per FlowNodeData.* struct (D-1 = A). Event *kind*
+# 21 values total, one per FlowNodeData.* struct. Event *kind*
 # (message/timer/error/...) is NOT folded into this enum — it is exposed
 # separately via the `EventDefinition` union on the five event-position
 # node types (StartEventNode, EndEventNode, IntermediateCatchEventNode,
@@ -305,7 +305,7 @@ interface FlowNode {
   standardLoop: StandardLoop
   isForCompensation: Boolean!
   documentation: String
-  parentSubProcessId: String        # only populated on ProcessModel.allFlowNodes entries (D-2 = C)
+  parentSubProcessId: String        # only populated on ProcessModel.allFlowNodes entries
 }
 
 # One concrete type per FlowNodeData.* struct (21 total). Selected examples:
@@ -338,7 +338,7 @@ type SubProcessNode implements FlowNode {
   isAdHoc: Boolean!
   adhocOrdering: MultiInstanceOrdering
   cancelRemainingInstances: Boolean!
-  flowNodes: [FlowNode!]!           # recurses — nested tree, D-2 option B half
+  flowNodes: [FlowNode!]!           # recurses — nested tree
   sequenceFlows: [SequenceFlow!]!
   dataObjects: [DataObjectModel!]!
   dataObjectReferences: [DataObjectReferenceModel!]!
@@ -370,7 +370,7 @@ type ProcessModel {
   "Top-level flow nodes only; nested subprocess scopes recurse via SubProcessNode.flowNodes."
   flowNodes: [FlowNode!]!
 
-  "Every flow node across every scope, flattened, each carrying parentSubProcessId. What FlowNodeInstance.flowNode resolves against (D-2 = C)."
+  "Every flow node across every scope, flattened, each carrying parentSubProcessId. What FlowNodeInstance.flowNode resolves against."
   allFlowNodes: [FlowNode!]!
 
   sequenceFlows: [SequenceFlow!]!
@@ -411,7 +411,7 @@ extend type FlowNodeInstance {
 
 **Implementation invariants (as built):**
 
-- **Declarative field table, not typespec introspection (D-3 = B).** `BfwEngineWeb.Graphql.ModelSchema.FieldTable` registers every `BfwEngine.BPMN.Model.*` struct field as `exposed` (with the GraphQL field it maps to) or `excluded` (with a reason). `FieldTable.verify!/0` runs at the top of `model_types.ex` and **fails the build** if any struct key is neither mapped nor excluded — this is the enforcement mechanism, not automatic derivation from `@type t`. A field added to an Elixir struct without a matching `FieldTable` entry is a compile error, not a silent gap. `verify!/0` also fails when a `BfwEngine.BPMN.Model.*` struct module is not registered at all. `BfwEngineWeb.Graphql.Schema` runs `FieldTable.verify_exposed_fields!/1` in `@after_compile` and fails the build when an `exposed` key is not a field on its Absinthe type. Both checks run only when `ModelTypes` / `Schema` recompile, so `ModelGraphIntrospectionTest` calls them as well to cover incremental builds that only touch `core_bpmn`.
+- **Declarative field table, not typespec introspection.** `BfwEngineWeb.Graphql.ModelSchema.FieldTable` registers every `BfwEngine.BPMN.Model.*` struct field as `exposed` (with the GraphQL field it maps to) or `excluded` (with a reason). `FieldTable.verify!/0` runs at the top of `model_types.ex` and **fails the build** if any struct key is neither mapped nor excluded — this is the enforcement mechanism, not automatic derivation from `@type t`. A field added to an Elixir struct without a matching `FieldTable` entry is a compile error, not a silent gap. `verify!/0` also fails when a `BfwEngine.BPMN.Model.*` struct module is not registered at all. `BfwEngineWeb.Graphql.Schema` runs `FieldTable.verify_exposed_fields!/1` in `@after_compile` and fails the build when an `exposed` key is not a field on its Absinthe type. Both checks run only when `ModelTypes` / `Schema` recompile, so `ModelGraphIntrospectionTest` calls them as well to cover incremental builds that only touch `BfwEngine.BPMN`.
 - **`:json` scalar is reused, not redefined.** AshGraphql already registers a `:json` scalar on the same schema; `model_types.ex` imports it rather than declaring a second one (Absinthe requires globally unique type identifiers).
 - **Compiled artifacts are never exposed.** the four `MultiInstance.compiled_*` fields, `StandardLoop.compiled_loop_condition`, the two `SubProcess.*_compiled` fields, `Process.inclusive_join_analyses`, `Process.complex_region_analyses`, and `Definitions.raw_xml` are all `excluded` entries in the `FieldTable` — enforced by `BfwEngineWeb.Graphql.ModelGraphIntrospectionTest`, which scans the entire introspected schema for any identifier matching `compiled`, `precompiled`, or `raw_xml` and fails if one is reachable.
 - **Dataloader batching.** `BfwEngineWeb.Graphql.Dataloader.ModelCacheSource` batches `ModelCache.fetch/1` calls keyed by `process_version_id` via `Dataloader.KV`, registered in `Schema.context/1` with `get_policy: :tuples` (required — the default `:raise_on_error` would turn the ordinary `{:error, :not_found}` cold-cache-miss outcome into a raised exception). All `FlowNodeInstance.flowNode` resolutions in one request that share a `process_version_id` — e.g. every FNI of one PI, the Studio-debugger access pattern — collapse to exactly one `ModelCache.fetch/1` call, verified in `graphql_model_graph_wp7_test.exs` via `:telemetry` instrumentation on `[:bfw_engine, :model_cache, :fetch]`.
@@ -488,7 +488,7 @@ See [configuration.md](./configuration.md) and [database.md](../guides/operation
 
 ### 10.5 API-vs-Core boundary rule
 
-Every Ash action (mutation) maps to exactly one Core access point. API layers never mutate persistence directly — they go through Core, which emits telemetry → peripheral_persistence updates the DB.
+Every Ash action (mutation) maps to exactly one Core access point. API layers never mutate persistence directly — they go through Core, which emits telemetry → BfwEngine.Persistence updates the DB.
 
 ### 10.6 Soft-delete filtering
 
@@ -502,15 +502,15 @@ Authorization and business-rule validation follow a strict three-layer model:
 
 | Layer | Responsibility | Must NOT do |
 |---|---|---|
-| **REST controllers** (`apps/api_web/lib/bfw_engine_web/http/controllers/`) | Parse HTTP (path params, body, identity from conn assigns); call `BfwEngine.Api.*`; map error tuples to HTTP status codes via `ErrorResponse` | Claim checks, lane checks, existence/state guards, direct `Ash.*` or publisher calls |
-| **`BfwEngine.Api` facade** (`apps/api_facade/lib/bfw_engine/api.ex`, delegating to `api/processes.ex`, `process_instances.ex`, `tasks.ex`, `triggers.ex`, `timer_schedules.ex`, `adhoc_subprocesses.ex`, `data_objects.ex`, `decisions.ex`; shared Ash notification stash in api/ash_write.ex (BfwEngine.Api.AshWrite)) | **Single authoritative enforcement point** for all claim checks, lane access, and business rules (existence, type, state, enabled, active PIs) before delegating to Core or publishers | HTTP-specific concerns |
+| **REST controllers** (`lib/bfw_engine_web/http/controllers/`) | Parse HTTP (path params, body, identity from conn assigns); call `BfwEngine.Api.*`; map error tuples to HTTP status codes via `ErrorResponse` | Claim checks, lane checks, existence/state guards, direct `Ash.*` or publisher calls |
+| **`BfwEngine.Api` facade** (`lib/bfw_engine/api.ex`, delegating to `api/processes.ex`, `process_instances.ex`, `tasks.ex`, `triggers.ex`, `timer_schedules.ex`, `adhoc_subprocesses.ex`, `data_objects.ex`, `decisions.ex`; shared Ash notification stash in api/ash_write.ex (BfwEngine.Api.AshWrite)) | **Single authoritative enforcement point** for all claim checks, lane access, and business rules (existence, type, state, enabled, active PIs) before delegating to Core or publishers | HTTP-specific concerns |
 | **PI `:gen_statem`** (`ProcessInstance`) | Minimal defensive race-condition guards only (e.g. FNI no longer active in in-memory state at call time) | Claim or lane enforcement |
 
-Claim and lane helpers live in `BfwEngine.Api.Validation` (`apps/api_facade/lib/bfw_engine/api/validation.ex`). See [authorization.md](./authorization.md) §13 for function signatures and claim-to-facade mapping.
+Claim and lane helpers live in `BfwEngine.Api.Validation` (`lib/bfw_engine/api/validation.ex`). See [authorization.md](./authorization.md) §13 for function signatures and claim-to-facade mapping.
 
 #### `skip_claims` opt-out
 
-Every Api function that enforces claims accepts `opts \\ []`. When `skip_claims: true` is passed, **claim checks and lane checks are skipped**; business rule checks always apply. The plugin loader (`apps/engine_plugins/lib/bfw_engine/plugins/loader.ex`) passes `skip_claims: true` when constructing all plugin facade closures so in-BEAM plugins operate inside the trust boundary without per-plugin JWT claim configuration. REST controllers never pass this flag.
+Every Api function that enforces claims accepts `opts \\ []`. When `skip_claims: true` is passed, **claim checks and lane checks are skipped**; business rule checks always apply. The plugin loader (`lib/bfw_engine/plugins/loader.ex`) passes `skip_claims: true` when constructing all plugin facade closures so in-BEAM plugins operate inside the trust boundary without per-plugin JWT claim configuration. REST controllers never pass this flag.
 
 ```elixir
 # Plugin closure — claims skipped, business rules still enforced
@@ -619,13 +619,13 @@ Response shape for list:
 }
 ```
 
-Controller: `BfwEngineWeb.Http.TimerScheduleController` (`apps/api_web/lib/bfw_engine_web/http/controllers/timer_schedule_controller.ex`)
+Controller: `BfwEngineWeb.Http.TimerScheduleController` (`lib/bfw_engine_web/http/controllers/timer_schedule_controller.ex`)
 
 Delegates to `BfwEngine.Timers.StartEventManager` for all operations.
 
 ## BPMN Runtime Facade Functions (claim-enforced)
 
-These `BfwEngine.Api` functions centralize claim checks previously scattered across REST controllers. All accept `opts \\ []` with optional `skip_claims: true` (see §10.7).
+These `BfwEngine.Api` functions own the claim checks for the BPMN runtime operations; REST controllers do none. All accept `opts \\ []` with optional `skip_claims: true` (see §10.7).
 
 | Function | Signature | Claim / access | Business rules |
 |----------|-----------|----------------|----------------|
@@ -699,6 +699,6 @@ The `BfwEngine.Api` module exposes DMN operations via the same facade convergenc
 
 ### `BfwEngine.Api` Convergence Layer
 
-All external entry points (REST controllers, GraphQL resolvers, WebSocket channel handlers, external plugins) converge through a single `BfwEngine.Api` facade module, located in the `api_facade` umbrella app (`apps/api_facade/lib/bfw_engine/api.ex`). This module wraps Ash domain reads/writes (with `authorize?: false` for internal calls), **enforces all claim and lane authorization** via `BfwEngine.Api.Validation`, validates business rules, and delegates runtime operations to `BfwEngine.Execution`. REST controllers are thin HTTP adapters — they call `BfwEngine.Api.*` and map error tuples; they never perform claim checks or call Ash/publishers directly. Plugins call the same facade functions with `skip_claims: true`. A static enforcement test (`apps/api_web/test/architecture/d51_enforcement_test.exs`) scans all `api_web` lib files and fails if any direct `Ash.*` call is found.
+All external entry points (REST controllers, GraphQL resolvers, WebSocket channel handlers, external plugins) converge through a single `BfwEngine.Api` facade module, located in the `BfwEngine.Api` subsystem (`lib/bfw_engine/api.ex`). This module wraps Ash domain reads/writes (with `authorize?: false` for internal calls), **enforces all claim and lane authorization** via `BfwEngine.Api.Validation`, validates business rules, and delegates runtime operations to `BfwEngine.Execution`. REST controllers are thin HTTP adapters — they call `BfwEngine.Api.*` and map error tuples; they never perform claim checks or call Ash/publishers directly. Plugins call the same facade functions with `skip_claims: true`. A static enforcement test (`test/unit/web/architecture/facade_enforcement_test.exs`) scans all `BfwEngineWeb` lib files and fails if any direct `Ash.*` call is found. The one allowed file is `lib/bfw_engine_web/graphql/model_resolvers.ex`: its custom AshGraphql field resolvers (`FlowNodeInstance.processVersion`, `FlowNodeInstance.flowNode`) read `ProcessInstance` and `ProcessVersion` with the request actor, exactly as AshGraphql reads the surrounding fields, so the Ash policies apply. The `BfwEngine.Api` reads run with `authorize?: false` and would drop those policies; the GraphQL schema itself is built on the `BfwEngine.Persistence.Api` domain, so these resolvers stay on the same path.
 
 The TypeScript SDK types are designed against the `BfwEngine.Api` facade surface.

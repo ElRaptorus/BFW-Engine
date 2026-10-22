@@ -1,6 +1,6 @@
 defmodule BfwEngine.Integration.Execution.EscalationEventTest do
   @moduledoc """
-  Umbrella-level integration tests for Escalation Events (E1–E16).
+  Integration tests for Escalation Events (E1–E16).
 
   Uses real BPMN XML fixtures deployed via the HTTP API. Verifies
   PI state, FNI states, escalation propagation through Embedded
@@ -31,19 +31,19 @@ defmodule BfwEngine.Integration.Execution.EscalationEventTest do
   alias BfwEngine.Types.Event
 
   setup do
-    original_resolver = Application.get_env(:core_execution, :called_element_resolver)
+    original_resolver = Application.get_env(:bfw_engine, :called_element_resolver)
 
     Application.put_env(
-      :core_execution,
+      :bfw_engine,
       :called_element_resolver,
       BfwEngine.Persistence.CalledElementResolverImpl
     )
 
     on_exit(fn ->
       if original_resolver do
-        Application.put_env(:core_execution, :called_element_resolver, original_resolver)
+        Application.put_env(:bfw_engine, :called_element_resolver, original_resolver)
       else
-        Application.delete_env(:core_execution, :called_element_resolver)
+        Application.delete_env(:bfw_engine, :called_element_resolver)
       end
     end)
 

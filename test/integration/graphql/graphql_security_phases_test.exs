@@ -4,8 +4,8 @@ defmodule BfwEngine.Integration.Graphql.GraphqlSecurityPhasesTest do
   HTTP pipeline.
 
   Verifies depth limiting, complexity limiting, and introspection blocking
-  as configured via `Application.get_env/3` on `:api_web`. Complements the
-  unit tests in `apps/api_web/test/bfw_engine_web/graphql/` which exercise
+  as configured via `Application.get_env/3` on `:bfw_engine`. Complements the
+  unit tests in `test/unit/web/bfw_engine_web/graphql/` which exercise
   the phase modules on synthetic Absinthe blueprints only.
   """
   use BfwEngine.ExecutionCase, async: false
@@ -101,27 +101,27 @@ defmodule BfwEngine.Integration.Graphql.GraphqlSecurityPhasesTest do
   """
 
   setup do
-    original_depth = Application.get_env(:api_web, :graphql_max_depth)
-    original_introspection = Application.get_env(:api_web, :graphql_introspection_disabled)
-    original_complexity = Application.get_env(:api_web, :graphql_max_complexity)
+    original_depth = Application.get_env(:bfw_engine, :graphql_max_depth)
+    original_introspection = Application.get_env(:bfw_engine, :graphql_introspection_disabled)
+    original_complexity = Application.get_env(:bfw_engine, :graphql_max_complexity)
 
     on_exit(fn ->
       if is_nil(original_depth) do
-        Application.delete_env(:api_web, :graphql_max_depth)
+        Application.delete_env(:bfw_engine, :graphql_max_depth)
       else
-        Application.put_env(:api_web, :graphql_max_depth, original_depth)
+        Application.put_env(:bfw_engine, :graphql_max_depth, original_depth)
       end
 
       if is_nil(original_introspection) do
-        Application.delete_env(:api_web, :graphql_introspection_disabled)
+        Application.delete_env(:bfw_engine, :graphql_introspection_disabled)
       else
-        Application.put_env(:api_web, :graphql_introspection_disabled, original_introspection)
+        Application.put_env(:bfw_engine, :graphql_introspection_disabled, original_introspection)
       end
 
       if is_nil(original_complexity) do
-        Application.delete_env(:api_web, :graphql_max_complexity)
+        Application.delete_env(:bfw_engine, :graphql_max_complexity)
       else
-        Application.put_env(:api_web, :graphql_max_complexity, original_complexity)
+        Application.put_env(:bfw_engine, :graphql_max_complexity, original_complexity)
       end
     end)
 
@@ -130,7 +130,7 @@ defmodule BfwEngine.Integration.Graphql.GraphqlSecurityPhasesTest do
 
   describe "depth limit" do
     test "rejects query exceeding max depth" do
-      Application.put_env(:api_web, :graphql_max_depth, 3)
+      Application.put_env(:bfw_engine, :graphql_max_depth, 3)
 
       {200, body} = http_graphql(@deep_processes_query)
 
@@ -141,7 +141,7 @@ defmodule BfwEngine.Integration.Graphql.GraphqlSecurityPhasesTest do
     end
 
     test "allows query within max depth" do
-      Application.put_env(:api_web, :graphql_max_depth, 3)
+      Application.put_env(:bfw_engine, :graphql_max_depth, 3)
 
       {200, body} = http_graphql(@shallow_processes_query)
 
@@ -152,7 +152,7 @@ defmodule BfwEngine.Integration.Graphql.GraphqlSecurityPhasesTest do
 
   describe "complexity limit" do
     test "rejects the debugger dataObjectValues snapshot when the cap is 1000" do
-      Application.put_env(:api_web, :graphql_max_complexity, 1000)
+      Application.put_env(:bfw_engine, :graphql_max_complexity, 1000)
 
       {200, body} = http_graphql(@debugger_data_object_values_query, %{}, @admin_claims)
 
@@ -172,7 +172,7 @@ defmodule BfwEngine.Integration.Graphql.GraphqlSecurityPhasesTest do
 
   describe "introspection block" do
     test "rejects __schema when introspection is disabled" do
-      Application.put_env(:api_web, :graphql_introspection_disabled, true)
+      Application.put_env(:bfw_engine, :graphql_introspection_disabled, true)
 
       {200, body} = http_graphql(@schema_introspection_query)
 
@@ -182,7 +182,7 @@ defmodule BfwEngine.Integration.Graphql.GraphqlSecurityPhasesTest do
     end
 
     test "rejects __schema hidden inside nested fragments when introspection is disabled" do
-      Application.put_env(:api_web, :graphql_introspection_disabled, true)
+      Application.put_env(:bfw_engine, :graphql_introspection_disabled, true)
 
       {200, body} = http_graphql(@fragment_schema_introspection_query)
 
@@ -192,7 +192,7 @@ defmodule BfwEngine.Integration.Graphql.GraphqlSecurityPhasesTest do
     end
 
     test "rejects __type behind a named fragment spread when introspection is disabled" do
-      Application.put_env(:api_web, :graphql_introspection_disabled, true)
+      Application.put_env(:bfw_engine, :graphql_introspection_disabled, true)
 
       {200, body} = http_graphql(@named_fragment_type_introspection_query)
 
@@ -202,7 +202,7 @@ defmodule BfwEngine.Integration.Graphql.GraphqlSecurityPhasesTest do
     end
 
     test "allows regular query when introspection is disabled" do
-      Application.put_env(:api_web, :graphql_introspection_disabled, true)
+      Application.put_env(:bfw_engine, :graphql_introspection_disabled, true)
 
       {200, body} = http_graphql(@shallow_processes_query)
 
@@ -211,7 +211,7 @@ defmodule BfwEngine.Integration.Graphql.GraphqlSecurityPhasesTest do
     end
 
     test "allows __schema when introspection is enabled (default)" do
-      Application.delete_env(:api_web, :graphql_introspection_disabled)
+      Application.delete_env(:bfw_engine, :graphql_introspection_disabled)
 
       {200, body} = http_graphql(@schema_introspection_query)
 

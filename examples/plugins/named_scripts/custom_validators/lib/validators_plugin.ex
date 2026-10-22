@@ -1,6 +1,6 @@
 defmodule Examples.Plugins.CustomValidators.ValidatorsPlugin do
   @moduledoc """
-  Registers multiple `BfwEngine.Plugin.NamedScript` handlers under one umbrella plugin.
+  Registers multiple `BfwEngine.Plugin.NamedScript` handlers under one plugin.
   """
 
   @behaviour BfwEngine.Plugin

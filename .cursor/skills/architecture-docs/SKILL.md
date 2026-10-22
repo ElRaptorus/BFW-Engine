@@ -32,7 +32,7 @@ Every architecture doc follows this skeleton:
 (Behaviour callbacks, Ash Code Interface actions, or wire-protocol definitions)
 
 ## File Path Reference
-(Table mapping modules to umbrella app paths)
+(Table mapping modules to subsystem paths)
 ```
 
 Use `---` horizontal rules between major sections.
@@ -48,7 +48,7 @@ Every `####` heading should start with a **Path:** line when documenting a speci
 ```markdown
 #### PluginRegistry
 
-**Path:** `apps/engine_plugins/lib/bfw_engine/plugins/registry.ex`
+**Path:** `lib/bfw_engine/plugins/registry.ex`
 
 GenServer holding the canonical plugin map. Key responsibilities:
 
@@ -117,8 +117,8 @@ Every document ends with a table mapping modules to their file paths:
 
 | Module | Path |
 |--------|------|
-| PluginRegistry | `apps/engine_plugins/lib/bfw_engine/plugins/registry.ex` |
-| FacadeBuilder | `apps/engine_plugins/lib/bfw_engine/plugins/facade_builder.ex` |
+| PluginRegistry | `lib/bfw_engine/plugins/registry.ex` |
+| FacadeBuilder | `lib/bfw_engine/plugins/facade_builder.ex` |
 ```
 
 ## Content Guidelines
@@ -127,7 +127,7 @@ Every document ends with a table mapping modules to their file paths:
 
 - File paths, type specifications, callback signatures
 - Event flows and data models
-- Relationships between modules and umbrella apps
+- Relationships between modules and subsystem boundaries
 - Supervision trees, GenServer interactions, process topology
 - Key algorithms that affect the subsystem's design (e.g., escalation propagation, message correlation)
 
@@ -138,7 +138,7 @@ Every document ends with a table mapping modules to their file paths:
 - Every internal helper function — only document what is architecturally significant
 - Redundant explanations of the same concept in multiple sections
 - Test postmortems, CI cache keys, named failing tests (those go in `testing.md` if they are harness rules)
-- Reprinting an architecture table in `AGENTS.md` (AGENTS.md is the extension / validator / FEEL / umbrella catalog only)
+- Reprinting an architecture table in `AGENTS.md` (AGENTS.md is the extension / validator / FEEL / subsystem catalog only)
 
 ### Depth calibration
 

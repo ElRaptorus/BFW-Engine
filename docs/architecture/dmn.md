@@ -4,9 +4,9 @@
 
 ## Overview
 
-The `core_dmn` umbrella app implements a DMN 1.5 decision engine: SAX-based XML parsing, structural validation, FEEL expression precompilation, ETS-backed model caching, and synchronous evaluation with structured execution traces. The DMN engine supports multiple decision tables per diagram, DRD chaining via `DependencyResolver`, multi-decision evaluation, full CL3 boxed expression support, Decision Services, and FEEL verification. DMNDI elements are silently skipped by the engine parser — diagram rendering is handled client-side by the SDK parser.
+The `BfwEngine.DMN` subsystem implements a DMN 1.5 decision engine: SAX-based XML parsing, structural validation, FEEL expression precompilation, ETS-backed model caching, and synchronous evaluation with structured execution traces. The DMN engine supports multiple decision tables per diagram, DRD chaining via `DependencyResolver`, multi-decision evaluation, full CL3 boxed expression support, Decision Services, and FEEL verification. DMNDI elements are silently skipped by the engine parser — diagram rendering is handled client-side by the SDK parser.
 
-Dependencies: `core_types`, `core_expressions` (same Core-layer boundary as other engine apps).
+Dependencies: `BfwEngine.Types`, `BfwEngine.Expressions` (DMN is a Core boundary; see `lib/bfw_engine/dmn.ex`).
 
 ---
 
@@ -32,11 +32,11 @@ Evaluation (decision service):
   → %ServiceEvaluationResult{outputs, trace, ...}
 ```
 
-### Core Layer (`core_dmn`)
+### Core Layer (`BfwEngine.DMN`)
 
 #### BfwEngine.DMN
 
-**Path:** `apps/core_dmn/lib/bfw_engine/dmn.ex`
+**Path:** `lib/bfw_engine/dmn.ex`
 
 Public facade re-exporting the three pipeline stages:
 
@@ -48,7 +48,7 @@ Public facade re-exporting the three pipeline stages:
 
 #### Parser
 
-**Path:** `apps/core_dmn/lib/bfw_engine/dmn/parser.ex`
+**Path:** `lib/bfw_engine/dmn/parser.ex`
 
 ```elixir
 @spec parse(String.t()) :: {:ok, Definitions.t()} | {:error, term()}
@@ -62,7 +62,7 @@ The handler uses a **recursive expression body attachment pattern**: every conta
 
 #### Validator
 
-**Path:** `apps/core_dmn/lib/bfw_engine/dmn/validator.ex`
+**Path:** `lib/bfw_engine/dmn/validator.ex`
 
 ```elixir
 @spec validate(Definitions.t()) :: {:ok, Definitions.t()} | {:error, [{atom(), String.t()}]}
@@ -111,7 +111,7 @@ Collects all violations across all decisions, BKMs, and DRG references — never
 
 #### Precompiler
 
-**Path:** `apps/core_dmn/lib/bfw_engine/dmn/precompiler.ex`
+**Path:** `lib/bfw_engine/dmn/precompiler.ex`
 
 ```elixir
 @spec precompile(Definitions.t(), precompile_opts()) :: {:ok, Definitions.t()} | {:error, term()}
@@ -125,7 +125,7 @@ The precompiler walks boxed expression trees with `precompile_expression_body/2`
 
 #### DecisionTableEvaluator
 
-**Path:** `apps/core_dmn/lib/bfw_engine/dmn/evaluator/decision_table_evaluator.ex`
+**Path:** `lib/bfw_engine/dmn/evaluator/decision_table_evaluator.ex`
 
 Extracted module containing decision table evaluation logic shared by `Evaluator` and `BkmInvoker`:
 
@@ -144,7 +144,7 @@ Extracted module containing decision table evaluation logic shared by `Evaluator
 
 #### ModelCache
 
-**Path:** `apps/core_dmn/lib/bfw_engine/dmn/model_cache.ex`
+**Path:** `lib/bfw_engine/dmn/model_cache.ex`
 
 GenServer + ETS cache keyed by `decision_version_id` (UUID). Same single-flight pattern as `BfwEngine.BPMN.ModelCache`.
 
@@ -166,13 +166,13 @@ Public API:
 | `list_cached_ids/0` | Returns all cached keys |
 | `lookup_by_namespace/1` | O(1) lookup of `decision_version_id` by namespace string via the secondary index |
 
-On cache miss, `fetch/1` calls `GenServer.call({:load_and_cache, id})`. Concurrent misses for the same ID coalesce via `Task.async`. The loader is configured via `Application.get_env(:core_dmn, :model_cache_loader)` — in production this is `{BfwEngine.Persistence.ExecutionAdapter, :load_dmn_xml}`.
+On cache miss, `fetch/1` calls `GenServer.call({:load_and_cache, id})`. Concurrent misses for the same ID coalesce via `Task.async`. The loader is configured via `Application.get_env(:bfw_engine, :dmn_model_cache_loader)` — in production this is `{BfwEngine.Persistence.ExecutionAdapter, :load_dmn_xml}`.
 
 **Namespace index (P9.1):** The secondary ETS table `:bfw_engine_dmn_namespace_index` maps `namespace → decision_version_id` for O(1) import resolution. `put_new/2` inserts the mapping on cache store; `delete/1` removes it and backfills from remaining cached versions sharing the same namespace. `ImportResolver.build_model_cache_resolver/0` delegates to `lookup_by_namespace/1` instead of scanning all cached IDs.
 
 #### TypeResolver
 
-**Path:** `apps/core_dmn/lib/bfw_engine/dmn/type_resolver.ex`
+**Path:** `lib/bfw_engine/dmn/type_resolver.ex`
 
 Resolves `typeRef` values against `ItemDefinition` declarations and built-in FEEL types. Used by the Evaluator for input coercion (before evaluation) and output type checking (after evaluation).
 
@@ -196,9 +196,9 @@ Input coercion pipeline (runs in `Evaluator.evaluate/4` before decision resoluti
 
 #### ImportResolver
 
-**Path:** `apps/core_dmn/lib/bfw_engine/dmn/import_resolver.ex`
+**Path:** `lib/bfw_engine/dmn/import_resolver.ex`
 
-Resolves DMN `<import>` cross-model references. Lookup is injected via a resolver function `(namespace -> {:ok, Definitions.t()} | {:error, term()})`, matching the `CalledElementResolver` pattern in `core_execution`.
+Resolves DMN `<import>` cross-model references. Lookup is injected via a resolver function `(namespace -> {:ok, Definitions.t()} | {:error, term()})`, matching the `CalledElementResolver` pattern in `BfwEngine.Execution`.
 
 | Function | Purpose |
 |----------|---------|
@@ -212,7 +212,7 @@ Resolves DMN `<import>` cross-model references. Lookup is injected via a resolve
 
 #### Evaluator
 
-**Path:** `apps/core_dmn/lib/bfw_engine/dmn/evaluator.ex`
+**Path:** `lib/bfw_engine/dmn/evaluator.ex`
 
 ```elixir
 @spec evaluate(Definitions.t(), String.t() | nil, map(), evaluate_opts()) ::
@@ -231,7 +231,7 @@ At evaluation start, `resolve_imports_if_needed/2` resolves all `<import>` names
 
 #### DependencyResolver
 
-**Path:** `apps/core_dmn/lib/bfw_engine/dmn/evaluator/dependency_resolver.ex`
+**Path:** `lib/bfw_engine/dmn/evaluator/dependency_resolver.ex`
 
 ```elixir
 @spec resolve_evaluation_order(String.t(), Definitions.t()) ::
@@ -244,7 +244,7 @@ Filters out qualified references (`namespace#elementId`) from the local dependen
 
 #### BkmInvoker
 
-**Path:** `apps/core_dmn/lib/bfw_engine/dmn/evaluator/bkm_invoker.ex`
+**Path:** `lib/bfw_engine/dmn/evaluator/bkm_invoker.ex`
 
 ```elixir
 @spec resolve_and_invoke([KnowledgeRequirement.t()], Definitions.t(), map(), MapSet.t()) ::
@@ -269,7 +269,7 @@ Evaluation paths (dispatched on `decision.expression`):
 
 #### BoxedExpressionEvaluator
 
-**Path:** `apps/core_dmn/lib/bfw_engine/dmn/evaluator/boxed_expression_evaluator.ex`
+**Path:** `lib/bfw_engine/dmn/evaluator/boxed_expression_evaluator.ex`
 
 `Evaluator.evaluate_expression_body/3` is the generic entry point for evaluating any expression body type. It pattern-matches on the struct and delegates to `BoxedExpressionEvaluator` for CL3 boxed types. All boxed evaluation functions return `{:ok, result, bkm_traces}` to support explicit BKM trace threading.
 
@@ -290,7 +290,7 @@ Options: `include_unmatched_details: true` includes unmatched rules in the trace
 
 #### HitPolicies
 
-**Path:** `apps/core_dmn/lib/bfw_engine/dmn/evaluator/hit_policies.ex`
+**Path:** `lib/bfw_engine/dmn/evaluator/hit_policies.ex`
 
 ```elixir
 @spec apply(atom(), atom() | nil, [{struct(), map()}], struct()) ::
@@ -325,7 +325,7 @@ COLLECT aggregations:
 
 ## Model Structs
 
-All under `apps/core_dmn/lib/bfw_engine/dmn/model/`:
+All under `lib/bfw_engine/dmn/model/`:
 
 | Struct | Key fields |
 |--------|-----------|
@@ -441,7 +441,7 @@ Note: tagged error returns (`{:error, atom(), map()}`) emit `:stop` (not `:excep
 
 #### Prometheus metrics
 
-Attached in `BfwEngine.Telemetry.Metrics` (`apps/peripheral_telemetry/lib/bfw_engine/telemetry/metrics.ex`):
+Attached in `BfwEngine.Telemetry.Metrics` (`lib/bfw_engine/telemetry/metrics.ex`):
 
 | Prometheus name (dots → underscores on wire) | Type | Tags | Source event |
 |---|---|---|---|
@@ -541,7 +541,7 @@ DMN catalog persistence mirrors the BPMN catalog:
 | `DecisionDefinition` | `decision_definitions` | `id`, `model_id`, `name`, `enabled`, `created_at` |
 | `DecisionVersion` | `decision_versions` | `id`, `definition_id`, `version`, `dmn_xml`, `deployed_by`, `deleted_at` |
 
-Both resources live in `apps/peripheral_persistence/`. The `DecisionResolverImpl` implements the `core_execution` `DecisionResolver` behaviour for cache-miss loading.
+Both resources live in `lib/bfw_engine/persistence/`. The `DecisionResolverImpl` implements the `BfwEngine.Execution` `DecisionResolver` behaviour for cache-miss loading.
 
 ---
 
@@ -571,7 +571,7 @@ The `zeeky_boogie_doog` admin override claim bypasses all DMN authorization chec
 
 Plugins access DMN operations through `facade.decisions`, a namespace on the `EngineFacade` struct wired by the `Loader` to `BfwEngine.Api.*` functions with the plugin's synthetic identity pre-injected.
 
-**Path:** `apps/engine_sdk/lib/bfw_engine/engine_facade/decisions.ex`
+**Path:** `lib/bfw_engine/engine_facade/decisions.ex`
 
 | Closure | Arity | Delegates to |
 |---------|-------|-------------|
@@ -639,8 +639,8 @@ Note: `type_properties` is an opaque field — inner keys are stored and returne
 
 | Guard | Config key | Default | Behaviour |
 |-------|-----------|---------|-----------|
-| Max import depth | `:core_dmn, :max_import_depth` | `10` | Rejects recursive cross-model import chains exceeding depth; returns `{:error, :max_import_depth_exceeded, metadata}` |
-| Evaluation timeout | `:core_execution, :dmn_evaluation_timeout_ms` | `30_000` | Wraps `Evaluator.evaluate/4` in a `Task.async` + `Task.yield/2`; returns `{:error, {:dmn_evaluation_timeout, metadata}}` on timeout |
+| Max import depth | `:bfw_engine, :max_import_depth` | `10` | Rejects recursive cross-model import chains exceeding depth; returns `{:error, :max_import_depth_exceeded, metadata}` |
+| Evaluation timeout | `:bfw_engine, :dmn_evaluation_timeout_ms` | `30_000` | Wraps `Evaluator.evaluate/4` in a `Task.async` + `Task.yield/2`; returns `{:error, {:dmn_evaluation_timeout, metadata}}` on timeout |
 
 ### Multi-decision DMN models
 
@@ -669,7 +669,7 @@ Plugins interact with the DMN subsystem through two channels:
 
 2. **Analysis via Facade Closures** — the `facade.decisions` namespace provides read access to decision models, versions, XML, and evaluation capabilities. Plugins use these to perform post-execution analysis (dead rule detection, regression testing, Decision Service smoke testing) without replacing the BRT execution path.
 
-**Architectural invariant:** Business Rule Task execution is exclusively handled by the engine's built-in `"feel"` and `"dmn"` modes. Plugins never execute BRTs — they observe and analyze. The `implementation="plugin"` mode was removed as an anti-pattern: DMN is the BRT's native purpose, and delegating BRT execution to plugins blurs BPMN element semantics.
+**Architectural invariant:** Business Rule Task execution is exclusively handled by the engine's built-in `"feel"` and `"dmn"` modes. Plugins never execute BRTs — they observe and analyze. There is no plugin mode: DMN is the BRT's native purpose, and delegating BRT execution to plugins would blur BPMN element semantics.
 
 **Plugin interaction patterns:**
 
@@ -692,10 +692,10 @@ See `examples/plugins/business_rules/` in the repository root for all Elixir exa
 
 | Key | App | Purpose | Default |
 |-----|-----|---------|---------|
-| `model_cache_loader` | `:core_dmn` | `{module, function}` for cache-miss loading | `{ExecutionAdapter, :load_dmn_xml}` |
-| `max_import_depth` | `:core_dmn` | Maximum cross-model import recursion depth | `10` |
-| `decision_resolver` | `:core_execution` | Module implementing `DecisionResolver` | `DecisionResolverImpl` (prod), `NoOp` (test) |
-| `dmn_evaluation_timeout_ms` | `:core_execution` | Timeout for DMN evaluation in the BRT handler | `30_000` (prod), `5_000` (test) |
+| `dmn_model_cache_loader` | `:bfw_engine` | `{module, function}` for cache-miss loading | `{ExecutionAdapter, :load_dmn_xml}` |
+| `max_import_depth` | `:bfw_engine` | Maximum cross-model import recursion depth | `10` |
+| `decision_resolver` | `:bfw_engine` | Module implementing `DecisionResolver` | `DecisionResolverImpl` (prod), `NoOp` (test) |
+| `dmn_evaluation_timeout_ms` | `:bfw_engine` | Timeout for DMN evaluation in the BRT handler | `30_000` (prod), `5_000` (test) |
 
 ---
 
@@ -703,63 +703,63 @@ See `examples/plugins/business_rules/` in the repository root for all Elixir exa
 
 | Module | Path |
 |--------|------|
-| `BfwEngine.DMN` | `apps/core_dmn/lib/bfw_engine/dmn.ex` |
-| BfwEngine.DMN.Application (@moduledoc false) | `apps/core_dmn/lib/bfw_engine/dmn/application.ex` |
-| `BfwEngine.DMN.Parser` | `apps/core_dmn/lib/bfw_engine/dmn/parser.ex` |
-| `BfwEngine.DMN.Parser.SaxHandler` | `apps/core_dmn/lib/bfw_engine/dmn/parser/sax_handler.ex` |
-| `BfwEngine.DMN.Parser.SaxHandler.BoxedExpressions` | `apps/core_dmn/lib/bfw_engine/dmn/parser/sax_handler/boxed_expressions.ex` |
-| `BfwEngine.DMN.Validator` | `apps/core_dmn/lib/bfw_engine/dmn/validator.ex` |
-| `BfwEngine.DMN.Precompiler` | `apps/core_dmn/lib/bfw_engine/dmn/precompiler.ex` |
-| `BfwEngine.DMN.ModelCache` | `apps/core_dmn/lib/bfw_engine/dmn/model_cache.ex` |
-| `BfwEngine.DMN.TypeResolver` | `apps/core_dmn/lib/bfw_engine/dmn/type_resolver.ex` |
-| `BfwEngine.DMN.ImportResolver` | `apps/core_dmn/lib/bfw_engine/dmn/import_resolver.ex` |
-| `BfwEngine.DMN.QualifiedReference` | `apps/core_dmn/lib/bfw_engine/dmn/qualified_reference.ex` |
-| `BfwEngine.DMN.Evaluator` | `apps/core_dmn/lib/bfw_engine/dmn/evaluator.ex` |
-| `BfwEngine.DMN.Evaluator.DecisionTableEvaluator` | `apps/core_dmn/lib/bfw_engine/dmn/evaluator/decision_table_evaluator.ex` |
-| `BfwEngine.DMN.Evaluator.BoxedExpressionEvaluator` | `apps/core_dmn/lib/bfw_engine/dmn/evaluator/boxed_expression_evaluator.ex` |
-| `BfwEngine.DMN.Evaluator.BkmInvoker` | `apps/core_dmn/lib/bfw_engine/dmn/evaluator/bkm_invoker.ex` |
-| `BfwEngine.DMN.Evaluator.DependencyResolver` | `apps/core_dmn/lib/bfw_engine/dmn/evaluator/dependency_resolver.ex` |
-| `BfwEngine.DMN.Evaluator.HitPolicies` | `apps/core_dmn/lib/bfw_engine/dmn/evaluator/hit_policies.ex` |
-| `BfwEngine.DMN.EvaluationResult` | `apps/core_dmn/lib/bfw_engine/dmn/evaluation_result.ex` |
-| `BfwEngine.DMN.EvaluationTrace` | `apps/core_dmn/lib/bfw_engine/dmn/evaluation_trace.ex` |
-| `BfwEngine.DMN.EvaluationTrace.BkmTrace` | `apps/core_dmn/lib/bfw_engine/dmn/evaluation_trace.ex` (nested module) |
-| `BfwEngine.DMN.EvaluationTrace.ImportTrace` | `apps/core_dmn/lib/bfw_engine/dmn/evaluation_trace.ex` (nested module) |
-| `BfwEngine.DMN.EvaluationTrace.CoercionTrace` | `apps/core_dmn/lib/bfw_engine/dmn/evaluation_trace.ex` (nested module) |
-| `BfwEngine.DMN.Model.Types` | `apps/core_dmn/lib/bfw_engine/dmn/model/types.ex` |
-| `BfwEngine.DMN.Model.Definitions` | `apps/core_dmn/lib/bfw_engine/dmn/model/definitions.ex` |
-| `BfwEngine.DMN.Model.Decision` | `apps/core_dmn/lib/bfw_engine/dmn/model/decision.ex` |
-| `BfwEngine.DMN.Model.DecisionTable` | `apps/core_dmn/lib/bfw_engine/dmn/model/decision_table.ex` |
-| `BfwEngine.DMN.Model.LiteralExpression` | `apps/core_dmn/lib/bfw_engine/dmn/model/literal_expression.ex` |
-| `BfwEngine.DMN.Model.Input` | `apps/core_dmn/lib/bfw_engine/dmn/model/input.ex` |
-| `BfwEngine.DMN.Model.InputData` | `apps/core_dmn/lib/bfw_engine/dmn/model/input_data.ex` |
-| `BfwEngine.DMN.Model.InputEntry` | `apps/core_dmn/lib/bfw_engine/dmn/model/input_entry.ex` |
-| `BfwEngine.DMN.Model.Output` | `apps/core_dmn/lib/bfw_engine/dmn/model/output.ex` |
-| `BfwEngine.DMN.Model.OutputEntry` | `apps/core_dmn/lib/bfw_engine/dmn/model/output_entry.ex` |
-| `BfwEngine.DMN.Model.Rule` | `apps/core_dmn/lib/bfw_engine/dmn/model/rule.ex` |
-| `BfwEngine.DMN.Model.InformationRequirement` | `apps/core_dmn/lib/bfw_engine/dmn/model/information_requirement.ex` |
-| `BfwEngine.DMN.Model.BusinessKnowledgeModel` | `apps/core_dmn/lib/bfw_engine/dmn/model/business_knowledge_model.ex` |
-| `BfwEngine.DMN.Model.FunctionDefinition` | `apps/core_dmn/lib/bfw_engine/dmn/model/function_definition.ex` |
-| `BfwEngine.DMN.Model.InformationItem` | `apps/core_dmn/lib/bfw_engine/dmn/model/information_item.ex` |
-| `BfwEngine.DMN.Model.KnowledgeRequirement` | `apps/core_dmn/lib/bfw_engine/dmn/model/knowledge_requirement.ex` |
-| `BfwEngine.DMN.Model.KnowledgeSource` | `apps/core_dmn/lib/bfw_engine/dmn/model/knowledge_source.ex` |
-| `BfwEngine.DMN.Model.AuthorityRequirement` | `apps/core_dmn/lib/bfw_engine/dmn/model/authority_requirement.ex` |
-| `BfwEngine.DMN.Model.ItemDefinition` | `apps/core_dmn/lib/bfw_engine/dmn/model/item_definition.ex` |
-| `BfwEngine.DMN.Model.Import` | `apps/core_dmn/lib/bfw_engine/dmn/model/import.ex` |
-| `BfwEngine.DMN.Model.BoxedContext` | `apps/core_dmn/lib/bfw_engine/dmn/model/boxed_context.ex` |
-| `BfwEngine.DMN.Model.ContextEntry` | `apps/core_dmn/lib/bfw_engine/dmn/model/context_entry.ex` |
-| `BfwEngine.DMN.Model.BoxedInvocation` | `apps/core_dmn/lib/bfw_engine/dmn/model/boxed_invocation.ex` |
-| `BfwEngine.DMN.Model.Binding` | `apps/core_dmn/lib/bfw_engine/dmn/model/binding.ex` |
-| `BfwEngine.DMN.Model.BoxedList` | `apps/core_dmn/lib/bfw_engine/dmn/model/boxed_list.ex` |
-| `BfwEngine.DMN.Model.Relation` | `apps/core_dmn/lib/bfw_engine/dmn/model/relation.ex` |
-| `BfwEngine.DMN.Model.BoxedConditional` | `apps/core_dmn/lib/bfw_engine/dmn/model/boxed_conditional.ex` |
-| `BfwEngine.DMN.Model.BoxedFilter` | `apps/core_dmn/lib/bfw_engine/dmn/model/boxed_filter.ex` |
-| `BfwEngine.DMN.Model.BoxedFor` | `apps/core_dmn/lib/bfw_engine/dmn/model/boxed_for.ex` |
-| `BfwEngine.DMN.Model.BoxedEvery` | `apps/core_dmn/lib/bfw_engine/dmn/model/boxed_every.ex` |
-| `BfwEngine.DMN.Model.BoxedSome` | `apps/core_dmn/lib/bfw_engine/dmn/model/boxed_some.ex` |
-| `BfwEngine.DMN.Model.DecisionService` | `apps/core_dmn/lib/bfw_engine/dmn/model/decision_service.ex` — DecisionService model struct |
-| `BfwEngine.DMN.Evaluator.DecisionServiceEvaluator` | `apps/core_dmn/lib/bfw_engine/dmn/evaluator/decision_service_evaluator.ex` — Scoped sub-DRG evaluator |
-| `BfwEngine.DMN.ServiceEvaluationResult` | `apps/core_dmn/lib/bfw_engine/dmn/service_evaluation_result.ex` — Service evaluation result struct |
-| `DecisionDefinition` (Ash) | `apps/peripheral_persistence/lib/bfw_engine/persistence/resources/decision_definition.ex` |
-| `DecisionVersion` (Ash) | `apps/peripheral_persistence/lib/bfw_engine/persistence/resources/decision_version.ex` |
-| `DecisionResolverImpl` | `apps/peripheral_persistence/lib/bfw_engine/persistence/decision_resolver_impl.ex` |
-| `DecisionController` | `apps/api_web/lib/bfw_engine_web/http/controllers/decision_controller.ex` |
+| `BfwEngine.DMN` | `lib/bfw_engine/dmn.ex` |
+| BfwEngine.DMN.Supervisor (@moduledoc false) | `lib/bfw_engine/dmn/supervisor.ex` |
+| `BfwEngine.DMN.Parser` | `lib/bfw_engine/dmn/parser.ex` |
+| `BfwEngine.DMN.Parser.SaxHandler` | `lib/bfw_engine/dmn/parser/sax_handler.ex` |
+| `BfwEngine.DMN.Parser.SaxHandler.BoxedExpressions` | `lib/bfw_engine/dmn/parser/sax_handler/boxed_expressions.ex` |
+| `BfwEngine.DMN.Validator` | `lib/bfw_engine/dmn/validator.ex` |
+| `BfwEngine.DMN.Precompiler` | `lib/bfw_engine/dmn/precompiler.ex` |
+| `BfwEngine.DMN.ModelCache` | `lib/bfw_engine/dmn/model_cache.ex` |
+| `BfwEngine.DMN.TypeResolver` | `lib/bfw_engine/dmn/type_resolver.ex` |
+| `BfwEngine.DMN.ImportResolver` | `lib/bfw_engine/dmn/import_resolver.ex` |
+| `BfwEngine.DMN.QualifiedReference` | `lib/bfw_engine/dmn/qualified_reference.ex` |
+| `BfwEngine.DMN.Evaluator` | `lib/bfw_engine/dmn/evaluator.ex` |
+| `BfwEngine.DMN.Evaluator.DecisionTableEvaluator` | `lib/bfw_engine/dmn/evaluator/decision_table_evaluator.ex` |
+| `BfwEngine.DMN.Evaluator.BoxedExpressionEvaluator` | `lib/bfw_engine/dmn/evaluator/boxed_expression_evaluator.ex` |
+| `BfwEngine.DMN.Evaluator.BkmInvoker` | `lib/bfw_engine/dmn/evaluator/bkm_invoker.ex` |
+| `BfwEngine.DMN.Evaluator.DependencyResolver` | `lib/bfw_engine/dmn/evaluator/dependency_resolver.ex` |
+| `BfwEngine.DMN.Evaluator.HitPolicies` | `lib/bfw_engine/dmn/evaluator/hit_policies.ex` |
+| `BfwEngine.DMN.EvaluationResult` | `lib/bfw_engine/dmn/evaluation_result.ex` |
+| `BfwEngine.DMN.EvaluationTrace` | `lib/bfw_engine/dmn/evaluation_trace.ex` |
+| `BfwEngine.DMN.EvaluationTrace.BkmTrace` | `lib/bfw_engine/dmn/evaluation_trace.ex` (nested module) |
+| `BfwEngine.DMN.EvaluationTrace.ImportTrace` | `lib/bfw_engine/dmn/evaluation_trace.ex` (nested module) |
+| `BfwEngine.DMN.EvaluationTrace.CoercionTrace` | `lib/bfw_engine/dmn/evaluation_trace.ex` (nested module) |
+| `BfwEngine.DMN.Model.Types` | `lib/bfw_engine/dmn/model/types.ex` |
+| `BfwEngine.DMN.Model.Definitions` | `lib/bfw_engine/dmn/model/definitions.ex` |
+| `BfwEngine.DMN.Model.Decision` | `lib/bfw_engine/dmn/model/decision.ex` |
+| `BfwEngine.DMN.Model.DecisionTable` | `lib/bfw_engine/dmn/model/decision_table.ex` |
+| `BfwEngine.DMN.Model.LiteralExpression` | `lib/bfw_engine/dmn/model/literal_expression.ex` |
+| `BfwEngine.DMN.Model.Input` | `lib/bfw_engine/dmn/model/input.ex` |
+| `BfwEngine.DMN.Model.InputData` | `lib/bfw_engine/dmn/model/input_data.ex` |
+| `BfwEngine.DMN.Model.InputEntry` | `lib/bfw_engine/dmn/model/input_entry.ex` |
+| `BfwEngine.DMN.Model.Output` | `lib/bfw_engine/dmn/model/output.ex` |
+| `BfwEngine.DMN.Model.OutputEntry` | `lib/bfw_engine/dmn/model/output_entry.ex` |
+| `BfwEngine.DMN.Model.Rule` | `lib/bfw_engine/dmn/model/rule.ex` |
+| `BfwEngine.DMN.Model.InformationRequirement` | `lib/bfw_engine/dmn/model/information_requirement.ex` |
+| `BfwEngine.DMN.Model.BusinessKnowledgeModel` | `lib/bfw_engine/dmn/model/business_knowledge_model.ex` |
+| `BfwEngine.DMN.Model.FunctionDefinition` | `lib/bfw_engine/dmn/model/function_definition.ex` |
+| `BfwEngine.DMN.Model.InformationItem` | `lib/bfw_engine/dmn/model/information_item.ex` |
+| `BfwEngine.DMN.Model.KnowledgeRequirement` | `lib/bfw_engine/dmn/model/knowledge_requirement.ex` |
+| `BfwEngine.DMN.Model.KnowledgeSource` | `lib/bfw_engine/dmn/model/knowledge_source.ex` |
+| `BfwEngine.DMN.Model.AuthorityRequirement` | `lib/bfw_engine/dmn/model/authority_requirement.ex` |
+| `BfwEngine.DMN.Model.ItemDefinition` | `lib/bfw_engine/dmn/model/item_definition.ex` |
+| `BfwEngine.DMN.Model.Import` | `lib/bfw_engine/dmn/model/import.ex` |
+| `BfwEngine.DMN.Model.BoxedContext` | `lib/bfw_engine/dmn/model/boxed_context.ex` |
+| `BfwEngine.DMN.Model.ContextEntry` | `lib/bfw_engine/dmn/model/context_entry.ex` |
+| `BfwEngine.DMN.Model.BoxedInvocation` | `lib/bfw_engine/dmn/model/boxed_invocation.ex` |
+| `BfwEngine.DMN.Model.Binding` | `lib/bfw_engine/dmn/model/binding.ex` |
+| `BfwEngine.DMN.Model.BoxedList` | `lib/bfw_engine/dmn/model/boxed_list.ex` |
+| `BfwEngine.DMN.Model.Relation` | `lib/bfw_engine/dmn/model/relation.ex` |
+| `BfwEngine.DMN.Model.BoxedConditional` | `lib/bfw_engine/dmn/model/boxed_conditional.ex` |
+| `BfwEngine.DMN.Model.BoxedFilter` | `lib/bfw_engine/dmn/model/boxed_filter.ex` |
+| `BfwEngine.DMN.Model.BoxedFor` | `lib/bfw_engine/dmn/model/boxed_for.ex` |
+| `BfwEngine.DMN.Model.BoxedEvery` | `lib/bfw_engine/dmn/model/boxed_every.ex` |
+| `BfwEngine.DMN.Model.BoxedSome` | `lib/bfw_engine/dmn/model/boxed_some.ex` |
+| `BfwEngine.DMN.Model.DecisionService` | `lib/bfw_engine/dmn/model/decision_service.ex` — DecisionService model struct |
+| `BfwEngine.DMN.Evaluator.DecisionServiceEvaluator` | `lib/bfw_engine/dmn/evaluator/decision_service_evaluator.ex` — Scoped sub-DRG evaluator |
+| `BfwEngine.DMN.ServiceEvaluationResult` | `lib/bfw_engine/dmn/service_evaluation_result.ex` — Service evaluation result struct |
+| `DecisionDefinition` (Ash) | `lib/bfw_engine/persistence/resources/decision_definition.ex` |
+| `DecisionVersion` (Ash) | `lib/bfw_engine/persistence/resources/decision_version.ex` |
+| `DecisionResolverImpl` | `lib/bfw_engine/persistence/decision_resolver_impl.ex` |
+| `DecisionController` | `lib/bfw_engine_web/http/controllers/decision_controller.ex` |

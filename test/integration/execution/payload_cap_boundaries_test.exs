@@ -25,7 +25,7 @@ defmodule BfwEngine.Integration.Execution.PayloadCapBoundariesTest do
 
   setup do
     Application.put_env(
-      :core_execution,
+      :bfw_engine,
       :service_task_dispatch,
       BfwEngine.Plugins.RegistryDispatch
     )
@@ -191,15 +191,15 @@ defmodule BfwEngine.Integration.Execution.PayloadCapBoundariesTest do
 
   describe "CAP-CONFIGURABLE" do
     test "raising Application env to 131072 lets 65537 through and rejects 131073" do
-      previous = Application.get_env(:core_execution, :token_max_bytes)
+      previous = Application.get_env(:bfw_engine, :token_max_bytes)
 
-      Application.put_env(:core_execution, :token_max_bytes, 131_072)
+      Application.put_env(:bfw_engine, :token_max_bytes, 131_072)
 
       on_exit(fn ->
         if previous do
-          Application.put_env(:core_execution, :token_max_bytes, previous)
+          Application.put_env(:bfw_engine, :token_max_bytes, previous)
         else
-          Application.delete_env(:core_execution, :token_max_bytes)
+          Application.delete_env(:bfw_engine, :token_max_bytes)
         end
       end)
 

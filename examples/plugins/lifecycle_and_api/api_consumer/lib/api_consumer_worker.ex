@@ -4,9 +4,8 @@ defmodule Examples.Plugins.ApiConsumer.Worker do
   `BfwEngine.EngineFacade` namespaces. All network effects happen through the
   closures installed during engine boot — there is no direct `Ash` access here.
 
-  Copy into an OTP application that already depends on `core_bpmn` (for
-  `BfwEngine.BPMN.parse_and_validate/1`) and `core_types` (for
-  `BfwEngine.Types.Identity`).
+  Copy into an OTP application that already depends on `:bfw_engine` (for
+  `BfwEngine.BPMN.parse_and_validate/1` and `BfwEngine.Types.Identity`).
   """
 
   use GenServer

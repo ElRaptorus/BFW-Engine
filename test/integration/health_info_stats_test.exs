@@ -56,7 +56,7 @@ defmodule BfwEngine.Integration.HealthInfoStatsTest do
 
   describe "GET /stats" do
     test "rejects unauthenticated request" do
-      with_config(:api_auth, :auth_disabled, false, fn ->
+      with_config(:bfw_engine, :auth_disabled, false, fn ->
         conn = conn(:get, "/stats") |> route()
 
         assert conn.status == 401
@@ -66,7 +66,7 @@ defmodule BfwEngine.Integration.HealthInfoStatsTest do
     end
 
     test "returns full snapshot with valid JWT" do
-      with_config(:api_auth, :auth_disabled, false, fn ->
+      with_config(:bfw_engine, :auth_disabled, false, fn ->
         conn =
           conn_with_auth(:get, "/stats", %{"sub" => "operator-1", "roles" => ["admin"]})
           |> route()
@@ -76,11 +76,12 @@ defmodule BfwEngine.Integration.HealthInfoStatsTest do
         assert is_map(body["engine"])
         assert is_map(body["processInstances"])
         assert is_map(body["listeners"])
+        assert is_list(body["plugins"])
       end)
     end
 
     test "rejects expired JWT" do
-      with_config(:api_auth, :auth_disabled, false, fn ->
+      with_config(:bfw_engine, :auth_disabled, false, fn ->
         token =
           sign_jwt(%{
             "sub" => "expired-user",
@@ -100,7 +101,7 @@ defmodule BfwEngine.Integration.HealthInfoStatsTest do
     end
 
     test "rejects wrong-secret JWT" do
-      with_config(:api_auth, :auth_disabled, false, fn ->
+      with_config(:bfw_engine, :auth_disabled, false, fn ->
         wrong_jwk = JOSE.JWK.from_oct("completely_wrong_secret_32_bytes_!")
         claims = %{"sub" => "intruder", "exp" => DateTime.utc_now() |> DateTime.add(3600) |> DateTime.to_unix()}
         {_, token} = JOSE.JWT.sign(wrong_jwk, %{"alg" => "HS256"}, claims) |> JOSE.JWS.compact()
@@ -115,7 +116,7 @@ defmodule BfwEngine.Integration.HealthInfoStatsTest do
     end
 
     test "passes through with auth disabled" do
-      with_config(:api_auth, :auth_disabled, true, fn ->
+      with_config(:bfw_engine, :auth_disabled, true, fn ->
         conn = conn(:get, "/stats") |> route()
         assert conn.status == 200
       end)

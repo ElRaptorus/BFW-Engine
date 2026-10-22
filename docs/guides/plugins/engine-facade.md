@@ -31,7 +31,7 @@ Each function registers a specific capability type in the Plugin Registry. Regis
 | Field | Signature | Description |
 |-------|-----------|-------------|
 | `publish_event` | `(Event.t()) -> :ok` | Publish a typed event to the `EngineEventBus` |
-| `get_config` | `(atom()) -> term()` | Read `Application.get_env(:engine_plugins, key)` only |
+| `get_config` | `(atom()) -> term()` | Read `key` from `config :bfw_engine, :plugin_config` only; other engine configuration is not visible |
 
 ### Resource-Scoped Runtime Namespaces
 
@@ -258,8 +258,8 @@ facade.service_tasks.fail_async.("fni-uuid-123", "TIMEOUT", "Service did not res
 
 ## Access Rules
 
-- **Do not** call `BfwEngine.Plugins.Registry` directly — it is private to `engine_plugins`
-- **Do not** reach into `core_execution`, `core_events`, or `peripheral_persistence` modules for command operations
+- **Do not** call `BfwEngine.Plugins.Registry` directly — it is private to `BfwEngine.Plugins`
+- **Do not** reach into `BfwEngine.Execution`, `BfwEngine.Events`, or `BfwEngine.Persistence` modules for command operations
 - Use the facade namespace closures for all runtime operations
 - In-BEAM plugins technically *can* reach internal modules; the contract forbids it and CI lints against it. That is a contract, not an isolation boundary.
 

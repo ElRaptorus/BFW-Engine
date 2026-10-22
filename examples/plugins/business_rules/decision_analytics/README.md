@@ -113,6 +113,6 @@ facade.register_event_sink.("decision_analytics", AnalyticsSink, [])
 
 ## Further reading
 
-- [`BfwEngine.Plugin.EventSink`](../../../../apps/engine_sdk/lib/bfw_engine/plugin/event_sink.ex) — sink callbacks
+- [`BfwEngine.Plugin.EventSink`](../../../../lib/bfw_engine/plugin/event_sink.ex) — sink callbacks
 - [`docs/architecture/event-system.md`](../../../../docs/architecture/event-system.md) — `EngineEventBus` fan-out and crash isolation
 - [`docs/architecture/dmn.md`](../../../../docs/architecture/dmn.md) — DMN evaluation and BRT `type_properties`

@@ -40,5 +40,5 @@ real client in your OTP app. Do not copy a dictionary and call it Redis.
 ## Further reading
 
 - [Service Task Handler guide](../../../../docs/guides/plugins/service-task-handler.md)
-- [`BfwEngine.Plugin.ServiceTaskHandler`](../../../../apps/engine_sdk/lib/bfw_engine/plugin/service_task_handler.ex)
+- [`BfwEngine.Plugin.ServiceTaskHandler`](../../../../lib/bfw_engine/plugin/service_task_handler.ex)
 - [`docs/architecture/plugins.md`](../../../../docs/architecture/plugins.md)

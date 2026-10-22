@@ -4,7 +4,7 @@ defmodule BfwEngine.Integration.AuthPipelineTest do
 
   describe "identity construction" do
     test "identity.id comes from 'sub' claim" do
-      with_config(:api_auth, :auth_disabled, false, fn ->
+      with_config(:bfw_engine, :auth_disabled, false, fn ->
         conn =
           conn_with_auth(:get, "/stats", %{"sub" => "user-42", "roles" => ["viewer"]})
           |> route()
@@ -14,7 +14,7 @@ defmodule BfwEngine.Integration.AuthPipelineTest do
     end
 
     test "identity.id falls back to 'client_id' when no 'sub'" do
-      with_config(:api_auth, :auth_disabled, false, fn ->
+      with_config(:bfw_engine, :auth_disabled, false, fn ->
         conn =
           conn_with_auth(:get, "/stats", %{"client_id" => "svc-bot-7"})
           |> route()
@@ -24,7 +24,7 @@ defmodule BfwEngine.Integration.AuthPipelineTest do
     end
 
     test "missing both 'sub' and 'client_id' is rejected as unauthenticated" do
-      with_config(:api_auth, :auth_disabled, false, fn ->
+      with_config(:bfw_engine, :auth_disabled, false, fn ->
         conn =
           conn_with_auth(:get, "/stats", %{"custom" => "data"})
           |> route()
@@ -39,7 +39,7 @@ defmodule BfwEngine.Integration.AuthPipelineTest do
 
   describe "malformed input" do
     test "non-JWT bearer string" do
-      with_config(:api_auth, :auth_disabled, false, fn ->
+      with_config(:bfw_engine, :auth_disabled, false, fn ->
         conn =
           conn(:get, "/stats")
           |> put_req_header("authorization", "Bearer not.a.jwt")
@@ -50,7 +50,7 @@ defmodule BfwEngine.Integration.AuthPipelineTest do
     end
 
     test "completely empty Authorization header" do
-      with_config(:api_auth, :auth_disabled, false, fn ->
+      with_config(:bfw_engine, :auth_disabled, false, fn ->
         conn =
           conn(:get, "/stats")
           |> put_req_header("authorization", "")
@@ -61,7 +61,7 @@ defmodule BfwEngine.Integration.AuthPipelineTest do
     end
 
     test "Bearer with empty token" do
-      with_config(:api_auth, :auth_disabled, false, fn ->
+      with_config(:bfw_engine, :auth_disabled, false, fn ->
         conn =
           conn(:get, "/stats")
           |> put_req_header("authorization", "Bearer ")
@@ -72,7 +72,7 @@ defmodule BfwEngine.Integration.AuthPipelineTest do
     end
 
     test "massive Authorization header" do
-      with_config(:api_auth, :auth_disabled, false, fn ->
+      with_config(:bfw_engine, :auth_disabled, false, fn ->
         conn =
           conn(:get, "/stats")
           |> put_req_header("authorization", "Bearer " <> String.duplicate("a", 50_000))

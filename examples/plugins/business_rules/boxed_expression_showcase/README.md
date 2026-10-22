@@ -95,10 +95,10 @@ mix test examples/plugins/business_rules/boxed_expression_showcase/test/expressi
 mix test examples/plugins/business_rules/boxed_expression_showcase/test/boxed_showcase_worker_test.exs
 ```
 
-Or via the umbrella loader:
+Or via the Engine test suite:
 
 ```bash
-mix test apps/engine_plugins/test/examples/boxed_expression_showcase_from_examples_test.exs
+mix test test/unit/plugins/examples/boxed_expression_showcase_from_examples_test.exs
 ```
 
 ## Architecture
@@ -124,8 +124,8 @@ flowchart LR
 
 ## Further reading
 
-- [`BfwEngine.Plugin`](../../../../apps/engine_sdk/lib/bfw_engine/plugin.ex) — lifecycle callbacks
-- [`BfwEngine.EngineFacade`](../../../../apps/engine_sdk/lib/bfw_engine/engine_facade.ex) — facade closure surface
+- [`BfwEngine.Plugin`](../../../../lib/bfw_engine/plugin.ex) — lifecycle callbacks
+- [`BfwEngine.EngineFacade`](../../../../lib/bfw_engine/engine_facade.ex) — facade closure surface
 - [`docs/architecture/dmn.md`](../../../../docs/architecture/dmn.md) — CL3 boxed expressions and evaluation traces
 - [`docs/guides/handbook/business-rule-tasks.md`](../../../../docs/guides/handbook/business-rule-tasks.md) — DMN Business Rule Tasks
 - [`examples/plugins/business_rules/decision_audit_reporter/README.md`](../decision_audit_reporter/README.md) — similar deploy + process + trace pattern

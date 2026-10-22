@@ -123,7 +123,7 @@ Each of these Elements has full Runtime support.
 ## DMN 1.5 Support
 
 The engine includes a full DMN 1.5 Conformance Level 3 (CL3) decision
-engine in the `core_dmn` umbrella app. DMN models are deployed independently
+engine in the `BfwEngine.DMN` subsystem. DMN models are deployed independently
 or alongside BPMN diagrams and evaluated via Business Rule Tasks or the
 REST API.
 

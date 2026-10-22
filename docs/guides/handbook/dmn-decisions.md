@@ -436,8 +436,8 @@ error types as HTTP 422 bodies.
 
 | Environment variable / config key | Default | Purpose |
 |----------------------------------|---------|---------|
-| `:core_dmn, :max_import_depth` | `10` | Maximum depth for cross-model import chains |
-| `:core_execution, :dmn_evaluation_timeout_ms` | `30_000` | Timeout for DMN evaluation in BRT context |
+| `:bfw_engine, :max_import_depth` | `10` | Maximum depth for cross-model import chains |
+| `:bfw_engine, :dmn_evaluation_timeout_ms` | `30_000` | Timeout for DMN evaluation in BRT context |
 
 ## Complete Example
 

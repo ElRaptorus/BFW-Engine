@@ -28,7 +28,7 @@ as a reason for incomplete verification.**
 mix quality
 ```
 
-This single command runs the full pipeline defined in the root `mix.exs`: compile (warnings-as-errors), Credo, Dialyzer, Sobelow, unit tests with coverage, integration tests, and conformance tests. The canonical definition lives in `mix.exs` — **do not duplicate the individual steps here**; always run `mix quality` so the skill stays in sync with any future changes to the pipeline.
+This single command runs the full pipeline defined by the `quality` alias in the root `mix.exs`. The canonical definition lives in `mix.exs` — **do not duplicate the individual steps here**; always run `mix quality` so the skill stays in sync with any future changes to the pipeline.
 
 Must exit 0. If any step fails, report the failing step, the error output, and stop.
 
@@ -36,7 +36,6 @@ Must exit 0. If any step fails, report the failing step, the error output, and s
 
 After the quality gate passes, verify coverage in the output:
 
-- [ ] No per-app threshold failures
 - [ ] Global aggregate meets the `minimum_coverage` in `coveralls.json`
 - [ ] No newly added module shows 0 % coverage
 - [ ] If coverage is below threshold, identify uncovered modules and recommend tests
@@ -48,8 +47,8 @@ After the quality gate passes, verify coverage in the output:
 - [ ] `docs/architecture/common-pitfalls.md` updated **only** if a competent person could hit the constraint again (not CI/test incident reports)
 - [ ] No architecture doc describes code that no longer exists
 - [ ] Do **not** append `docs/poc/ImplementationPlan.md` or `docs/poc/ImplementationPhases.md` (archival)
-- [ ] `AGENTS.md` updated **only** if `bfw:*` elements, supported BPMN types, validator rules, FEEL bindings, or umbrella apps changed
-- [ ] `apps/api_web/priv/openapi/spec.yaml` matches the actual REST API surface: every route in the router has a corresponding path entry, and no stale operations reference removed endpoints. Compare `spec.yaml` paths against the routes in `apps/api_web/lib/bfw_engine_web/http/router.ex`
+- [ ] `AGENTS.md` updated **only** if `bfw:*` elements, supported BPMN types, validator rules, FEEL bindings, or subsystem boundaries changed
+- [ ] `priv/openapi/spec.yaml` matches the actual REST API surface: every route in the router has a corresponding path entry, and no stale operations reference removed endpoints. Compare `spec.yaml` paths against the routes in `lib/bfw_engine_web/http/router.ex`
 
 ## 3. Code Quality Spot Check
 
@@ -57,7 +56,7 @@ Reference rule: `.cursor/rules/elixir-conventions.mdc` — read it before starti
 
 ### Structural conventions
 
-- [ ] **Dependency direction**: Core apps do not import from Peripheral or API apps. Peripheral apps do not import from API apps.
+- [ ] **Dependency direction**: the `use Boundary` deps match the layer model in `docs/Architecture.md` §1 (Core → nothing outside Core; Peripheral → Core; API → Peripheral and Core; plugin host → API; wire → all). `mix compile` enforces the declared edges; review checks that no new edge points outward.
 - [ ] **Ash conventions**: Resources follow `actions`, `attributes`, `relationships`, `code_interface` block order. Code interface actions match the resource's action names.
 - [ ] **Module structure order**: `@moduledoc`, `@behaviour`, `use`/`import`/`alias`, module attributes, public functions, private functions.
 
@@ -108,7 +107,7 @@ All builds must succeed with zero TypeScript errors. All tests must pass (intent
 
 ### 5b. Error code coverage
 
-- [ ] Every `error` code the Engine can return (check `apps/api_web/` controllers, plugs, `error_response.ex`, and GraphQL `errors.ex`) has a matching `case` branch in the Client's `error-mapper.ts`
+- [ ] Every `error` code the Engine can return (check `lib/bfw_engine_web/` controllers, plugs, `error_response.ex`, and GraphQL `errors.ex`) has a matching `case` branch in the Client's `error-mapper.ts`
 - [ ] The Client normalizes GraphQL error codes from `UPPER_SNAKE_CASE` to `lower_snake_case` before matching (the Engine upcases codes in `to_graphql_error/1`)
 - [ ] Every SDK error class in `packages/js/sdk/src/errors/` is imported and used by the Client mapper
 - [ ] New engine error codes added since the last review are represented by a dedicated SDK error class or explicitly mapped to a generic one
@@ -121,7 +120,7 @@ All builds must succeed with zero TypeScript errors. All tests must pass (intent
 
 ### 5d. REST route coverage
 
-- [ ] Every route in `apps/api_web/lib/bfw_engine_web/http/router.ex` has a corresponding method in the Client's REST sub-clients
+- [ ] Every route in `lib/bfw_engine_web/http/router.ex` has a corresponding method in the Client's REST sub-clients
 - [ ] Client methods that call routes not yet implemented in the Engine are documented as future/planned (not silently present)
 - [ ] HTTP methods match (GET vs HEAD, POST vs PUT, etc.)
 

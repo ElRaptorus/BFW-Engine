@@ -15,9 +15,9 @@ From the project root, after the test-database one-liner:
 mix quality
 ```
 
-That alias in the root `mix.exs` is the **only** acceptable completion check. It currently runs compile (warnings-as-errors), the extension-manifest check, Credo, Dialyzer, Sobelow, docs (warnings-as-errors), integration + conformance under `:cover`, and per-app unit tests merged with coverage thresholds. **Do not duplicate that list here** and do not invent a substitute pipeline. If `mix.exs` gains a step, `mix quality` still covers it.
+That alias in the root `mix.exs` is the **only** acceptable completion check. It currently runs compile (warnings-as-errors), the extension-manifest check, Credo, Dialyzer, Sobelow, docs (warnings-as-errors), integration + conformance under `:cover`, and the unit tests merged with the coverage threshold. **Do not duplicate that list here** and do not invent a substitute pipeline. If `mix.exs` gains a step, `mix quality` still covers it.
 
-Narrower commands (`mix compile --warnings-as-errors`, `mix test apps/<app>/test`, `mix credo --strict`) are allowed **during** iteration. They do **not** replace `mix quality` at the end of the task.
+Narrower commands (`mix compile --warnings-as-errors`, `mix test test/unit/<subsystem>`, `mix credo --strict`) are allowed **during** iteration. They do **not** replace `mix quality` at the end of the task.
 
 **VIOLATION**: Claiming work is complete after only unit tests, only compile, or a hand-picked subset of the alias. `"mix quality is slow so I skipped Dialyzer / docs / coverage / integration"` is a rule violation.
 
@@ -33,7 +33,7 @@ Container: `bfw-engine-postgres-test`, port `5543`, user `bfw_engine`, password 
 
 ## Test coverage requirements
 
-When adding new features, tests MUST cover happy paths, error paths, sanity/invariants, and security checks (auth rejection, expired tokens, missing headers). Every newly added module must be exercised — no 0 % coverage modules. `mix quality` enforces per-app thresholds and `coveralls.json` `minimum_coverage`. Do not game coverage with trivial assertions.
+When adding new features, tests MUST cover happy paths, error paths, sanity/invariants, and security checks (auth rejection, expired tokens, missing headers). Every newly added module must be exercised — no 0 % coverage modules. `mix quality` enforces `coveralls.json` `minimum_coverage`. Do not game coverage with trivial assertions.
 
 ## Available test aliases
 

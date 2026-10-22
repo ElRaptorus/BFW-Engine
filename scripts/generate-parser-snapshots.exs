@@ -15,7 +15,7 @@
 defmodule SnapshotGenerator do
   @fixture_dirs [
     "test/fixtures/bpmns",
-    "apps/core_bpmn/test/fixtures/bpmns",
+    "test/unit/bpmn/fixtures/bpmns",
     "packages/js/client/test/integration/fixtures"
   ]
 

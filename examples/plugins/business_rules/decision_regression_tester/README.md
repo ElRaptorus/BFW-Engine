@@ -72,8 +72,8 @@ Evaluate calls pass `decision_version_id` in options so a future API can pin a s
 
 ## Further reading
 
-- [`BfwEngine.Plugin`](../../../../apps/engine_sdk/lib/bfw_engine/plugin.ex) — lifecycle callbacks
-- [`BfwEngine.EngineFacade.Decisions`](../../../../apps/engine_sdk/lib/bfw_engine/engine_facade/decisions.ex) — facade closure surface
+- [`BfwEngine.Plugin`](../../../../lib/bfw_engine/plugin.ex) — lifecycle callbacks
+- [`BfwEngine.EngineFacade.Decisions`](../../../../lib/bfw_engine/engine_facade/decisions.ex) — facade closure surface
 - [`docs/architecture/dmn.md`](../../../../docs/architecture/dmn.md) — DMN evaluation and versioning
 - [`docs/architecture/plugins.md`](../../../../docs/architecture/plugins.md) — plugin loading and facade wiring
 - [`examples/plugins/lifecycle_and_api/api_consumer/README.md`](../../lifecycle_and_api/api_consumer/README.md) — similar facade-store worker pattern

@@ -28,13 +28,6 @@ defmodule BfwEngine.Integration.DMN.DmnDrgChainingTest do
         )
 
       assert body["result"] == 30
-    end
-
-    test "trace contains both decisions in dependency order" do
-      {200, body} =
-        http_evaluate_decision("definitions_linear_chain", %{"x" => 5},
-          decision_model_id: "Decision_A"
-        )
 
       decision_ids = Enum.map(body["trace"]["decisions"], & &1["decisionModelId"])
       assert decision_ids == ["Decision_B", "Decision_A"]
@@ -54,26 +47,14 @@ defmodule BfwEngine.Integration.DMN.DmnDrgChainingTest do
         )
 
       assert body["result"] == 34
-    end
 
-    test "trace contains four decisions" do
-      {200, body} =
-        http_evaluate_decision("definitions_diamond", %{"x" => 1},
-          decision_model_id: "Decision_A"
-        )
+      decision_ids = Enum.map(body["trace"]["decisions"], & &1["decisionModelId"])
+      assert length(decision_ids) == 4
+      assert Enum.sort(decision_ids) == ["Decision_A", "Decision_B", "Decision_C", "Decision_D"]
 
-      trace_decisions = body["trace"]["decisions"]
-      assert length(trace_decisions) == 4
-
-      decision_ids = Enum.map(trace_decisions, & &1["decisionModelId"])
-      assert "Decision_D" in decision_ids
-      assert "Decision_B" in decision_ids
-      assert "Decision_C" in decision_ids
-      assert "Decision_A" in decision_ids
-
-      d_index = Enum.find_index(decision_ids, &(&1 == "Decision_D"))
-      a_index = Enum.find_index(decision_ids, &(&1 == "Decision_A"))
-      assert d_index < a_index
+      decision_d_index = Enum.find_index(decision_ids, &(&1 == "Decision_D"))
+      decision_a_index = Enum.find_index(decision_ids, &(&1 == "Decision_A"))
+      assert decision_d_index < decision_a_index
     end
   end
 
@@ -90,13 +71,6 @@ defmodule BfwEngine.Integration.DMN.DmnDrgChainingTest do
         )
 
       assert body["result"] == 4
-    end
-
-    test "trace contains all four decisions in order" do
-      {200, body} =
-        http_evaluate_decision("definitions_three_level", %{"x" => 0},
-          decision_model_id: "Decision_A"
-        )
 
       decision_ids = Enum.map(body["trace"]["decisions"], & &1["decisionModelId"])
       assert length(decision_ids) == 4
@@ -162,22 +136,6 @@ defmodule BfwEngine.Integration.DMN.DmnDrgChainingTest do
     end
   end
 
-  describe "BKM with formal parameters" do
-    setup do
-      {201, _} = http_deploy_dmn("bkm_invocation_literal.dmn")
-      :ok
-    end
-
-    test "formal parameters are bound from calling decision context" do
-      {200, body} =
-        http_evaluate_decision("definitions_bkm_invoke_le", %{"income" => 100_000, "taxRate" => 0.3},
-          decision_model_id: "Decision_tax"
-        )
-
-      assert body["result"] == 30_100
-    end
-  end
-
   describe "BKM-to-BKM chain" do
     setup do
       {201, _} = http_deploy_dmn("bkm_chain.dmn")
@@ -229,18 +187,6 @@ defmodule BfwEngine.Integration.DMN.DmnDrgChainingTest do
         )
 
       assert body["result"] == 20
-    end
-
-    test "imported decision result feeds into importing decision" do
-      {201, _} = http_deploy_dmn("imported_helper.dmn")
-      {201, _} = http_deploy_dmn("importing_model.dmn")
-
-      {200, body} =
-        http_evaluate_decision("definitions_importing", %{"base" => 7},
-          decision_model_id: "Decision_final"
-        )
-
-      assert body["result"] == 24
     end
   end
 

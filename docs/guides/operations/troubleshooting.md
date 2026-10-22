@@ -89,7 +89,7 @@ Quarantined plugins do not auto-revive — restart the engine after fixing the i
 
 The engine auto-resumes all `running` PIs at startup via `ResumeRunner`. If PIs are not resuming:
 
-- Check that the persistence adapter is configured (`config :core_execution, :persistence_adapter`)
+- Check that the persistence adapter is configured (`config :bfw_engine, :persistence_adapter`)
 - Review logs for `ResumeRunner` errors
 - Verify the database contains PI rows with `state = "running"`
 

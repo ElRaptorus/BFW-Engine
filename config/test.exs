@@ -51,7 +51,7 @@ read_repo_pool =
     ]
   end
 
-config :peripheral_persistence,
+config :bfw_engine,
        BfwEngine.Persistence.Repo,
        [
          username: "bfw_engine",
@@ -61,7 +61,7 @@ config :peripheral_persistence,
          database: "bfw_engine_test#{System.get_env("MIX_TEST_PARTITION")}"
        ] ++ repo_pool
 
-config :peripheral_persistence,
+config :bfw_engine,
        BfwEngine.Persistence.ReadRepo,
        [
          username: "bfw_engine",
@@ -71,7 +71,7 @@ config :peripheral_persistence,
          database: "bfw_engine_test#{System.get_env("MIX_TEST_PARTITION")}"
        ] ++ read_repo_pool
 
-config :api_web, BfwEngineWeb.Http.Endpoint,
+config :bfw_engine, BfwEngineWeb.Http.Endpoint,
   http: [ip: {127, 0, 0, 1}, port: 4002],
   server: false,
   secret_key_base: "test_secret_key_base_64_characters_minimum_for_the_test_env_only!"
@@ -79,33 +79,33 @@ config :api_web, BfwEngineWeb.Http.Endpoint,
 # Print fewer lines per test; surface real engine behaviour instead of
 # fixture boilerplate.
 # --- Auth (test defaults) ------------------------------------------------
-config :api_auth,
+config :bfw_engine,
   auth_disabled: true,
   hs256_secret: "test_only_secret_at_least_32_bytes!"
 
 # --- Partitioning (use monthly in tests for max coverage of partition logic)
-config :peripheral_persistence, partition_interval: :monthly
+config :bfw_engine, partition_interval: :monthly
 
 # --- Persistence adapter (NoOp for unit tests; integration tests wire their own) ---
-config :core_execution,
+config :bfw_engine,
   persistence_adapter: BfwEngine.Execution.Persistence.NoOp,
   called_element_resolver: BfwEngine.Execution.CalledElementResolver.NoOp,
   decision_resolver: BfwEngine.Execution.DecisionResolver.NoOp,
   dmn_evaluation_timeout_ms: 5_000
 
 # --- Event sinks ----------------------------------------------------------
-config :core_events,
+config :bfw_engine,
   console_sink_enabled: false,
   telemetry_sink_enabled: false,
   websocket_sink_enabled: false,
   pending_sweeper_enabled: false
 
-config :core_dmn,
-  model_cache_loader: nil,
+config :bfw_engine,
+  dmn_model_cache_loader: nil,
   max_import_depth: 10
 
 # --- Timers (fast tick for tests) -----------------------------------------
-config :core_timers,
+config :bfw_engine,
   tick_interval_ms: 50,
   timer_start_target: BfwEngine.Execution.TimerStartListener,
   persistence_module: BfwEngine.Timers.Persistence.NoOp

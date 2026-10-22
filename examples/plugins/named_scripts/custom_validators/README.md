@@ -1,6 +1,6 @@
 # Custom validator named scripts
 
-This folder is a copy-paste starter (no `mix.exs`) showing how one `BfwEngine.Plugin` module can register several [`BfwEngine.Plugin.NamedScript`](https://github.com/ElRaptorus/BFW-Engine/blob/main/apps/engine_sdk/lib/bfw_engine/plugin/named_script.ex) handlers through `facade.register_named_script/2`.
+This folder is a copy-paste starter (no `mix.exs`) showing how one `BfwEngine.Plugin` module can register several [`BfwEngine.Plugin.NamedScript`](https://github.com/ElRaptorus/BFW-Engine/blob/main/lib/bfw_engine/plugin/named_script.ex) handlers through `facade.register_named_script/2`.
 
 ## Behaviour
 

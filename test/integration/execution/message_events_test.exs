@@ -500,11 +500,11 @@ defmodule BfwEngine.Integration.Execution.MessageEventsTest do
 
   describe "F6: Pending message TTL expiry" do
     test "pending message expires after TTL and is not delivered to late subscriber" do
-      original_ttl = Application.get_env(:core_events, :message_pending_ttl, "PT60S")
-      Application.put_env(:core_events, :message_pending_ttl, "PT1S")
+      original_ttl = Application.get_env(:bfw_engine, :message_pending_ttl, "PT60S")
+      Application.put_env(:bfw_engine, :message_pending_ttl, "PT1S")
 
       on_exit(fn ->
-        Application.put_env(:core_events, :message_pending_ttl, original_ttl)
+        Application.put_env(:bfw_engine, :message_pending_ttl, original_ttl)
       end)
 
       identity = %BfwEngine.Types.Identity{

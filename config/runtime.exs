@@ -113,14 +113,14 @@ if config_env() == :prod do
       end
     end)
 
-  config :peripheral_persistence, BfwEngine.Persistence.Repo, repo_opts
+  config :bfw_engine, BfwEngine.Persistence.Repo, repo_opts
 
   read_repo_opts =
     repo_opts
     |> Keyword.put(:pool_size, Env.get_int("BFE_DB_READ_POOL_SIZE", 50))
     |> Keyword.delete(:pool)
 
-  config :peripheral_persistence, BfwEngine.Persistence.ReadRepo, read_repo_opts
+  config :bfw_engine, BfwEngine.Persistence.ReadRepo, read_repo_opts
 
   secret_key_base =
     Env.get("BFE_HTTP_SECRET_KEY_BASE") ||
@@ -138,7 +138,7 @@ if config_env() == :prod do
       urls -> String.split(urls, ",", trim: true)
     end
 
-  config :api_web, BfwEngineWeb.Http.Endpoint,
+  config :bfw_engine, BfwEngineWeb.Http.Endpoint,
     http: [ip: {0, 0, 0, 0}, port: http_port],
     secret_key_base: secret_key_base,
     check_origin: check_origin,
@@ -149,20 +149,20 @@ end
 # CoDel queue parameters and checkout resilience. These apply to every Repo
 # in every environment — prod, dev, and test all benefit from bounded retry
 # and sane queue thresholds.
-config :peripheral_persistence, :db_pool_tuning,
+config :bfw_engine, :db_pool_tuning,
   checkout_retries: Env.get_int("BFE_DB_CHECKOUT_RETRIES", 3),
   queue_target: Env.get_int("BFE_DB_QUEUE_TARGET", 100),
   queue_interval: Env.get_int("BFE_DB_QUEUE_INTERVAL", 2000),
   timeout: Env.get_int("BFE_DB_CHECKOUT_TIMEOUT", 15_000)
 
 # --- Developer UI gating (Swagger UI, GraphQL Playground, OpenAPI spec) ----
-config :api_web,
+config :bfw_engine,
   devtools_enabled: Env.get_bool("BFE_DEVTOOLS_ENABLED", config_env() != :prod),
   expose_openapi_spec: Env.get_bool("BFE_EXPOSE_OPENAPI_SPEC", false)
 
 # --- Payload cap ----------------------------------
 # Unset → 65536. Explicit values below 1024 refuse to boot (no silent clamp).
-config :core_execution,
+config :bfw_engine,
   token_max_bytes:
     BfwEngine.Execution.PayloadCap.parse_token_max_bytes(Env.get("BFE_TOKEN_MAX_BYTES")),
   persistence_retry_max_attempts: Env.get_int("BFE_PERSISTENCE_RETRY_MAX_ATTEMPTS", 5),
@@ -185,7 +185,7 @@ pi_limit =
       n
   end
 
-config :core_execution, :max_concurrent_process_instances, pi_limit
+config :bfw_engine, :max_concurrent_process_instances, pi_limit
 
 # --- Resume pagination (PF-1) ----------------------------------------------
 resume_batch_size = Env.get_int("BFE_RESUME_BATCH_SIZE", 1000)
@@ -194,10 +194,10 @@ if resume_batch_size < 1 do
   raise "BFE_RESUME_BATCH_SIZE must be a positive integer (got #{inspect(resume_batch_size)})"
 end
 
-config :core_execution, :resume_batch_size, resume_batch_size
+config :bfw_engine, :resume_batch_size, resume_batch_size
 
 # --- Start rate limiting (Layer 2) -----------------------------------
-config :api_web,
+config :bfw_engine,
   pi_start_rate_limit: Env.get_int("BFE_PI_START_RATE_LIMIT", 0),
   pi_start_rate_window_ms: Env.get_int("BFE_PI_START_RATE_WINDOW_MS", 1000)
 
@@ -218,19 +218,19 @@ if graphql_max_complexity < 1 do
   raise "BFE_GRAPHQL_MAX_COMPLEXITY must be a positive integer (got #{inspect(graphql_max_complexity)})"
 end
 
-config :api_web,
+config :bfw_engine,
   graphql_max_depth: graphql_max_depth,
   graphql_max_complexity: graphql_max_complexity,
   graphql_introspection_disabled: Env.get_bool("BFE_GRAPHQL_INTROSPECTION_DISABLED", false)
 
 # --- Seeding directory -------------------------------------
-config :core_bpmn, seeding_directory: Env.get("BFE_SEEDING_DIRECTORY")
+config :bfw_engine, seeding_directory: Env.get("BFE_SEEDING_DIRECTORY")
 
 # --- Timer precision ---------------------------------------
-config :core_timers, tick_ms: Env.get_int("BFE_TIMER_TICK_MS", 1000)
+config :bfw_engine, tick_ms: Env.get_int("BFE_TIMER_TICK_MS", 1000)
 
 # --- Event sinks -------------------------------------------
-config :core_events,
+config :bfw_engine,
   console_sink_enabled: Env.get_bool("BFE_EVENT_SINK_CONSOLE", true),
   telemetry_sink_enabled: Env.get_bool("BFE_EVENT_SINK_TELEMETRY", true),
   websocket_sink_enabled: Env.get_bool("BFE_EVENT_SINK_WEBSOCKET", true),
@@ -243,11 +243,11 @@ partition_interval =
     _ -> :quarterly
   end
 
-config :peripheral_persistence,
+config :bfw_engine,
   partition_interval: partition_interval
 
 # --- Retention ---------------------------------
-config :peripheral_persistence, :retention,
+config :bfw_engine, :retention,
   run_interval: Env.get("BFE_RETENTION_RUN_INTERVAL", "PT1H"),
   batch_size: Env.get_int("BFE_RETENTION_BATCH_SIZE", 500),
   finished_days: Env.get("BFE_RETENTION_FINISHED_DAYS"),
@@ -266,13 +266,13 @@ config :peripheral_persistence, :retention,
     Env.get_bool("BFE_PENDING_SIGNALS_KEEP_AFTER_TRANSITION", true)
 
 # --- Pending TTLs + sweeper --------------------------
-config :core_events,
+config :bfw_engine,
   message_pending_ttl: Env.get("BFE_MESSAGE_PENDING_TTL", "PT60S"),
   signal_pending_ttl: Env.get("BFE_SIGNAL_PENDING_TTL", "PT60S"),
   pending_sweeper_interval: Env.get_int("BFE_PENDING_SWEEPER_INTERVAL", 10_000)
 
 # --- Linter-gate -------------------------------------------
-config :core_bpmn, :linter_gate,
+config :bfw_engine, :linter_gate,
   rules: Env.get("BFE_LINTER_GATE"),
   skip_seeding: Env.get_bool("BFE_LINTER_GATE_SKIP_SEEDING", false)
 
@@ -313,22 +313,22 @@ jwt_opts =
     end
   end)
 
-config :api_auth, jwt_opts
+config :bfw_engine, jwt_opts
 
 # --- Engine identity ------------------------------------------------------
 {:ok, hostname} = :inet.gethostname()
 
-config :peripheral_telemetry,
+config :bfw_engine,
   engine_id: Env.get("BFE_ENGINE_ID", to_string(hostname)),
   engine_name: Env.get("BFE_ENGINE_NAME", to_string(hostname))
 
 # --- Prometheus metrics / DB pool telemetry ---------------------------------
-config :peripheral_telemetry,
+config :bfw_engine,
   metrics_enabled: Env.get_bool("BFE_METRICS_ENABLED", true),
   db_queue_time_warning_ms: Env.get_int("BFE_DB_QUEUE_TIME_WARNING_MS", 500)
 
 # --- Plugin loading -----------------------------------
-config :engine_plugins,
+config :bfw_engine,
   inbeam_apps: Enum.map(Env.get_list("BFE_PLUGINS_INBEAM"), &String.to_atom/1),
   include_plugins: Env.get_list("BFE_PLUGINS_INCLUDE"),
   exclude_plugins: Env.get_list("BFE_PLUGINS_EXCLUDE")

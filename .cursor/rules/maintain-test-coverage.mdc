@@ -1,24 +1,21 @@
 ---
-description: Ensure test coverage stays above per-app and global thresholds when adding or modifying modules
-globs: "apps/**/lib/**/*.ex"
+description: Ensure test coverage stays above the global threshold when adding or modifying modules
+globs: "lib/**/*.ex"
 alwaysApply: false
 ---
 
 # Maintain Test Coverage
 
-Coverage is enforced at **two levels** (see `docs/poc/ImplementationPhases.md` § Test Coverage Milestones):
-
-1. **Per-app thresholds** — Mix `test_coverage.threshold` in each app's `mix.exs`. Apps with functional code have non-zero thresholds; skeleton/struct-only apps use 0.
-2. **Global aggregate** — ExCoveralls `minimum_coverage` in `coveralls.json` (enforced on the umbrella-wide aggregate).
+Coverage is enforced by ExCoveralls `minimum_coverage` in `coveralls.json`, measured over the merged unit, integration, and conformance run.
 
 When you add a new module or significantly change an existing one:
 
 1. **Run coverage** after your changes:
    ```bash
    mix test.coverdata
-   mix coveralls.html --umbrella --import-cover cover
+   mix coveralls.html --import-cover cover
    ```
-   After Engine code changes, `mix quality` is the required completion gate (see `.cursor/rules/build.mdc`); it includes that pair. Both levels are checked in a single coveralls run. The command will fail if any per-app threshold or the global aggregate threshold is missed. `mix coveralls.html --umbrella` **without** `--import-cover` only measures per-app unit tests and will undershoot the 80% gate.
+   After Engine code changes, `mix quality` is the required completion gate (see `.cursor/rules/build.mdc`); it includes that pair. The command fails if the aggregate misses `minimum_coverage`. `mix coveralls.html` **without** `--import-cover` only measures unit tests and will undershoot the 80% gate.
 
 2. **Check for zero-coverage modules** — coverage comes from the merged unit + integration + conformance pass (`mix test.coverdata` imported into the coveralls run). A module at 0 % means no test path reaches it, not that a unit test of a private function is missing. Close the gap through a public function, an integration scenario, or a conformance scenario. Never re-export a function so a unit test can reach it.
 
@@ -36,7 +33,7 @@ When you add a new module or significantly change an existing one:
 
 5. **Do not game coverage** — avoid trivial assertions that inflate numbers without testing real behaviour. Each test should verify meaningful post-conditions.
 
-6. **Ratchet after each phase** — when a phase completes, raise per-app `threshold` values in each app's `mix.exs` and the global `minimum_coverage` in `coveralls.json` to match the targets in `ImplementationPhases.md`.
+6. **Ratchet after each phase** — when a phase completes, raise `minimum_coverage` in `coveralls.json` to match the measured aggregate.
 
 7. **Exclusions** — migrations, resource snapshots, test support, and fixture files are excluded in `coveralls.json`. Do not add production code to the skip list without explicit approval.
 
@@ -44,6 +41,6 @@ When you add a new module or significantly change an existing one:
 
 | Format | Command | Best for |
 |--------|---------|----------|
-| **HTML** | `mix test.coverdata` then `mix coveralls.html --umbrella --import-cover cover` | Human review — `cover/excoveralls.html` with navigable, color-coded, line-by-line source. Omit `--import-cover` only if you intentionally want unit-only numbers. |
+| **HTML** | `mix test.coverdata` then `mix coveralls.html --import-cover cover` | Human review — `cover/excoveralls.html` with navigable, color-coded, line-by-line source. Omit `--import-cover` only if you intentionally want unit-only numbers. |
 | **Terminal detail** | `MIX_ENV=test mix coveralls.detail --filter <path>` | Agent investigation — prints uncovered lines (red) in terminal, scoped to a file/path |
 | **Terminal summary** | (printed by both commands above) | Quick triage — per-file COV / LINES / RELEVANT / MISSED table |

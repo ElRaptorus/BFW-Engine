@@ -16,8 +16,6 @@ curl http://localhost:4000/info
 
 `GET /health` is a liveness probe only. Load (`normal` / `elevated` / `critical`) lives on **`GET /stats`** as `engine.load`. See [Back-Pressure](../operations/backpressure.md).
 
-`GET /info` does **not** serialize a database event sink. The built-in database event sink was removed.
-
 ## Prometheus Metrics
 
 ```bash

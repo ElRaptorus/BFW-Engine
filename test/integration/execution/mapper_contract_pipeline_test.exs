@@ -14,7 +14,7 @@ defmodule BfwEngine.Integration.Execution.MapperContractPipelineTest do
   alias BfwEngine.Test.ExamplePlugin
 
   defp register_test_plugin do
-    Application.put_env(:core_execution, :service_task_dispatch, BfwEngine.Plugins.RegistryDispatch)
+    Application.put_env(:bfw_engine, :service_task_dispatch, BfwEngine.Plugins.RegistryDispatch)
     facade = FacadeBuilder.build("evil:test_mapper_contract")
     ExamplePlugin.on_load(facade)
   end
@@ -225,19 +225,19 @@ defmodule BfwEngine.Integration.Execution.MapperContractPipelineTest do
 
   describe "CallActivity — mapper failure paths" do
     setup do
-      original_resolver = Application.get_env(:core_execution, :called_element_resolver)
+      original_resolver = Application.get_env(:bfw_engine, :called_element_resolver)
 
       Application.put_env(
-        :core_execution,
+        :bfw_engine,
         :called_element_resolver,
         BfwEngine.Persistence.CalledElementResolverImpl
       )
 
       on_exit(fn ->
         if original_resolver do
-          Application.put_env(:core_execution, :called_element_resolver, original_resolver)
+          Application.put_env(:bfw_engine, :called_element_resolver, original_resolver)
         else
-          Application.delete_env(:core_execution, :called_element_resolver)
+          Application.delete_env(:bfw_engine, :called_element_resolver)
         end
       end)
 

@@ -17,19 +17,19 @@ defmodule BfwEngine.Integration.Execution.RetryTest do
   @persistence_domain BfwEngine.Persistence.Api
 
   setup do
-    original_resolver = Application.get_env(:core_execution, :called_element_resolver)
+    original_resolver = Application.get_env(:bfw_engine, :called_element_resolver)
 
     Application.put_env(
-      :core_execution,
+      :bfw_engine,
       :called_element_resolver,
       BfwEngine.Persistence.CalledElementResolverImpl
     )
 
     on_exit(fn ->
       if original_resolver do
-        Application.put_env(:core_execution, :called_element_resolver, original_resolver)
+        Application.put_env(:bfw_engine, :called_element_resolver, original_resolver)
       else
-        Application.delete_env(:core_execution, :called_element_resolver)
+        Application.delete_env(:bfw_engine, :called_element_resolver)
       end
     end)
 
@@ -1049,13 +1049,13 @@ defmodule BfwEngine.Integration.Execution.RetryTest do
 
   describe "I17: engine at capacity blocks retry" do
     setup do
-      previous_cap = Application.get_env(:core_execution, :max_concurrent_process_instances)
+      previous_cap = Application.get_env(:bfw_engine, :max_concurrent_process_instances)
 
       on_exit(fn ->
         if previous_cap do
-          Application.put_env(:core_execution, :max_concurrent_process_instances, previous_cap)
+          Application.put_env(:bfw_engine, :max_concurrent_process_instances, previous_cap)
         else
-          Application.delete_env(:core_execution, :max_concurrent_process_instances)
+          Application.delete_env(:bfw_engine, :max_concurrent_process_instances)
         end
       end)
 
@@ -1075,7 +1075,7 @@ defmodule BfwEngine.Integration.Execution.RetryTest do
 
       flow_node_instance_states_before = flow_node_instance_states(fatal_process_instance_id)
 
-      Application.put_env(:core_execution, :max_concurrent_process_instances, 1)
+      Application.put_env(:bfw_engine, :max_concurrent_process_instances, 1)
 
       {503, error_body} = http_retry_process_instance(fatal_process_instance_id)
 
@@ -1094,7 +1094,7 @@ defmodule BfwEngine.Integration.Execution.RetryTest do
 
       assert checkpoint_error_body["error"] == "flow_node_instance_not_found"
 
-      Application.delete_env(:core_execution, :max_concurrent_process_instances)
+      Application.delete_env(:bfw_engine, :max_concurrent_process_instances)
 
       {204, nil} = http_retry_process_instance(fatal_process_instance_id)
       wait_for_process_instance(fatal_process_instance_id, 10_000)

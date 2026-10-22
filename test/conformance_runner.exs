@@ -1,7 +1,7 @@
 # Conformance Test Runner
 #
 # Boots ExUnit, compiles root-level support modules, and runs all
-# `test/conformance/**/*_test.exs` files against the fully started umbrella.
+# `test/conformance/**/*_test.exs` files against the fully started engine.
 #
 # Usage:
 #   MIX_ENV=test mix run test/conformance_runner.exs
@@ -19,7 +19,6 @@ support_files =
   support_dir
   |> Path.join("*.ex")
   |> Path.wildcard()
-  |> Enum.sort_by(&(Path.basename(&1) != "service_reset.ex"))
 
 for file <- support_files do
   Code.require_file(file)

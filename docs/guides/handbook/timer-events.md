@@ -146,7 +146,7 @@ Timers are tightly bound to the lifecycle of the boundary event's host activity:
 | Is aborted | All attached boundary timers are cancelled |
 | Is interrupted by another boundary | Sibling boundary timers are cancelled |
 
-No timer created by a boundary event can survive beyond its host's lifecycle. This also applies within the `core_timers` Scheduler — the engine cancels the ETS entry, leaving no remnants.
+No timer created by a boundary event can survive beyond its host's lifecycle. This also applies within the `BfwEngine.Timers` Scheduler — the engine cancels the ETS entry, leaving no remnants.
 
 ### Simultaneous fires
 

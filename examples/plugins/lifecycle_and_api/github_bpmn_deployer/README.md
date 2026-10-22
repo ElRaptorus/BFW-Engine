@@ -39,7 +39,7 @@ The worker runs exactly once and stops — no polling, no file watchers. Restart
 
 ## Dependencies
 
-The plugin calls `BfwEngine.BPMN.parse_and_validate/1`, so the hosting OTP app must depend on `core_bpmn` in addition to `engine_sdk`. The HTTP client uses Erlang's built-in `:httpc` — no external HTTP library required.
+The plugin calls `BfwEngine.BPMN.parse_and_validate/1`, which is part of the `:bfw_engine` dependency the hosting OTP app already has. The HTTP client uses Erlang's built-in `:httpc` — no external HTTP library required.
 
 ## Integration
 
@@ -56,8 +56,7 @@ end
 
 defp deps do
   [
-    {:engine_sdk, path: "../engine_sdk"},
-    {:core_bpmn, path: "../core_bpmn"}
+    {:bfw_engine, path: "../bfw_engine"}
   ]
 end
 ```
@@ -80,7 +79,7 @@ With `GITHUB_BPMN_PATH=processes`, the plugin discovers and deploys all three `.
 
 ## Tests
 
-`test/github_bpmn_deployer_worker_test.exs` uses injected stub modules for the GitHub client — no network calls, no live engine needed. Copy the tree into an umbrella app before running `mix test`.
+`test/github_bpmn_deployer_worker_test.exs` uses injected stub modules for the GitHub client — no network calls, no live engine needed. Copy the tree into an OTP app that depends on `:bfw_engine` before running `mix test`.
 
 ## Limitations
 

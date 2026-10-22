@@ -22,7 +22,7 @@ defmodule BfwEngine.Integration.PluginDispatchTest do
 
   setup %{collector: _} = context do
     Application.put_env(
-      :core_execution,
+      :bfw_engine,
       :service_task_dispatch,
       BfwEngine.Plugins.RegistryDispatch
     )
@@ -41,7 +41,7 @@ defmodule BfwEngine.Integration.PluginDispatchTest do
 
     on_exit(fn ->
       Application.put_env(
-        :core_execution,
+        :bfw_engine,
         :service_task_dispatch,
         BfwEngine.Execution.ServiceTaskDispatch.NoOp
       )

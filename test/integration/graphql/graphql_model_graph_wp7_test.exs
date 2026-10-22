@@ -5,7 +5,7 @@ defmodule BfwEngine.Integration.Graphql.GraphqlModelGraphWp7Test do
   behaviour plus the depth-limit regression for the canonical debugger query.
 
   Tests (i) and (iv) are pure schema-introspection unit tests — see
-  `BfwEngineWeb.Graphql.ModelGraphIntrospectionTest` in `apps/api_web`.
+  `BfwEngineWeb.Graphql.ModelGraphIntrospectionTest` in `test/unit/web`.
   Test (ii)'s flattening half is `ModelResolversTest`; the HTTP half
   (inner-scope `flowNode` via a child PI) is in this file. Test (iii)
   (extension manifest corpus round-trip) is
@@ -230,19 +230,19 @@ defmodule BfwEngine.Integration.Graphql.GraphqlModelGraphWp7Test do
 
   describe "test (vii) — cold-cache behaviour" do
     test "resolver on an evicted ModelCache entry triggers the DB-backed loader and still succeeds" do
-      previous_loader = Application.get_env(:core_bpmn, :model_cache_loader)
+      previous_loader = Application.get_env(:bfw_engine, :bpmn_model_cache_loader)
 
       Application.put_env(
-        :core_bpmn,
-        :model_cache_loader,
+        :bfw_engine,
+        :bpmn_model_cache_loader,
         {BfwEngine.Persistence.ExecutionAdapter, :load_bpmn_xml}
       )
 
       on_exit(fn ->
         if previous_loader do
-          Application.put_env(:core_bpmn, :model_cache_loader, previous_loader)
+          Application.put_env(:bfw_engine, :bpmn_model_cache_loader, previous_loader)
         else
-          Application.delete_env(:core_bpmn, :model_cache_loader)
+          Application.delete_env(:bfw_engine, :bpmn_model_cache_loader)
         end
       end)
 
@@ -311,7 +311,7 @@ defmodule BfwEngine.Integration.Graphql.GraphqlModelGraphWp7Test do
       process_model = body["data"]["getProcessVersion"]["processModel"]
       assert process_model["id"] != nil
 
-      configured_depth = Application.get_env(:api_web, :graphql_max_depth, 16)
+      configured_depth = Application.get_env(:bfw_engine, :graphql_max_depth, 16)
 
       assert configured_depth >= 16,
              "BFE_GRAPHQL_MAX_DEPTH was re-tuned to 16 for SubProcessNode.flowNodes recursion; " <>

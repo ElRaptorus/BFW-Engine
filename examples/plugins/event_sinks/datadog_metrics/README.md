@@ -36,7 +36,7 @@ and `timestamp` (from the event’s `occurred_at`).
 
 ## Further reading
 
-- [`BfwEngine.Plugin.EventSink`](../../../../apps/engine_sdk/lib/bfw_engine/plugin/event_sink.ex)
+- [`BfwEngine.Plugin.EventSink`](../../../../lib/bfw_engine/plugin/event_sink.ex)
   — callbacks your sink must implement.
 - [`docs/architecture/event-system.md`](../../../../docs/architecture/event-system.md) —
   how events flow through `EngineEventBus` and sink workers.

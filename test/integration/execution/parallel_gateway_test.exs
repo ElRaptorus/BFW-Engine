@@ -289,7 +289,7 @@ defmodule BfwEngine.Integration.Execution.ParallelGatewayTest do
   # -------------------------------------------------------------------
 
   defp register_test_plugin do
-    Application.put_env(:core_execution, :service_task_dispatch, BfwEngine.Plugins.RegistryDispatch)
+    Application.put_env(:bfw_engine, :service_task_dispatch, BfwEngine.Plugins.RegistryDispatch)
     facade = FacadeBuilder.build("evil:test_parallel_gateway")
     ExamplePlugin.on_load(facade)
   end

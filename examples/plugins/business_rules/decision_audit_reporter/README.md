@@ -91,7 +91,7 @@ mix test examples/plugins/business_rules/decision_audit_reporter/test/audit_repo
 
 ## Further reading
 
-- [`BfwEngine.Plugin`](../../../../apps/engine_sdk/lib/bfw_engine/plugin.ex) — lifecycle callbacks
-- [`BfwEngine.EngineFacade`](../../../../apps/engine_sdk/lib/bfw_engine/engine_facade.ex) — facade namespace surface
+- [`BfwEngine.Plugin`](../../../../lib/bfw_engine/plugin.ex) — lifecycle callbacks
+- [`BfwEngine.EngineFacade`](../../../../lib/bfw_engine/engine_facade.ex) — facade namespace surface
 - [`docs/architecture/dmn.md`](../../../../docs/architecture/dmn.md) — DMN evaluation and traces
 - [`docs/architecture/plugins.md`](../../../../docs/architecture/plugins.md) — plugin loading and facade wiring

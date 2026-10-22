@@ -28,5 +28,5 @@ idempotent when possible so retries remain safe.
 
 ## Further reading
 
-- [`BfwEngine.Plugin.EventSink`](../../../../apps/engine_sdk/lib/bfw_engine/plugin/event_sink.ex)
+- [`BfwEngine.Plugin.EventSink`](../../../../lib/bfw_engine/plugin/event_sink.ex)
 - [`docs/architecture/event-system.md`](../../../../docs/architecture/event-system.md)

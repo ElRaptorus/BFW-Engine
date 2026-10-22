@@ -1,6 +1,6 @@
 defmodule BfwEngine.Integration.Execution.SignalEventsTest do
   @moduledoc """
-  Umbrella-level integration tests for BPMN Signal Events.
+  Integration tests for BPMN Signal Events.
 
   Verifies signal publication, broadcast delivery to catch events, signal
   start event triggering, and — critically — that `triggerer_flow_node_instance_id`

@@ -39,8 +39,6 @@ Engine identity and feature flags. No authentication required.
 }
 ```
 
-`event_sink_database` is **not** serialized. The built-in database event sink was removed; this leftover flag is always absent (never `true`).
-
 ## Authenticated Endpoints
 
 ### `GET /stats`

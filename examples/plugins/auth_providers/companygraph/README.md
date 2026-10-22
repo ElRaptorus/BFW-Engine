@@ -101,7 +101,7 @@ config :my_company_plugin, :companygraph,
 ## Further reading
 
 - [Getting Started](../../../../docs/guides/plugins/getting-started.md) — plugin lifecycle and `BFE_PLUGINS_INBEAM`
-- [`BfwEngine.Plugin.AuthProvider`](../../../../apps/engine_sdk/lib/bfw_engine/plugin/auth_provider.ex)
+- [`BfwEngine.Plugin.AuthProvider`](../../../../lib/bfw_engine/plugin/auth_provider.ex)
   — the behaviour your provider must implement.
 - [`docs/architecture/plugins.md`](../../../../docs/architecture/plugins.md) — full
   plugin system documentation.

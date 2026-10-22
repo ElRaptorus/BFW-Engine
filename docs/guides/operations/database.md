@@ -47,7 +47,7 @@ Layer 1 handles transparent reconnection at the pool level. Layer 2 (`Persistenc
 
 ## Migration Workflow
 
-The engine uses a **single initial migration**. Edit `apps/peripheral_persistence/priv/repo/migrations/20260501110314_create_initial_schema.exs` in place. Do **not** run `mix ash_postgres.generate_migrations`.
+The engine uses a **single initial migration**. Edit `priv/repo/migrations/20260501110314_create_initial_schema.exs` in place. Do **not** run `mix ash_postgres.generate_migrations`.
 
 ```bash
 # Apply the initial schema (dev / test)
@@ -256,8 +256,8 @@ The engine does **not** flip this variable from tests.
 
 ### LZ4 vs PGLZ measurements
 
-Same VM, two waves (`mix test.load.hardening`, 2026-09-07, report
-`test/load/reports/20260907T115201Z.json`). SQL p50/p95 are integer
+Same VM, two waves of `mix test.load.hardening` (JSON report under
+`test/load/reports/`). SQL p50/p95 are integer
 `query_time_ms` (0 vs 1 is clock resolution). GraphQL is HTTP wall-clock
 in milliseconds. `pg_column_size` sum was identical on both waves
 (`7335936`). LZ4 was not >10 % slower than PGLZ; **the default stays

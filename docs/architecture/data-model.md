@@ -4,8 +4,8 @@ See [`Schema.md`](../Schema.md) for the visual ER diagram.
 
 > **Shipped vs specified:** the current migration creates catalog, execution,
 > data-object, message/signal, decision, and operational Timer Start tables
-> (`timer_start_schedules`). There is **no** `pending_escalations` table
-> (escalation D1). There are no `escalations`, `compensations`, or
+> (`timer_start_schedules`). There is **no** `pending_escalations` table.
+> There are no `escalations`, `compensations`, or
 > `engine_timers` tables. Escalation and compensation observability is
 > EngineEventBus plus in-memory registries; PI-scoped catch/boundary timers
 > persist in FNI `type_properties` plus Scheduler ETS. Production Timer Start
@@ -59,8 +59,8 @@ processes_latest_version_view  -- materialized view / regular view: latest `dele
 ### 4.1.1 DMN Catalog
 
 Mirrors the BPMN catalog pattern (§4.1) for DMN decision models. Both tables
-live in `apps/peripheral_persistence/`. The `DecisionResolverImpl` adapter
-(Peripheral) implements the `core_execution.DecisionResolver` behaviour for
+live in `lib/bfw_engine/persistence/`. The `DecisionResolverImpl` adapter
+(Peripheral) implements the `BfwEngine.Execution.DecisionResolver` behaviour for
 runtime resolution.
 
 ```
@@ -163,8 +163,7 @@ flow_node_instances
   INDEX (state) WHERE state='active'
   INDEX (flow_node_type, state)
 
--- NOTE: the `active_tokens` table has been removed.
---   Normal execution passes tokens in-memory between handlers inside the PI's `:gen_statem` process
+-- There is no token table. Normal execution passes tokens in-memory between handlers inside the PI's `:gen_statem` process
 --   — the database is never read for a token payload during execution, only written for durability.
 --   Every "active token" is 1:1 with a `flow_node_instances` row in state='active' whose `input_token`
 --   column already stores the payload. Resume rehydrates active tokens by scanning
@@ -208,8 +207,8 @@ data_objects        -- CURRENT-VALUE snapshot, one row per (PI, DO), upserted on
                     -- Used for runtime reads and resume-time cache rehydration.
                     -- History lives in data_object_writes (§4.3).
                     -- Schema is unified with data_object_writes: both tables share the
-                    -- same column set. Convenience aggregations (write_count, first/last_written_by)
-                    -- were dropped — they are derivable from the history table.
+                    -- same column set. Aggregations (write count, first/last writer) are derived
+                    -- from the history table, not stored.
   id                    uuid PK
   process_instance_id   uuid FK
   data_object_id        text          -- BPMN id (bpmn:dataObject@id, unique within the Process Model)
@@ -337,7 +336,7 @@ pending_signals    -- [`routing.md`](./routing.md) §3.5.6 — signals published
 -- Escalation / compensation observability is EngineEventBus
 -- (`Event.EscalationRaised`, `Event.CompensationTriggered`), not dedicated
 -- audit tables. There is no `escalations` table and no `compensations` table.
--- `pending_escalations` was dropped (escalation D1): no late-catch drain,
+-- There is no `pending_escalations` table: no late-catch drain,
 -- no PendingSweeper involvement for escalations. Boundaries are pre-spawned
 -- in `:waiting` when the host activity starts.
 
@@ -379,8 +378,7 @@ data_object_writes   -- append-only history, one row per Data Object write.
                      --
                      -- Schema is UNIFIED with data_objects — both tables share the same column set:
                      -- (id, process_instance_id, data_object_id, flow_node_instance_id, value, created_at).
-                     -- previous_value was dropped (derivable from ordered history); new_value renamed
-                     -- to value; written_at renamed to created_at.
+                     -- No previous_value column: it is derivable from the ordered history.
                      --
                      -- PARTITIONED: PARTITION BY RANGE (created_at), one partition per
                      -- calendar month. Partitions

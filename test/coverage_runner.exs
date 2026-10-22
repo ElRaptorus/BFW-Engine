@@ -18,7 +18,6 @@ support_files =
   support_dir
   |> Path.join("*.ex")
   |> Path.wildcard()
-  |> Enum.sort_by(&(Path.basename(&1) != "service_reset.ex"))
 
 for file <- support_files do
   Code.require_file(file)
@@ -31,15 +30,7 @@ File.mkdir_p!(cover_dir)
 IO.puts("\n\e[36m▶ Instrumenting beam files for coverage tracking …\e[0m")
 :cover.start()
 
-project_apps =
-  Path.wildcard("apps/*/mix.exs")
-  |> Enum.map(fn path -> path |> Path.dirname() |> Path.basename() end)
-
-ebin_dirs =
-  project_apps
-  |> Enum.map(&Path.join(["_build", "test", "lib", &1, "ebin"]))
-  |> Enum.filter(&File.dir?/1)
-  |> Enum.map(&String.to_charlist/1)
+ebin_dir = Path.join(["_build", "test", "lib", "bfw_engine", "ebin"])
 
 # `:cover.compile_beam_directory` rewrites every module in memory.
 # Instrumenting `BfwEngine.Expressions.Nif` drops the Rustler on_load
@@ -47,27 +38,13 @@ ebin_dirs =
 # (see common-pitfalls.md P79). Skip that beam; leave the loaded NIF.
 feel_nif_beam = "Elixir.BfwEngine.Expressions.Nif.beam"
 
-for dir <- ebin_dirs do
-  directory = List.to_string(dir)
-
-  case File.ls(directory) do
-    {:ok, entries} ->
-      if feel_nif_beam in entries do
-        for entry <- entries,
-            String.ends_with?(entry, ".beam"),
-            entry != feel_nif_beam do
-          :cover.compile_beam(String.to_charlist(Path.join(directory, entry)))
-        end
-      else
-        :cover.compile_beam_directory(dir)
-      end
-
-    {:error, _reason} ->
-      :ok
-  end
+for entry <- File.ls!(ebin_dir),
+    String.ends_with?(entry, ".beam"),
+    entry != feel_nif_beam do
+  :cover.compile_beam(String.to_charlist(Path.join(ebin_dir, entry)))
 end
 
-IO.puts("\e[36m  #{length(ebin_dirs)} project ebin directories instrumented.\e[0m\n")
+IO.puts("\e[36m  #{ebin_dir} instrumented.\e[0m\n")
 
 # --- Integration tests --------------------------------------------------------
 IO.puts("\e[36m▶ Running integration tests …\e[0m\n")
@@ -106,22 +83,9 @@ if conformance_failures > 0 do
 end
 
 # --- Export combined coverage -------------------------------------------------
-IO.puts("\n\e[36m▶ Exporting coverage data to cover/umbrella.coverdata …\e[0m")
-coverdata_path = Path.join(cover_dir, "umbrella.coverdata")
-:cover.export(String.to_charlist(coverdata_path))
+IO.puts("\n\e[36m▶ Exporting coverage data to cover/integration.coverdata …\e[0m")
+:cover.export(String.to_charlist(Path.join(cover_dir, "integration.coverdata")))
 :cover.stop()
-
-# ExCoveralls resolves --import-cover relative to each sub-app's CWD
-# (apps/<app>/), so we must place coverdata inside each sub-app's cover/ dir.
-for app <- project_apps do
-  app_cover = Path.join(["apps", app, "cover"])
-  File.mkdir_p!(app_cover)
-  File.cp!(coverdata_path, Path.join(app_cover, "umbrella.coverdata"))
-end
-
-IO.puts(
-  "\e[36m  Done — coverdata distributed to #{length(project_apps)} sub-app cover/ directories.\e[0m\n"
-)
 
 # Restore logger level so subsequent mix alias steps (coveralls.html / coveralls) see correct level
 Logger.configure(level: original_logger_level)

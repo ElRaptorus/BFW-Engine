@@ -23,7 +23,7 @@ and [Engine Facade](../guides/plugins/engine-facade.md).
 | Named script (for `<bfw:scriptRef>`) | `@behaviour BfwEngine.Plugin.NamedScript` | Unique by script-key. Callback: `handle_enter(flow_node, payload, context) :: {:ok, map()} \| {:error, term()}` |
 | Auth provider | `@behaviour BfwEngine.Plugin.AuthProvider` | Unique (singleton, first-writer wins). Callback: `verify_and_resolve(token) :: {:ok, Identity.t()} \| {:error, reason}` |
 
-PersistenceAdapter, MonitoringPanel, TimerSource, and DataStoreAdapter plugin capabilities **do not exist** — do not register them. Execution persistence is `BfwEngine.Execution.Persistence` (config `:core_execution, :persistence_adapter`), not a plugin behaviour. BPMN `<bpmn:dataStoreReference>` elements are parsed and the validator accepts data associations that target one, but the Engine never reads or writes the store — `DataObjectWriter` drops store-targeted output associations before evaluation. There is no `DataStoreAdapter` to plug in.
+PersistenceAdapter, MonitoringPanel, TimerSource, and DataStoreAdapter plugin capabilities **do not exist** — do not register them. Execution persistence is `BfwEngine.Execution.Persistence` (config `:bfw_engine, :persistence_adapter`), not a plugin behaviour. BPMN `<bpmn:dataStoreReference>` elements are parsed and the validator accepts data associations that target one, but the Engine never reads or writes the store — `DataObjectWriter` drops store-targeted output associations before evaluation. There is no `DataStoreAdapter` to plug in.
 
 **`EventSink` behaviour shape**:
 
@@ -33,7 +33,7 @@ defmodule BfwEngine.Plugin.EventSink do
   Receives every `BfwEngine.Types.Event.*` the engine emits ([event-system.md](./event-system.md)).
   Each registered sink runs in its own SinkWorker GenServer under
   BfwEngine.Events.SinkSupervisor, which calls it serially in event order.
-  Sinks MUST NOT call back into core_execution or block the hot path.
+  Sinks MUST NOT call back into BfwEngine.Execution or block the hot path.
   """
 
   @callback init(opts :: keyword()) :: {:ok, state :: term()} | {:error, term()}
@@ -64,7 +64,7 @@ def on_load(facade) do
 end
 ```
 
-…and are dispatched identically to the built-in sinks. Plugins MUST NOT call `BfwEngine.Plugin.Registry` directly — the registry is private to `engine_plugins`; only the engine-injected facade may write to it.
+…and are dispatched identically to the built-in sinks. Plugins MUST NOT call `BfwEngine.Plugins.Registry` directly — the registry is private to `BfwEngine.Plugins`; only the engine-injected facade may write to it.
 
 ## Loading model
 
@@ -72,7 +72,7 @@ The **engine, not the plugin, owns lifecycle.** Plugins never self-register
 from their own `Application.start/2` and never decide *when* they take
 effect. The shipped loading model is **in-BEAM OTP applications**. Downstream
 consumers (Service Task dispatch, EngineEventBus fan-out, REST API extension
-routing) read the same `BfwEngine.Plugin.Registry`.
+routing) read the same `BfwEngine.Plugins.Registry`.
 
 ### Lifecycle phases
 
@@ -81,7 +81,7 @@ implement them via `@behaviour BfwEngine.Plugin`:
 
 | Phase | When the engine fires it | What the plugin may do |
 |---|---|---|
-| `on_load(engine_facade)` | After `core_execution` reports steady state, **before** the API tier exposes its sockets. Plugins are invoked sequentially in registration order; a failed `on_load` quarantines that plugin without aborting boot of the others | Register handlers via typed facade closures (`facade.register_service_task_handler.(…)`, `facade.register_event_sink.(…)`, etc.); read engine info; subscribe to engine events |
+| `on_load(engine_facade)` | After `BfwEngine.Execution` reports steady state, **before** the API tier exposes its sockets. Plugins are invoked sequentially in registration order; a failed `on_load` quarantines that plugin without aborting boot of the others | Register handlers via typed facade closures (`facade.register_service_task_handler.(…)`, `facade.register_event_sink.(…)`, etc.); read engine info; subscribe to engine events |
 | `on_ready(engine_facade)` | After every loaded plugin's `on_load` has returned, **and** after the API tier has bound its listening sockets | Perform any work that requires the engine to be reachable end-to-end (warm an external cache, dial a partner system, register webhooks). May return `:ok` or `{:error, reason}` — **`{:error, _}` quarantines the plugin** the same way a failed `on_load` does |
 
 `on_load` is **synchronous from the engine's perspective**: the engine
@@ -97,13 +97,12 @@ channel and plugins react to it.
 Highest performance, idiomatic Elixir.
 
 - A plugin is an OTP application bundled into the engine's release.
-  Operators build a custom release (`mix release`) bundling the engine
-  umbrella plus their plugin OTP apps as transitive deps of an
-  `bfw_engine` release.
+  Operators build a custom release (`mix release`) bundling `:bfw_engine`
+  plus their plugin OTP apps as path dependencies of the `host/` project.
 - The plugin's own `Application.start/2` loads the plugin's modules and
   may start the plugin's own supervision tree; it MUST NOT call
-  `BfwEngine.Plugin.Registry.register/2` itself.
-- **Discovery**: at engine boot, `engine_plugins` reads
+  `BfwEngine.Plugins.Registry.register_plugin/3` itself.
+- **Discovery**: at engine boot, `BfwEngine.Plugins` reads
   `BFE_PLUGINS_INBEAM` (whitespace- or comma-separated list of OTP-app
   names — [configuration.md](./configuration.md)). For each entry, it locates the declared `@behaviour
   BfwEngine.Plugin` module via `Application.get_env(app_name, :plugin_module)`.
@@ -161,9 +160,9 @@ tables with signatures: [Engine Facade](../guides/plugins/engine-facade.md).
 | Capability | Call |
 |---|---|
 | Register handlers | Typed registration closures: `register_service_task_handler.(impl, handler)`, `register_named_script.(key, handler)`, `register_rest_api_extension.(prefix, handler)`, `register_auth_provider.(handler)` — each writes a registry entry. PersistenceAdapter, MonitoringPanel, TimerSource, and DataStoreAdapter **do not exist**. |
-| Subscribe to typed engine events | `facade.register_event_sink.(name, module, opts)` writing into `BfwEngine.Plugin.Registry`; dispatch is then identical to the three built-in sinks ([event-system.md](./event-system.md)) |
+| Subscribe to typed engine events | `facade.register_event_sink.(name, module, opts)` writing into `BfwEngine.Plugins.Registry`; dispatch is then identical to the three built-in sinks ([event-system.md](./event-system.md)) |
 | Publish events | `facade.publish_event.(event)` |
-| Read config | `facade.get_config.(key)` |
+| Read config | `facade.get_config.(key)` (reads `config :bfw_engine, :plugin_config` only) |
 
 **Resource-scoped runtime namespaces** (all wired to `BfwEngine.Api.*` via closures):
 
@@ -195,12 +194,12 @@ roles: [], ...}` — see [authorization.md](./authorization.md)).
 **Authorization enforcement differs**: plugins bypass claim checks entirely
 (they are inside the operator's trust boundary); wire callers are
 subject to the full claim dictionary. **Plugins MUST NOT reach into
-`core_execution`, `core_events`, or `peripheral_persistence` modules directly
+`BfwEngine.Execution`, `BfwEngine.Events`, or `BfwEngine.Persistence` modules directly
 for command operations** — those modules are private to the service layer;
 only event-scoped callbacks (plugin behaviours) live inside Core/Peripheral
 boundaries. In-BEAM plugins can reach internals, but the contract forbids it
-and CI lints against it (`engine_plugins` declares no compile-time dep
-on `core_execution`).
+and CI lints against it (`BfwEngine.Plugins` declares no compile-time dep
+on `BfwEngine.Execution`).
 
 ### Registration validation
 
@@ -229,11 +228,11 @@ See `examples/plugins/lifecycle_and_api/quarantine_demo/` for the author-facing 
 
 ## In-BEAM plugin tooling
 
-`mix bfw.gen.plugin` and `mix bfw.plugin.add` are Igniter tasks in `apps/engine_sdk`. Run them from the repository root (`supports_umbrella?` is true). `bfw.gen.plugin <name>` writes `plugins/<name>` (`mix.exs`, `application.ex`, `plugin.ex`, `capabilities.ex`) and then runs `bfw.plugin.add`. The plugin module is `Macro.camelize(name)` with no `BfwEngine` prefix. A second generate, when `mix.exs` already exists, creates no files and still runs add.
+`mix bfw.gen.plugin` and `mix bfw.plugin.add` are Igniter tasks in `lib/mix/tasks`. Run them from the repository root. `bfw.gen.plugin <name>` writes `plugins/<name>` (`mix.exs`, `application.ex`, `plugin.ex`, `capabilities.ex`) and then runs `bfw.plugin.add`. The plugin module is `Macro.camelize(name)` with no `BfwEngine` prefix. A second generate, when `mix.exs` already exists, creates no files and still runs add.
 
 `bfw.plugin.add --path <path>` reads `app:` from the plugin `mix.exs` and `:plugin_module` from `Application.put_env` in `application.ex`. It appends a path dependency and a `:permanent` release entry to `host/mix.exs` (paths relative to `host/`), and appends `config :<app>, :plugin_module, <Module>` to `config/config.exs`. The Loader reads `Application.get_env(<app>, :plugin_module)`, so either the config entry or the generated `Application.put_env` is enough; the generator writes both so a plugin started outside the release still resolves. It prints `BFE_PLUGINS_INBEAM=<app>` and writes that line once as a comment. It does not set the variable and does not edit `runtime.exs`. The same application and path is a no-op; a different existing path fails.
 
-The OTP release is defined only by `host/mix.exs`. `mix release` at the repository root delegates there. The host is not an umbrella, so a plugin path dependency and the umbrella apps' `in_umbrella` dependencies of `engine_sdk` both resolve as `env: :prod`.
+The OTP release is defined only by `host/mix.exs`. `mix release` at the repository root delegates there. Plugin path dependencies and `:bfw_engine` both resolve as `env: :prod` there.
 
 ## Async Service Task completion and recovery
 
@@ -247,22 +246,22 @@ Parking a Service Task stores `type_properties["implementation"]` and the mapped
 
 ## Default built-in plugins
 
-- `http` — Default HTTP Service Task handler (`BfwEngine.Plugins.Builtin.HttpServiceTaskHandler`). Lives in `engine_plugins` (HTTP client stays out of Core); registered before user plugins and final: the Registry is first-wins, so a plugin registering `http` gets `{:error, :conflict, "bfw:builtin"}`.
-- Execution persistence is `BfwEngine.Execution.Persistence` (AshPostgres via `ExecutionAdapter` in production, `NoOp` in tests), configured with `:core_execution, :persistence_adapter`. There is no plugin PersistenceAdapter capability.
+- `http` — Default HTTP Service Task handler (`BfwEngine.Plugins.Builtin.HttpServiceTaskHandler`). Lives in `BfwEngine.Plugins` (HTTP client stays out of Core); registered before user plugins and final: the Registry is first-wins, so a plugin registering `http` gets `{:error, :conflict, "bfw:builtin"}`.
+- Execution persistence is `BfwEngine.Execution.Persistence` (AshPostgres via `ExecutionAdapter` in production, `NoOp` in tests), configured with `:bfw_engine, :persistence_adapter`. There is no plugin PersistenceAdapter capability.
 - No built-in NamedScript handler ships. Inline FEEL evaluation is handled directly by the `ScriptTask` handler without going through the plugin dispatch chain. Plugins register NamedScript handlers via `bfw:scriptRef` for custom script languages or complex logic.
 
-**Authentication is pluggable.** The built-in JWT validator in `api_auth`
+**Authentication is pluggable.** The built-in JWT validator in `BfwEngine.Auth`
 implements `@behaviour BfwEngine.Plugin.AuthProvider` as the default. Plugins
 can register a replacement via `facade.register_auth_provider.(module)` during
 `on_load/1`. Only one provider is active at a time (first-writer wins). See
 `examples/plugins/auth_providers/ldap/` and `examples/plugins/auth_providers/companygraph/` for
 ready-to-copy starting points.
 
-## SDK packages
+## Plugin contracts and packages
 
 | Audience | Package | Contents |
 |---|---|---|
-| Elixir plugin authors | `bfw_engine_sdk` (Hex, app `apps/engine_sdk`) | All `@behaviour` modules (including `EventSink` — with a `TestSink` Mox fixture), test helpers, and copy-paste reference plugins under `examples/plugins/`. `BfwEngine.SDK.BPMN` re-exports `BfwEngine.BPMN.Model.*`, `ModelCache.{fetch/1, get/1, fetch_subprocess_model/2, find_message_start_events/1, find_signal_start_events/1}`, and `BfwEngine.BPMN.Parser.parse/1`. The SDK also re-exports `BfwEngine.Types.Event.*` + `EngineEventBus.publish/1` (test-only synthetic emission). `mix bfw.gen.plugin` and `mix bfw.plugin.add` live in this app. |
+| Elixir plugin authors | `:bfw_engine` itself (path dependency) | Internal plugin contracts: the `BfwEngine.Plugin.*` behaviours (`lib/bfw_engine/plugin/`) and the `BfwEngine.EngineFacade` closures handed to `on_load/1` (`lib/bfw_engine/engine_facade/`). They hold only what the engine needs to load and call in-BEAM plugins; there is no separate Elixir SDK. Plugins that parse BPMN call `BfwEngine.BPMN` directly. Copy-paste reference plugins live under `examples/plugins/`; `mix bfw.gen.plugin` and `mix bfw.plugin.add` live in `lib/mix/tasks/`. |
 | Non-Elixir work | Not a plugin SDK | Use the built-in HTTP Service Task, the public REST / GraphQL / WebSocket API, or an in-BEAM plugin that execs a local interpreter (`python_script` / `node_script` examples). |
 | Engine API consumers (Studio, dashboards, CLIs) | `@elraptorus/bfw_engine_sdk` (contract: types, errors, events, BPMN XML parser, extension vocabulary manifest) + `@elraptorus/bfw_engine_client` (transport: REST, GraphQL, WebSocket) in `packages/js/` | Typed client for REST triggers + GraphQL queries including the Process Model graph. The SDK ships `extension-manifest.json` (typed export `extensionManifest`) — the vocabulary of every `bfw:*` element the parser reads, **not** a `bpmn-moddle` descriptor |
 

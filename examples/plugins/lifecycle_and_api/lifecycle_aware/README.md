@@ -15,7 +15,7 @@ This starter highlights the ordering guarantees described in [`docs/guides/plugi
 
 ## Configuration access
 
-`facade.get_config/1` delegates to `Application.get_env(:engine_plugins, key)` inside the bundled loader. Set `config :engine_plugins, :lifecycle_demo_setting, ...` to provide data you read during `on_load/1`.
+`facade.get_config/1` reads `key` from `config :bfw_engine, :plugin_config` (other engine configuration is not visible to plugins). Set `config :bfw_engine, :plugin_config, lifecycle_demo_setting: ...` to provide data you read during `on_load/1`.
 
 ## Where to register what
 
@@ -24,9 +24,9 @@ This starter highlights the ordering guarantees described in [`docs/guides/plugi
 
 ## Source modules
 
-* [`BfwEngine.Plugin`](https://github.com/ElRaptorus/BFW-Engine/blob/main/apps/engine_sdk/lib/bfw_engine/plugin.ex)
-* [`BfwEngine.Plugin.EventSink`](https://github.com/ElRaptorus/BFW-Engine/blob/main/apps/engine_sdk/lib/bfw_engine/plugin/event_sink.ex)
+* [`BfwEngine.Plugin`](https://github.com/ElRaptorus/BFW-Engine/blob/main/lib/bfw_engine/plugin.ex)
+* [`BfwEngine.Plugin.EventSink`](https://github.com/ElRaptorus/BFW-Engine/blob/main/lib/bfw_engine/plugin/event_sink.ex)
 
 ## Tests
 
-Add the modules to an OTP application that depends on `engine_sdk`, then run `mix test test/lifecycle_plugin_test.exs`.
+Add the modules to an OTP application that depends on `:bfw_engine`, then run `mix test test/lifecycle_plugin_test.exs`.

@@ -45,4 +45,4 @@ Default script is `echo.js`. Override with token payload `"script"`.
 
 - [Service Task Handler guide](../../../../docs/guides/plugins/service-task-handler.md)
 - [`docs/architecture/plugins.md`](../../../../docs/architecture/plugins.md)
-- [`BfwEngine.Plugin.ServiceTaskHandler`](../../../../apps/engine_sdk/lib/bfw_engine/plugin/service_task_handler.ex)
+- [`BfwEngine.Plugin.ServiceTaskHandler`](../../../../lib/bfw_engine/plugin/service_task_handler.ex)

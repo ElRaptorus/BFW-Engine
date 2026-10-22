@@ -256,7 +256,7 @@ This is deliberate and is what makes engine-audit retention independent of PI re
 
 - **`process_instances`** — one row per Process Instance. Pinned to an immutable `process_version_id` for its lifetime so Resume always sees the originally-deployed BPMN. No `final_token` column (derived via the `finalTokens` GraphQL calc from End-Event FNIs' `output_token`).
 - **`flow_node_instances`** — one row per executed Flow Node. Carries `input_token` (always set) + `output_token` (nullable, retained in v1 ) both LZ4-compressed and capped by `BFE_TOKEN_MAX_BYTES`. Array `previous_flow_node_instance_ids` supports parallel/inclusive joins.
-- **`gateway_pending_arrivals`** — one row per (gateway-FNI, incoming-branch) awaiting siblings at a parallel/inclusive join. Atomically deleted when the gateway fires or when the enclosing scope is interrupted. Replaces the former `active_tokens` table. Not partitioned — working set is bounded by the count of currently-waiting joins across all running PIs.
+- **`gateway_pending_arrivals`** — one row per (gateway-FNI, incoming-branch) awaiting siblings at a parallel/inclusive join. Atomically deleted when the gateway fires or when the enclosing scope is interrupted. Not partitioned — working set is bounded by the count of currently-waiting joins across all running PIs.
 - **`data_objects`** — current-value snapshot per (PI, DO). Upserted on every write; history goes into `data_object_writes`. Row absence means "unset" — distinct from a legitimately-written `jsonb 'null'`.
 
 ### 4.3 Audit / communication
@@ -265,8 +265,8 @@ This is deliberate and is what makes engine-audit retention independent of PI re
 - **`pending_messages`** — **partitioned monthly** by `published_at`. Messages published with zero matching subscriptions are held until `BFE_MESSAGE_PENDING_TTL` expires or a matching subscription registers (§3.5.4). Operational state (`state='pending'`) is NEVER retention-swept; terminal states (`delivered`/`expired`/`cancelled`) are retention-eligible.
 - **`signals`** — **partitioned monthly** by `published_at`. Broadcast-to-all semantics (no correlation dimension). `correlations` JSONB array records every delivered subscription.
 - **`pending_signals`** — **partitioned monthly** by `published_at`. Signals published with zero matching listeners held for `BFE_SIGNAL_PENDING_TTL`. Drained when any catching subscription registers within TTL; broadcast-to-all semantics preserved via the parent `signals.correlations` append. Same retention + delete-on-transition semantics as `pending_messages`.
-- **`pending_escalations`** — **dropped (escalation D1).** Not created, not swept, no late-catch drain. Escalation observability is `Event.EscalationRaised` on EngineEventBus.
-- **`data_object_writes`** — **partitioned** by `created_at`. Append-only history; atomically consistent with the `data_objects` snapshot update. Every row is DOA-originated (the `source` column was dropped since all writes come from `bpmn:dataOutputAssociation`). Always written regardless of sink config — this is kernel state, not an observability sink.
+- **No `pending_escalations` table.** Escalations have no pending state and no late-catch drain. Escalation observability is `Event.EscalationRaised` on EngineEventBus.
+- **`data_object_writes`** — **partitioned** by `created_at`. Append-only history; atomically consistent with the `data_objects` snapshot update. Every row is DOA-originated (all writes come from `bpmn:dataOutputAssociation`, so there is no `source` column). Always written regardless of sink config — this is kernel state, not an observability sink.
 
 ## 5. Partitioning summary
 

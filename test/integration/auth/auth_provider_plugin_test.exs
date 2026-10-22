@@ -53,7 +53,7 @@ defmodule BfwEngine.Integration.AuthProviderPluginTest do
 
   describe "malformed provider identity" do
     test "a provider identity with nil claims answers 403 on the timer schedule endpoint instead of crashing" do
-      with_config(:api_auth, :auth_disabled, false, fn ->
+      with_config(:bfw_engine, :auth_disabled, false, fn ->
         ProviderRegistry.register_provider(MalformedIdentityProvider)
 
         conn =
@@ -71,7 +71,7 @@ defmodule BfwEngine.Integration.AuthProviderPluginTest do
 
   describe "(i) custom auth provider end-to-end" do
     test "registered custom provider handles HTTP requests" do
-      with_config(:api_auth, :auth_disabled, false, fn ->
+      with_config(:bfw_engine, :auth_disabled, false, fn ->
         ProviderRegistry.register_provider(FakeAuthProvider)
 
         conn =
@@ -86,7 +86,7 @@ defmodule BfwEngine.Integration.AuthProviderPluginTest do
 
   describe "(ii) built-in JWT continues as default" do
     test "JWT auth works without registering a custom provider" do
-      with_config(:api_auth, :auth_disabled, false, fn ->
+      with_config(:bfw_engine, :auth_disabled, false, fn ->
         conn = conn_with_auth(:get, "/stats", %{"sub" => "default-user"}) |> route()
         assert conn.status == 200
       end)
@@ -95,7 +95,7 @@ defmodule BfwEngine.Integration.AuthProviderPluginTest do
 
   describe "(iii) custom provider rejects invalid tokens" do
     test "invalid token returns 401" do
-      with_config(:api_auth, :auth_disabled, false, fn ->
+      with_config(:bfw_engine, :auth_disabled, false, fn ->
         ProviderRegistry.register_provider(FakeAuthProvider)
 
         conn =

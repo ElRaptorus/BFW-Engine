@@ -1,10 +1,10 @@
-# Timer Subsystem (`core_timers`)
+# Timer Subsystem (`BfwEngine.Timers`)
 
 ---
 
 ## Overview
 
-`core_timers` is a lightweight, metadata-opaque timer service. It knows nothing about BPMN, Flow Nodes, Process Instances, or FEEL expressions. It accepts timer registrations with a concrete `fire_at` DateTime, a `target` (PID or registered name), and an opaque `metadata` map. On expiry, it sends `{:timer_fired, timer_ref, metadata}` to the target. The metadata is stored and returned verbatim — `core_timers` never interprets it.
+`BfwEngine.Timers` is a lightweight, metadata-opaque timer service. It knows nothing about BPMN, Flow Nodes, Process Instances, or FEEL expressions. It accepts timer registrations with a concrete `fire_at` DateTime, a `target` (PID or registered name), and an opaque `metadata` map. On expiry, it sends `{:timer_fired, timer_ref, metadata}` to the target. The metadata is stored and returned verbatim — `BfwEngine.Timers` never interprets it.
 
 ---
 
@@ -33,13 +33,13 @@
 
 ### Dependency Rule
 
-`core_timers` depends only on `core_types` (shared basic types) and `:telemetry`. It does **not** depend on `core_expressions`, `core_bpmn`, `core_events`, or `core_execution`. Messages flow back to `core_execution` via `send/2` — no compile-time dependency required.
+`BfwEngine.Timers` depends only on `BfwEngine.Types` (shared basic types) and `:telemetry`. It does **not** depend on `BfwEngine.Expressions`, `BfwEngine.BPMN`, `BfwEngine.Events`, or `BfwEngine.Execution`. Messages flow back to `BfwEngine.Execution` via `send/2` — no compile-time dependency required.
 
 ---
 
 ## Scheduler
 
-**Path:** `apps/core_timers/lib/bfw_engine/timers/scheduler.ex`
+**Path:** `lib/bfw_engine/timers/scheduler.ex`
 
 GenServer managing all in-memory timers via two ETS tables.
 
@@ -67,7 +67,7 @@ When a target is a PID, the Scheduler monitors it via `Process.monitor/1`. On `:
 
 ### Tick Mechanism
 
-Uses `Process.send_after(self(), :tick, tick_interval_ms)`. Each tick pops all expired entries (fire_at ≤ now) and delivers `{:timer_fired, timer_ref, metadata}` to the target via `send/2`. Configurable via `:core_timers, :tick_interval_ms` (default 1000ms, test: 50ms).
+Uses `Process.send_after(self(), :tick, tick_interval_ms)`. Each tick pops all expired entries (fire_at ≤ now) and delivers `{:timer_fired, timer_ref, metadata}` to the target via `send/2`. Configurable via `:bfw_engine, :tick_interval_ms` (default 1000ms, test: 50ms).
 
 ### Cycle Timers
 
@@ -79,7 +79,7 @@ For timers with `cycle_interval` set, the Scheduler:
 
 Cycle timers decrement their `remaining` counter on each fire. When no occurrence is left, the timer is not re-armed and the callback receives `(metadata, nil, 0)`. A re-armed cycle keeps its `timer_ref`, so the ref returned by `schedule/1` (persisted as the schedule's `scheduler_ref`) cancels the cycle at any point in its life; `disable_schedule/1` and `unregister_timer_starts/1` therefore always reach the live entry.
 
-**Catch-up (decision D-2):** an occurrence that is already due when the cycle re-arms (a late tick, a manual fire) is skipped, using up one repetition, and the first future occurrence is armed. A cycle never fires more than once per tick. Fixed-length intervals (weeks, days, hours, minutes, seconds) are skipped arithmetically; calendar intervals (years, months) step one occurrence at a time.
+**Catch-up:** an occurrence that is already due when the cycle re-arms (a late tick, a manual fire) is skipped, using up one repetition, and the first future occurrence is armed. A cycle never fires more than once per tick. Fixed-length intervals (weeks, days, hours, minutes, seconds) are skipped arithmetically; calendar intervals (years, months) step one occurrence at a time.
 
 **Calendar anchor:** a calendar-interval cycle computes occurrence `n` as `anchor + n × interval` (`ISO8601.next_cycle_fire/2`, the catch-up, and the Scheduler re-arm alike), so a month-end cycle keeps its day: `R/2026-01-31T10:00:00Z/P1M` fires Feb 28, Mar 31, Apr 30. The anchor is the first occurrence and travels in the cycle spec (`anchor`, `occurrence`), in the Scheduler's `cycle_info` (`schedule/2` takes `cycle_anchor` / `cycle_occurrence`, default `fire_at` and 0), and in a cycle boundary's type properties (`cycle_anchor`, `cycle_occurrence`; a row parked without them counts from its persisted fire). Fixed intervals chain from the last fire, which is exact for them. Timer Start schedules persist no anchor: `reload_start_schedules/1` and `enable_schedule/1` re-anchor on the spec's explicit start, the occurrence the persisted `next_fire_at` is found from; a spec without a start (or whose start does not lead to `next_fire_at`) re-anchors on `next_fire_at`, so a reload after a clamped month keeps the clamped day. `ISO8601.parse_cycle/1` rejects a zero or negative interval (`{:non_positive_cycle_interval, text}`), which would otherwise never advance.
 
@@ -89,7 +89,7 @@ Cycle timers decrement their `remaining` counter on each fire. When no occurrenc
 
 The ETS tables are owned by the Scheduler and die with it. The Scheduler traps exits; `terminate/2` clears a `:persistent_term` marker on `:normal`/`:shutdown`. When `init/1` finds the marker still set, the previous Scheduler crashed, and the optional `on_restart` callback (`{StartEventManager, :reload_start_schedules, []}` in `Timers.Application`) runs in a separate process to re-arm the persisted cycle start schedules. A restore that raises, exits, throws, or returns `{:error, reason}` (`reload_start_schedules/1` returns `{:error, reason}` when it cannot list the armed schedules) is retried with exponential backoff, three attempts in total starting at 500 ms; only then is an error logged: cycle start schedules stay unarmed until the next engine boot. A restart through the supervisor's `terminate_child`/`restart_child` (test reset) is a clean shutdown and restores nothing.
 
-PI-scoped timers have no persistence in `core_timers`; their owners re-arm them. Catch, boundary, and start-gate handler Tasks wait through `Scheduler.await_fire/3`, which monitors the Scheduler: on `:DOWN` it waits for the restarted Scheduler (backoff 50 ms doubling to 1 s), schedules the same fire time again, and waits for the new ref. A fire already in the Task's mailbox is still taken. Event Subprocess timer starts are armed by the scope instance, which monitors the Scheduler while any timer trigger is armed; on `:DOWN` it retries with the same backoff and re-arms through `EventSubprocess.rearm_timer_triggers/1`, which recomputes fire times like a resume (scope activation plus fired shell count; a fired one-shot timer stays disarmed).
+PI-scoped timers have no persistence in `BfwEngine.Timers`; their owners re-arm them. Catch, boundary, and start-gate handler Tasks wait through `Scheduler.await_fire/3`, which monitors the Scheduler: on `:DOWN` it waits for the restarted Scheduler (backoff 50 ms doubling to 1 s), schedules the same fire time again, and waits for the new ref. A fire already in the Task's mailbox is still taken. Event Subprocess timer starts are armed by the scope instance, which monitors the Scheduler while any timer trigger is armed; on `:DOWN` it retries with the same backoff and re-arms through `EventSubprocess.rearm_timer_triggers/1`, which recomputes fire times like a resume (scope activation plus fired shell count; a fired one-shot timer stays disarmed).
 
 ### Manual timer trigger (`fire_now_for_target/2`)
 
@@ -116,7 +116,7 @@ REST: `BfwEngineWeb.Http.TimerEventController` (`POST /timer-events/:flow_node_i
 
 ## ISO 8601 Module
 
-**Path:** `apps/core_timers/lib/bfw_engine/timers/iso8601.ex`
+**Path:** `lib/bfw_engine/timers/iso8601.ex`
 
 Pure-function module for ISO 8601 timer spec resolution. No GenServer, no side effects.
 
@@ -145,7 +145,7 @@ Uses Elixir 1.18 `Duration.from_iso8601/1` for durations and `DateTime.from_iso8
 
 ## StartEventManager
 
-**Path:** `apps/core_timers/lib/bfw_engine/timers/start_event_manager.ex`
+**Path:** `lib/bfw_engine/timers/start_event_manager.ex`
 
 Manages the lifecycle of Timer Start Event schedules. Receives pre-extracted timer specs from the deploy path — does **not** scan BPMN models or evaluate FEEL. Which version is scheduled is decided by the deploy and version-delete hooks in `BfwEngine.Api.Processes`: only the latest live version of each process has schedules ([execution.md](./execution.md) §Superseded Versions).
 
@@ -153,7 +153,7 @@ Manages the lifecycle of Timer Start Event schedules. Receives pre-extracted tim
 
 | Function | Description |
 |----------|-------------|
-| `register_timer_starts/4` | Persist + schedule cycle timer starts for a deployed version. A cycle whose start lies in the past skips its due occurrences (one repetition each, D-2); a finite cycle with none left is persisted exhausted (`next_fire_at: nil`, `cycle_remaining: 0`) and not armed |
+| `register_timer_starts/4` | Persist + schedule cycle timer starts for a deployed version. A cycle whose start lies in the past skips its due occurrences (one repetition each, see §Catch-up); a finite cycle with none left is persisted exhausted (`next_fire_at: nil`, `cycle_remaining: 0`) and not armed |
 | `unregister_timer_starts/1` | Cancel ETS entries + delete persistence records for a version, holding the lock of every schedule of the version (taken in sorted id order). When the schedules cannot be listed, nothing is cancelled or deleted and `{:error, reason}` is returned |
 | `enable_schedule/1` | Re-enable a disabled cycle schedule and re-arm it in the Scheduler with its persisted `cycle_remaining`, cancelling any entry it still holds. A start-anchored cycle continues from its persisted `next_fire_at` (the occurrence `cycle_remaining` counts from, so occurrences fired before the disable are not counted again); a cycle without a start is re-anchored one interval after the enable. Occurrences already due are skipped (one repetition each), and a schedule with none left is persisted exhausted, so enabling an enabled schedule leaves one armed entry. An exhausted schedule (`cycle_remaining == 0`) is only marked enabled; it is not armed and never fires again. The new state is persisted before the old entry is cancelled: a failed write returns `{:error, reason}` and leaves the schedule and its entry as they were; a Scheduler that cannot be reached returns `{:error, {:scheduler_unavailable, reason}}` and clears the persisted `scheduler_ref` |
 | `disable_schedule/1` | Cancel Scheduler entry, set `enabled=false` in persistence |
@@ -186,7 +186,7 @@ Enable, disable, reload and unregister run under a per-schedule lock (`:global.t
 
 ## Persistence Behaviour
 
-**Path:** `apps/core_timers/lib/bfw_engine/timers/persistence.ex`
+**Path:** `lib/bfw_engine/timers/persistence.ex`
 
 Only Timer Start Event schedules use this persistence layer. PI-scoped timers (Intermediate Catch and Boundary) are stored in FNI `type_properties` and do not need dedicated persistence.
 
@@ -203,8 +203,8 @@ Only Timer Start Event schedules use this persistence layer. PI-scoped timers (I
 
 | Module | Domain | Purpose |
 |--------|--------|---------|
-| `BfwEngine.Persistence.TimerStartScheduleAdapter` | `peripheral_persistence` | **Implemented.** Ash + AshPostgres adapter for the operational `timer_start_schedules` table. **Production default** (`config/config.exs` sets `:core_timers, :persistence_module` to this module). Cycle Timer Start schedules survive engine restart; boot reload from Postgres is real. |
-| `BfwEngine.Timers.Persistence.NoOp` | `core_timers` | In-memory GenServer. **Test-only default** (`config/test.exs`). `ExecutionCase` switches tests that exercise Timer Start persistence to `TimerStartScheduleAdapter`. |
+| `BfwEngine.Persistence.TimerStartScheduleAdapter` | `BfwEngine.Persistence` | **Implemented.** Ash + AshPostgres adapter for the operational `timer_start_schedules` table. **Production default** (`config/config.exs` sets `:bfw_engine, :persistence_module` to this module). Cycle Timer Start schedules survive engine restart; boot reload from Postgres is real. |
+| `BfwEngine.Timers.Persistence.NoOp` | `BfwEngine.Timers` | In-memory GenServer. **Test-only default** (`config/test.exs`). `ExecutionCase` switches tests that exercise Timer Start persistence to `TimerStartScheduleAdapter`. |
 
 ---
 
@@ -212,15 +212,15 @@ Only Timer Start Event schedules use this persistence layer. PI-scoped timers (I
 
 | Key | Default | Test | Description |
 |-----|---------|------|-------------|
-| `:core_timers, :tick_interval_ms` | `1000` | `50` | Scheduler tick frequency |
-| `:core_timers, :timer_start_target` | `:timer_start_listener` | — | Registered name for Timer Start fire delivery |
-| `:core_timers, :persistence_module` | `BfwEngine.Persistence.TimerStartScheduleAdapter` | `BfwEngine.Timers.Persistence.NoOp` | Persistence behaviour implementation. Production uses the Ash adapter; test env keeps NoOp; `ExecutionCase` switches to the adapter. |
+| `:bfw_engine, :tick_interval_ms` | `1000` | `50` | Scheduler tick frequency |
+| `:bfw_engine, :timer_start_target` | `:timer_start_listener` | — | Registered name for Timer Start fire delivery |
+| `:bfw_engine, :persistence_module` | `BfwEngine.Persistence.TimerStartScheduleAdapter` | `BfwEngine.Timers.Persistence.NoOp` | Persistence behaviour implementation. Production uses the Ash adapter; test env keeps NoOp; `ExecutionCase` switches to the adapter. |
 
 ---
 
 ## Telemetry Events
 
-`core_timers` emits lightweight `:telemetry` events (no typed `Event.*` structs — those belong to `core_execution`):
+`BfwEngine.Timers` emits lightweight `:telemetry` events (no typed `Event.*` structs — those belong to `BfwEngine.Execution`):
 
 | Event | Measurements | Metadata |
 |-------|-------------|----------|
@@ -234,11 +234,11 @@ Only Timer Start Event schedules use this persistence layer. PI-scoped timers (I
 
 | Module | Path |
 |--------|------|
-| `BfwEngine.Timers` | `apps/core_timers/lib/bfw_engine/timers.ex` |
-| `BfwEngine.Timers.Scheduler` | `apps/core_timers/lib/bfw_engine/timers/scheduler.ex` |
-| `BfwEngine.Timers.ISO8601` | `apps/core_timers/lib/bfw_engine/timers/iso8601.ex` |
-| `BfwEngine.Timers.StartEventManager` | `apps/core_timers/lib/bfw_engine/timers/start_event_manager.ex` |
-| `BfwEngine.Timers.Persistence` | `apps/core_timers/lib/bfw_engine/timers/persistence.ex` |
-| `BfwEngine.Timers.Persistence.NoOp` | `apps/core_timers/lib/bfw_engine/timers/persistence/no_op.ex` |
-| `BfwEngine.Persistence.TimerStartScheduleAdapter` | `apps/peripheral_persistence/lib/bfw_engine/persistence/timer_start_schedule_adapter.ex` |
-| `BfwEngine.Timers.Application` | `apps/core_timers/lib/bfw_engine/timers/application.ex` |
+| `BfwEngine.Timers` | `lib/bfw_engine/timers.ex` |
+| `BfwEngine.Timers.Scheduler` | `lib/bfw_engine/timers/scheduler.ex` |
+| `BfwEngine.Timers.ISO8601` | `lib/bfw_engine/timers/iso8601.ex` |
+| `BfwEngine.Timers.StartEventManager` | `lib/bfw_engine/timers/start_event_manager.ex` |
+| `BfwEngine.Timers.Persistence` | `lib/bfw_engine/timers/persistence.ex` |
+| `BfwEngine.Timers.Persistence.NoOp` | `lib/bfw_engine/timers/persistence/no_op.ex` |
+| `BfwEngine.Persistence.TimerStartScheduleAdapter` | `lib/bfw_engine/persistence/timer_start_schedule_adapter.ex` |
+| `BfwEngine.Timers.Supervisor` | `lib/bfw_engine/timers/supervisor.ex` |

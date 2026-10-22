@@ -232,7 +232,7 @@ Accepted exceptions:
   `CalledElementResolver.NoOp`, `DecisionResolver.NoOp`,
   `Timers.Persistence.NoOp`, and the script and service-task dispatch no-ops)
   are the null implementation of a Core behaviour. They are selected
-  umbrella-wide in `config/test.exs`. Their test-only reset functions are
+  in `config/test.exs`. Their test-only reset functions are
   still forbidden.
 - `RepoRouter`'s `Mix.env() == :test` read-pool redirect stays. The Ecto
   sandbox needs one pool. The branch is documented in

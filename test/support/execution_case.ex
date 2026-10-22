@@ -9,10 +9,10 @@ defmodule BfwEngine.ExecutionCase do
   Provides two approaches for starting processes:
 
   - `start_process/2` — direct call to `Execution.start_process_instance/1`,
-    bypassing HTTP. Use only for per-app unit tests in `core_execution`.
+    bypassing HTTP. Use only for unit tests of `BfwEngine.Execution`.
   - `http_deploy/2` + `http_start/3` — full HTTP round-trip through
     `POST /processes` and `POST /processes/{model_id}/start`. Use for all
-    umbrella-level integration tests.
+    integration tests.
   """
 
   use ExUnit.CaseTemplate
@@ -63,25 +63,25 @@ defmodule BfwEngine.ExecutionCase do
     ensure_test_secret()
 
     Application.put_env(
-      :core_execution,
+      :bfw_engine,
       :persistence_adapter,
       BfwEngine.Persistence.ExecutionAdapter
     )
 
     Application.put_env(
-      :core_execution,
+      :bfw_engine,
       :called_element_resolver,
       BfwEngine.Persistence.CalledElementResolverImpl
     )
 
     Application.put_env(
-      :core_execution,
+      :bfw_engine,
       :decision_resolver,
       BfwEngine.Persistence.DecisionResolverImpl
     )
 
     Application.put_env(
-      :core_timers,
+      :bfw_engine,
       :persistence_module,
       BfwEngine.Persistence.TimerStartScheduleAdapter
     )
@@ -92,12 +92,12 @@ defmodule BfwEngine.ExecutionCase do
       terminate_all_process_instances()
       await_supervisor_drain()
 
-      Application.delete_env(:core_execution, :persistence_adapter)
-      Application.delete_env(:core_execution, :called_element_resolver)
-      Application.delete_env(:core_execution, :decision_resolver)
+      Application.delete_env(:bfw_engine, :persistence_adapter)
+      Application.delete_env(:bfw_engine, :called_element_resolver)
+      Application.delete_env(:bfw_engine, :decision_resolver)
 
       Application.put_env(
-        :core_timers,
+        :bfw_engine,
         :persistence_module,
         BfwEngine.Timers.Persistence.NoOp
       )
@@ -201,8 +201,8 @@ defmodule BfwEngine.ExecutionCase do
   end
 
   defp ensure_test_secret do
-    case Application.get_env(:api_auth, :hs256_secret) do
-      nil -> Application.put_env(:api_auth, :hs256_secret, @test_secret)
+    case Application.get_env(:bfw_engine, :hs256_secret) do
+      nil -> Application.put_env(:bfw_engine, :hs256_secret, @test_secret)
       _ -> :ok
     end
   end
@@ -210,7 +210,7 @@ defmodule BfwEngine.ExecutionCase do
   @doc """
   Start a process instance directly (bypasses HTTP layer).
 
-  Use only for per-app unit tests in `core_execution` that
+  Use only for unit tests of `BfwEngine.Execution` that
   intentionally test the runtime in isolation.
   """
   def start_process(process_version_id, opts \\ []) do
@@ -1246,19 +1246,8 @@ defmodule BfwEngine.ExecutionCase do
 
   @doc "Sign a test JWT with HS256."
   def sign_jwt(claims \\ %{}) do
-    secret = Application.get_env(:api_auth, :hs256_secret) || @test_secret
-    jwk = JOSE.JWK.from_oct(secret)
-
-    defaults = %{
-      "sub" => "test-user",
-      "exp" => DateTime.utc_now() |> DateTime.add(3600) |> DateTime.to_unix(),
-      "iat" => DateTime.utc_now() |> DateTime.to_unix(),
-      "lane:default" => "write"
-    }
-
-    merged = Map.merge(defaults, claims)
-    {_, compact} = JOSE.JWT.sign(jwk, %{"alg" => "HS256"}, merged) |> JOSE.JWS.compact()
-    compact
+    defaults = %{"sub" => "test-user", "lane:default" => "write"}
+    BfwEngine.Test.AuthHelper.sign_jwt(Map.merge(defaults, claims))
   end
 
   @doc "Send a conn through the full HTTP Endpoint (includes Plug.Parsers)."

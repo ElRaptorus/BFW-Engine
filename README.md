@@ -100,8 +100,10 @@ mix sobelow
 mix dialyzer
 
 # Run Tests
-mix test.all              # every app's tests
-mix test apps/core_bpmn   # one app (here: "core_bpmn")
+mix test                  # unit suite (test/unit)
+mix test.integration      # integration suite (needs the test database)
+mix test.conformance      # YAML conformance specs
+mix test test/unit/bpmn   # one subsystem (here: BPMN)
 mix coveralls.html        # HTML coverage report under cover/
 ```
 
@@ -111,7 +113,7 @@ mix coveralls.html        # HTML coverage report under cover/
 
 | Layer                 | Command                | Coverage                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | --------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Unit tests**        | `mix test`             | 2,800+ tests across all umbrella apps. Covers types, BPMN parser/validator, FEEL expressions, DMN parser/evaluator, PI/FNI state machine, etc.                                                                                                                                                                                                                                                                                       |
+| **Unit tests**        | `mix test`             | 2,800+ tests across all subsystems. Covers types, BPMN parser/validator, FEEL expressions, DMN parser/evaluator, PI/FNI state machine, etc.                                                                                                                                                                                                                                                                                       |
 | **Integration tests** | `mix test.integration` | 800+ full-stack tests with DB. Each test runs the entire Toolchain, from HTTP API to Persistence Layer, as a normal end user would.                                                                                                                                                                                                                                                                                                  |
 | **Conformance tests** | `mix test.conformance` | 210+ tests driven by YAML specs for each supported Element.                                                                                                                                                                                                                                                                                                                                                                          |
 | **Load tests**        | `mix test.load`        | Standalone load tests (linear through mixed BPMN, DMN 10–500 rules). Full API lifecycle, 10–10,000 process instances. Durability (20k / 50k / 100k): `mix test.load.durability` (that file only). Hardening (LZ4 vs PGLZ, payload-cap chaos, resume-crash): `mix test.load.hardening`. `mix test.load.all` is default + durability + hardening (one JSON). Local / large-runner only; GitHub `load-bench` runs `mix test.load` only. |

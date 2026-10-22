@@ -22,7 +22,7 @@ The engine emits a `warn`-severity log line every 60 seconds while auth is
 disabled, so a production deployment cannot run this way silently.
 
 Integration tests use `BFE_AUTH_DISABLED=false` (the default) and mint JWTs
-through the `engine_sdk`-shipped `MintTestToken` helper (§10).
+through `BfwEngine.IntegrationCase.sign_jwt/1` (§11).
 
 ---
 
@@ -220,7 +220,7 @@ alternative, they are lane-independent (§5.3). The Engine has no field-to-lane
 mapping to redact by.
 
 **Implementation:** the `FlowNodeInstance` `:read` policy
-(`apps/peripheral_persistence/lib/bfw_engine/persistence/resources/flow_node_instance.ex`)
+(`lib/bfw_engine/persistence/resources/flow_node_instance.ex`)
 is three `authorize_if` clauses (`is_nil(lane_name)`,
 `lane_name in ^actor(:accessible_lanes)`,
 `exists(:process_instance, started_by["id"] == ^actor(:id))`) behind the
@@ -441,7 +441,7 @@ Implemented channel topics:
 
 ### 9.2 Dispatch-time lane filtering
 
-**Path:** `apps/api_web/lib/bfw_engine_web/ws/event_delivery.ex`
+**Path:** `lib/bfw_engine_web/ws/event_delivery.ex`
 
 Filtering runs in the channel process after PubSub broadcast so each subscriber applies its own join-cached identity (`accessible_lanes`, `admin_override`, `identity_id`). Classification uses the envelope `type` string (explicit allow-lists), not field presence — JSON `null` and a missing `laneName` are indistinguishable via `get_in/2`.
 
@@ -488,12 +488,15 @@ probing.
 
 ---
 
-## 11. SDK test helper
+## 11. Test token helpers
 
-`engine_sdk` ships a `MintTestToken` module alongside `TestSink`:
+Integration tests sign HS256 tokens with `sign_jwt/1` from
+`test/support/integration_case.ex`; unit tests in `test/unit/web` use `sign_jwt/1`
+from `test/unit/web/support/auth_helper.ex`. `mix bfw.mint_token` mints the same
+kind of token from the command line.
 
 ```elixir
-BfwEngine.SDK.Test.MintTestToken.mint(%{
+BfwEngine.IntegrationCase.sign_jwt(%{
   sub: "test-user-1",
   "lane:Management" => "write",
   deploy_bpmn: true,
@@ -502,8 +505,8 @@ BfwEngine.SDK.Test.MintTestToken.mint(%{
 # => "eyJhbGciOiJIUzI1NiIs..."
 ```
 
-Uses the test-config JWT secret (`BFE_JWT_HS256_SECRET` in test env).
-Integration tests use this exclusively — no hard-coded tokens, no
+Signs with `config :bfw_engine, :hs256_secret` (falling back to a fixed test
+secret). Integration tests use this exclusively — no hard-coded tokens, no
 auth-disabled shortcuts.
 
 ---
@@ -520,7 +523,7 @@ auth-disabled shortcuts.
 
 ## 13. Api facade validation module (`BfwEngine.Api.Validation`)
 
-**Path:** `apps/api_facade/lib/bfw_engine/api/validation.ex`
+**Path:** `lib/bfw_engine/api/validation.ex`
 
 All JWT claim checks, lane access checks, and admin override logic are centralized here. **REST controllers do not call this module directly** — they delegate to `BfwEngine.Api` functions that invoke Validation internally. GraphQL and WebSocket adapters follow the same pattern where claim-gated operations exist on the facade.
 
@@ -556,7 +559,7 @@ Admin override (`zeeky_boogie_doog`) bypasses all claim checks in every helper a
 
 ### Plugin `skip_claims` opt-out
 
-The plugin loader (`apps/engine_plugins/lib/bfw_engine/plugins/loader.ex`) passes `skip_claims: true` on every claim-gated facade closure it constructs (deploy, enable/disable, delete, abort, retry, delete PI, finish/cancel user task, publish message/signal, etc.). Plugins remain inside the operator trust boundary; audit still records the `plugin:<name>` identity on each Api invocation.
+The plugin loader (`lib/bfw_engine/plugins/loader.ex`) passes `skip_claims: true` on every claim-gated facade closure it constructs (deploy, enable/disable, delete, abort, retry, delete PI, finish/cancel user task, publish message/signal, etc.). Plugins remain inside the operator trust boundary; audit still records the `plugin:<name>` identity on each Api invocation.
 
 ---
 

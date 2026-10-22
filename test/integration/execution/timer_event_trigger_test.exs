@@ -196,7 +196,7 @@ defmodule BfwEngine.Integration.Execution.TimerEventTriggerTest do
   end
 
   defp sign_expired_jwt do
-    secret = Application.get_env(:api_auth, :hs256_secret) || @test_secret
+    secret = Application.get_env(:bfw_engine, :hs256_secret) || @test_secret
     jwk = JOSE.JWK.from_oct(secret)
 
     claims = %{

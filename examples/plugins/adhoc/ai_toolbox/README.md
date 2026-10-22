@@ -2,8 +2,8 @@
 
 Demonstrates **plugin-managed** Ad-hoc Sub-Process control via
 `BfwEngine.EngineFacade.adhoc_subprocesses`. Copy this plugin into an OTP
-application that already depends on `engine_sdk` (for `BfwEngine.Plugin`
-and `BfwEngine.Plugin.EventSink`) and `core_types` (for `BfwEngine.Types.Event`).
+application that already depends on `:bfw_engine` (for `BfwEngine.Plugin`,
+`BfwEngine.Plugin.EventSink`, and `BfwEngine.Types.Event`).
 
 ## Scenario
 

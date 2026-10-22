@@ -5,7 +5,7 @@ defmodule BfwEngine.Test.ClientEndpoint do
 
   `config/test.exs` sets `server: false` on the Endpoint config, so Phoenix
   never opens its own listener during `mix test` — but the Endpoint process
-  itself remains supervised (`BfwEngineWeb.Application` starts it
+  itself remains supervised (`BfwEngineWeb.Supervisor` starts it
   unconditionally). This module starts a second, throwaway Bandit process
   with `plug: BfwEngineWeb.Http.Endpoint`, `ip: :loopback`, `port: 0` under
   `ExUnit.Callbacks.start_supervised!/1` and resolves the OS-assigned port

@@ -1,10 +1,8 @@
-# Umbrella-wide formatter config.
-# Per-app .formatter.exs files import this via `import_deps: [:phoenix, :ash, ...]`
-# where appropriate — see apps/*/.formatter.exs.
 [
+  import_deps: [:phoenix, :ash, :ash_postgres, :ecto, :ecto_sql],
   inputs: [
     "{mix,.formatter,.credo}.exs",
-    "config/*.{ex,exs}"
-  ],
-  subdirectories: ["apps/*"]
+    "{config,lib}/**/*.{ex,exs}",
+    "test/unit/**/*.{ex,exs}"
+  ]
 ]

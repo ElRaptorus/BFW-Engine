@@ -66,26 +66,15 @@ defmodule BfwEngine.IntegrationCase do
   end
 
   defp ensure_test_secret do
-    case Application.get_env(:api_auth, :hs256_secret) do
-      nil -> Application.put_env(:api_auth, :hs256_secret, @test_secret)
+    case Application.get_env(:bfw_engine, :hs256_secret) do
+      nil -> Application.put_env(:bfw_engine, :hs256_secret, @test_secret)
       _ -> :ok
     end
   end
 
   @doc "Sign a test JWT with HS256."
   def sign_jwt(claims \\ %{}) do
-    secret = Application.get_env(:api_auth, :hs256_secret) || @test_secret
-    jwk = JOSE.JWK.from_oct(secret)
-
-    defaults = %{
-      "exp" => DateTime.utc_now() |> DateTime.add(3600) |> DateTime.to_unix(),
-      "iat" => DateTime.utc_now() |> DateTime.to_unix(),
-      "lane:default" => "write"
-    }
-
-    merged = Map.merge(defaults, claims)
-    {_, compact} = JOSE.JWT.sign(jwk, %{"alg" => "HS256"}, merged) |> JOSE.JWS.compact()
-    compact
+    BfwEngine.Test.AuthHelper.sign_jwt(Map.merge(%{"lane:default" => "write"}, claims))
   end
 
   @doc "Build a conn with a valid Bearer header."

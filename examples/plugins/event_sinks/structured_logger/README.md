@@ -27,5 +27,5 @@ from the event struct (strings, ISO-8601 for `DateTime`, atoms as strings).
 
 ## Further reading
 
-- [`BfwEngine.Plugin.EventSink`](../../../../apps/engine_sdk/lib/bfw_engine/plugin/event_sink.ex)
+- [`BfwEngine.Plugin.EventSink`](../../../../lib/bfw_engine/plugin/event_sink.ex)
 - [`docs/architecture/event-system.md`](../../../../docs/architecture/event-system.md)

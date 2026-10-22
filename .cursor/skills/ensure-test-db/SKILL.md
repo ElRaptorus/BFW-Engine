@@ -4,7 +4,7 @@ description: >-
   Ensure the PostgreSQL Docker container required by integration tests and the
   quality gate is running and ready. Use BEFORE running any command that touches
   the database: `mix quality`, `mix test.integration`, `mix test.full`,
-  per-app tests in `peripheral_persistence`, or any test tagged `:integration`.
+  unit tests in `test/unit/persistence`, or any test tagged `:integration`.
   Agents MUST NOT skip this step or report "DB not running" as an acceptable
   outcome.
 ---
@@ -22,7 +22,7 @@ Use this skill (i.e. execute the steps below) **before** running any of:
 - `mix test.full`
 - `mix test.integration`
 - `mix test.conformance`
-- `mix test` in `apps/peripheral_persistence/`
+- `mix test` in `lib/bfw_engine/persistence/`
 - Any individual test file tagged `@tag :integration`
 - The thorough-review skill (§1 Quality Gate)
 

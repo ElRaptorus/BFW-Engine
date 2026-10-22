@@ -1,17 +1,17 @@
 ---
 description: Keep the OpenAPI spec.yaml in sync with REST API surface changes
 globs:
-  - "apps/api_web/lib/**/controllers/**/*.ex"
-  - "apps/api_web/lib/**/router.ex"
-  - "apps/api_web/lib/**/plugs/**/*.ex"
-  - "apps/api_web/priv/openapi/spec.yaml"
+  - "lib/**/controllers/**/*.ex"
+  - "lib/**/router.ex"
+  - "lib/**/plugs/**/*.ex"
+  - "priv/openapi/spec.yaml"
 alwaysApply: false
 ---
 
 # Maintain OpenAPI Spec
 
 The Engine REST API is documented via a hand-maintained OpenAPI 3.0
-YAML file at `apps/api_web/priv/openapi/spec.yaml`. This file is served
+YAML file at `priv/openapi/spec.yaml`. This file is served
 as JSON at `GET /api/openapi` and rendered by Swagger UI at `GET /`.
 
 Controller actions do **not** carry `OpenApiSpex.operation/2` annotations.

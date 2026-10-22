@@ -1,6 +1,6 @@
 # Local script runner (`local_script`)
 
-This starter wires [`BfwEngine.Plugin.NamedScript`](https://github.com/ElRaptorus/BFW-Engine/blob/main/apps/engine_sdk/lib/bfw_engine/plugin/named_script.ex) to files on the operator’s machine. The BPMN carries the relative path in the standard `<bpmn:script>` body while `<bfw:scriptRef>local_script</bfw:scriptRef>` selects this handler.
+This starter wires [`BfwEngine.Plugin.NamedScript`](https://github.com/ElRaptorus/BFW-Engine/blob/main/lib/bfw_engine/plugin/named_script.ex) to files on the operator’s machine. The BPMN carries the relative path in the standard `<bpmn:script>` body while `<bfw:scriptRef>local_script</bfw:scriptRef>` selects this handler.
 
 Companion BPMN: `bpmn/scripted_file_process.bpmn`. Sample payloads live under `scripts/`.
 
@@ -14,7 +14,7 @@ Companion BPMN: `bpmn/scripted_file_process.bpmn`. Sample payloads live under `s
 
 ## Dependencies
 
-Copy the modules into an OTP app that already depends on `engine_sdk` **and** add [`:jason`](https://hex.pm/packages/jason) to `deps/0` because `ScriptSandbox` encodes/decodes JSON.
+Copy the modules into an OTP app that already depends on `:bfw_engine` **and** add [`:jason`](https://hex.pm/packages/jason) to `deps/0` because `ScriptSandbox` encodes/decodes JSON.
 
 ## Configuration
 
@@ -34,5 +34,5 @@ Run from an app that compiles these modules: `mix test test/script_runner_test.e
 
 ## Further reading
 
-- [`BfwEngine.EngineFacade`](https://github.com/ElRaptorus/BFW-Engine/blob/main/apps/engine_sdk/lib/bfw_engine/engine_facade.ex)
+- [`BfwEngine.EngineFacade`](https://github.com/ElRaptorus/BFW-Engine/blob/main/lib/bfw_engine/engine_facade.ex)
 - [plugins architecture](https://github.com/ElRaptorus/BFW-Engine/blob/main/docs/architecture/plugins.md)

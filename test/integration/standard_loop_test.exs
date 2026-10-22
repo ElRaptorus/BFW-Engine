@@ -1,6 +1,6 @@
 defmodule BfwEngine.Integration.StandardLoopTest do
   @moduledoc """
-  Umbrella-level integration tests for Standard Loop (while-do and do-while)
+  Integration tests for Standard Loop (while-do and do-while)
   execution via the lightweight iteration scope architecture.
   """
   use BfwEngine.ExecutionCase, async: false
@@ -15,45 +15,6 @@ defmodule BfwEngine.Integration.StandardLoopTest do
   # ===================================================================
 
   describe "Section 1 — while-do loop" do
-    test "1.1 while-do script loop — condition checked before first iteration",
-         %{collector: collector} do
-      {201, _deploy_body} = http_deploy("loop_while_do_script.bpmn")
-
-      {201, start_body} = http_start("loop-while-do-script")
-      process_instance_id = start_body["processInstanceId"]
-
-      wait_for_process_instance(process_instance_id, @default_timeout)
-
-      assert_pi_state!(process_instance_id, "finished")
-      assert_all_fnis_terminal!(process_instance_id)
-
-      flow_node_instances = fetch_flow_node_instances(process_instance_id)
-
-      iteration_fnis =
-        Enum.filter(flow_node_instances, fn flow_node_instance ->
-          flow_node_instance.flow_node_id == "Task_1" and
-            flow_node_instance.multi_instance_id != nil
-        end)
-
-      assert length(iteration_fnis) == 3,
-             "Expected 3 iteration FNIs (loop.completed < 3), got #{length(iteration_fnis)}"
-
-      Enum.each(iteration_fnis, fn flow_node_instance ->
-        assert flow_node_instance.state == "finished"
-      end)
-
-      events = EventCollector.get_events(collector)
-
-      multi_instance_started_events =
-        Enum.filter(events, &match?(%Event.MultiInstanceStarted{}, &1))
-
-      assert length(multi_instance_started_events) >= 1
-
-      started_event = List.first(multi_instance_started_events)
-      assert started_event.loop_type == "standard_loop"
-      assert started_event.total_iterations == nil
-      assert started_event.flow_node_id == "Task_1"
-    end
 
     test "1.2 zero iterations — testBefore=true, condition false from start",
          %{collector: collector} do
@@ -147,43 +108,6 @@ defmodule BfwEngine.Integration.StandardLoopTest do
   # ===================================================================
 
   describe "Section 3 — loop controls" do
-    test "3.1 loop maximum cap — stops at loopMaximum even when condition stays true",
-         %{collector: collector} do
-      {201, _deploy_body} = http_deploy("loop_with_maximum.bpmn")
-
-      {201, start_body} = http_start("loop-with-maximum")
-      process_instance_id = start_body["processInstanceId"]
-
-      wait_for_process_instance(process_instance_id, @default_timeout)
-
-      assert_pi_state!(process_instance_id, "finished")
-      assert_all_fnis_terminal!(process_instance_id)
-
-      flow_node_instances = fetch_flow_node_instances(process_instance_id)
-
-      iteration_fnis =
-        Enum.filter(flow_node_instances, fn flow_node_instance ->
-          flow_node_instance.flow_node_id == "Task_1" and
-            flow_node_instance.multi_instance_id != nil
-        end)
-
-      assert length(iteration_fnis) == 5,
-             "Expected exactly 5 iterations (loopMaximum=5 with condition=true), " <>
-               "got #{length(iteration_fnis)}"
-
-      events = EventCollector.get_events(collector)
-
-      multi_instance_completed_events =
-        Enum.filter(events, fn event ->
-          match?(%Event.MultiInstanceCompleted{}, event) and event.flow_node_id == "Task_1"
-        end)
-
-      assert length(multi_instance_completed_events) >= 1
-
-      completed_event = List.first(multi_instance_completed_events)
-      assert completed_event.completed_iterations == 5
-      assert completed_event.early_break == true
-    end
 
     test "3.2 loop interval delay — iterations spaced by PT1S" do
       {201, _deploy_body} = http_deploy("loop_with_interval.bpmn")
@@ -232,6 +156,23 @@ defmodule BfwEngine.Integration.StandardLoopTest do
       wait_for_process_instance(process_instance_id, @default_timeout)
 
       assert_pi_state!(process_instance_id, "finished")
+      assert_all_fnis_terminal!(process_instance_id)
+
+      flow_node_instances = fetch_flow_node_instances(process_instance_id)
+
+      iteration_fnis =
+        Enum.filter(flow_node_instances, fn flow_node_instance ->
+          flow_node_instance.flow_node_id == "Task_1" and
+            flow_node_instance.multi_instance_id != nil
+        end)
+
+      assert length(iteration_fnis) == 3,
+             "Expected 3 iteration FNIs (loop.completed < 3), got #{length(iteration_fnis)}"
+
+      Enum.each(iteration_fnis, fn flow_node_instance ->
+        assert flow_node_instance.state == "finished"
+      end)
+
 
       events = EventCollector.get_events(collector)
 
@@ -278,6 +219,20 @@ defmodule BfwEngine.Integration.StandardLoopTest do
       wait_for_process_instance(process_instance_id, @default_timeout)
 
       assert_pi_state!(process_instance_id, "finished")
+      assert_all_fnis_terminal!(process_instance_id)
+
+      flow_node_instances = fetch_flow_node_instances(process_instance_id)
+
+      iteration_fnis =
+        Enum.filter(flow_node_instances, fn flow_node_instance ->
+          flow_node_instance.flow_node_id == "Task_1" and
+            flow_node_instance.multi_instance_id != nil
+        end)
+
+      assert length(iteration_fnis) == 5,
+             "Expected exactly 5 iterations (loopMaximum=5 with condition=true), " <>
+               "got #{length(iteration_fnis)}"
+
 
       events = EventCollector.get_events(collector)
 

@@ -4,7 +4,7 @@ The engine routes runtime notifications through two complementary
 mechanisms: in-process `Phoenix.PubSub` for coordination between process
 instances and internal subsystems, and `EngineEventBus` as the single typed
 fan-out surface for every `BfwEngine.Types.Event.*` payload. Telemetry in
-`core_execution` mirrors that public contract: each `:telemetry.execute/3`
+`BfwEngine.Execution` mirrors that public contract: each `:telemetry.execute/3`
 pairs with one `EngineEventBus.publish/1`. Observability, audit, live
 clients, and plugin integrations consume events only via registered
 `@behaviour BfwEngine.Plugin.EventSink` implementations — parallel,
@@ -14,7 +14,7 @@ crash-isolated, and at-most-once per sink.
 
 The event bus has **two complementary layers**:
 
-1. **In-process PubSub** — low-level transport for intra-engine coordination between PIs, handlers, and the Subscription registry. This is `Phoenix.PubSub` with the in-memory adapter, used by core_execution and the various `Core.Events.*` facades.
+1. **In-process PubSub** — low-level transport for intra-engine coordination between PIs, handlers, and the Subscription registry. This is `Phoenix.PubSub` with the in-memory adapter, used by BfwEngine.Execution and the various `Core.Events.*` facades.
 2. **`EngineEventBus`** — the single public fan-out surface for every typed `BfwEngine.Types.Event.*` payload emitted anywhere in the engine. Wraps the PubSub layer with a sink-routing stage that dispatches each event to every registered `@behaviour BfwEngine.Plugin.EventSink` ([plugins.md](./plugins.md)). This is the only channel through which observability, audit logging, and external integrations ever see engine events.
 
 ## In-process PubSub Topics
@@ -36,23 +36,23 @@ Future clustering: swap PubSub adapter to `Phoenix.PubSub.PG2` (multi-node) or `
 BfwEngine.Events.EngineEventBus.publish(event :: BfwEngine.Types.Event.t()) :: :ok
 ```
 
-Every `:telemetry.execute/3` call inside core_execution is paired with exactly one `EngineEventBus.publish/1` carrying a typed `BfwEngine.Types.Event.*` struct. The bus then dispatches the event to **every registered sink that declares interest** (`EventSink.accepts?/1` — see [plugins.md](./plugins.md)). Dispatch is:
+Every `:telemetry.execute/3` call inside BfwEngine.Execution is paired with exactly one `EngineEventBus.publish/1` carrying a typed `BfwEngine.Types.Event.*` struct. The bus then dispatches the event to **every registered sink that declares interest** (`EventSink.accepts?/1` — see [plugins.md](./plugins.md)). Dispatch is:
 
-- **Parallel per sink** — each registered sink runs in its own `BfwEngine.Events.SinkWorker` GenServer (supervised by `BfwEngine.Events.SinkSupervisor`, one_for_one). The bus's `handle_cast({:publish, event}, state)` simply casts the event to each worker's pid; the workers then process events independently. A slow sink fills only its own mailbox and never blocks another sink, the bus, or core_execution.
+- **Parallel per sink** — each registered sink runs in its own `BfwEngine.Events.SinkWorker` GenServer (supervised by `BfwEngine.Events.SinkSupervisor`, one_for_one). The bus's `handle_cast({:publish, event}, state)` simply casts the event to each worker's pid; the workers then process events independently. A slow sink fills only its own mailbox and never blocks another sink, the bus, or `BfwEngine.Execution`.
 - **In-order per sink** — each worker is a GenServer, so events arriving via cast are processed serially in arrival order. The documented `handle_event(event, state) → {:ok, new_state}` in-order state-mutation contract is preserved exactly: a sink author writing a stateful sink (counter, batcher, etc.) can rely on events not racing each other for that sink.
 - **Crash-isolated by supervision** — if a sink's `accepts?/1` or `handle_event/2` raises, the worker catches the exception via `try/rescue`, emits an `Event.SinkFailed{sink_name, event_kind, reason, occurred_at}` back onto the bus (so other sinks can observe sink health), and continues running with its previous state. A failure while handling a `SinkFailed` emits nothing: every sink receives every `SinkFailed`, so a sink that raises on everything would otherwise loop forever. If the worker process itself dies for any other reason, `SinkSupervisor` restarts it (one_for_one); the bus is unaffected.
 - **At-most-once per sink** — no retries. Sinks that need delivery guarantees (e.g. a Kafka sink) implement their own buffering/retry inside `handle_event/2`. The engine makes no promises about delivery durability outside a sink's own store; that is the sink author's problem, deliberately.
-- **Back-pressure-free on the hot path** — `publish/1` is always a non-blocking cast into a BEAM mailbox; core_execution never waits for sinks to finish. Pathologically slow sinks build up their own worker mailbox without touching the bus.
+- **Back-pressure-free on the hot path** — `publish/1` is always a non-blocking cast into a BEAM mailbox; BfwEngine.Execution never waits for sinks to finish. Pathologically slow sinks build up their own worker mailbox without touching the bus.
 
 **Three built-in sinks ship inside the engine release** ([Built-in Sinks](#built-in-sinks)). Additional sinks are registered by plugins from inside their engine-driven `on_load/1` callback via `facade.register_event_sink.("name", MyModule, opts)` (see [plugins.md](./plugins.md)).
 
 ## Sink Auto-Registration (SinkRegistrar)
 
-Built-in sinks are automatically registered at application boot by `BfwEngine.Events.SinkRegistrar`, a one-shot `Task` child of the `core_events` Application supervisor. It runs after `EngineEventBus` starts.
+Built-in sinks are automatically registered at application boot by `BfwEngine.Events.SinkRegistrar`, a one-shot `Task` child of the Events supervisor (`lib/bfw_engine/events/supervisor.ex`). It is the last child, so it runs after `EngineEventBus` and `SinkSupervisor` start.
 
-The registrar reads `*_sink_enabled` config flags from `:core_events` and a `sink_modules` map (also from `:core_events`) that maps sink names to their implementing modules. This indirection preserves the dependency rule — `core_events` (Core domain) never imports modules from `peripheral_persistence` or `api_web` at compile time.
+The registrar reads `*_sink_enabled` config flags from `:bfw_engine` and a `sink_modules` map (also from `:bfw_engine`) that maps sink names to their implementing modules. This indirection preserves the dependency rule — `BfwEngine.Events` (Core domain) never imports modules from `BfwEngine.Persistence` or `BfwEngineWeb` at compile time.
 
-The registrar checks `Code.ensure_loaded/1` before attempting registration, gracefully skipping sinks whose modules aren't available (e.g. when running tests for a single umbrella app where not all apps are compiled).
+The registrar checks `Code.ensure_loaded/1` before attempting registration, gracefully skipping sinks whose modules aren't available (e.g. a sink module from a plugin that is not part of the release).
 
 Config keys:
 
@@ -67,10 +67,10 @@ Config keys:
 | Sink | Module | Default | Filtering | Purpose |
 |---|---|---|---|---|
 | `console` | `BfwEngine.Events.Sinks.Console` | **ON** | global `BFE_LOG_MIN_SEVERITY` (default `info`; values `error`/`warn`/`info`/`debug`/`verbose`) | Structured JSON via `logger_json` to stdout; consumed by whatever log aggregator the operator runs (Loki, Cloudwatch, `kubectl logs`, Docker logging drivers) |
-| `telemetry` | `BfwEngine.Telemetry.Sink` (in `peripheral_telemetry`) | **ON** | none (always accepts, increments are O(1)) | Increments `[:bfw_engine, :event_bus]` for Prometheus `bfw_engine.event_bus.events.total`. Does **not** feed `/stats` ([observability.md](./observability.md)) |
-| `websocket` | `BfwEngineWeb.Ws.Sinks.WebSocket` (in `api_web`) | **ON** | rejects only `SinkFailed` | Live Phoenix Channels push to subscribed clients, e.g. Studio debugger |
+| `telemetry` | `BfwEngine.Telemetry.Sink` (in `BfwEngine.Telemetry`) | **ON** | none (always accepts, increments are O(1)) | Increments `[:bfw_engine, :event_bus]` for Prometheus `bfw_engine.event_bus.events.total`. Does **not** feed `/stats` ([observability.md](./observability.md)) |
+| `websocket` | `BfwEngineWeb.Ws.Sinks.WebSocket` (in `BfwEngineWeb`) | **ON** | rejects only `SinkFailed` | Live Phoenix Channels push to subscribed clients, e.g. Studio debugger |
 
-**Database sink removed.** The built-in `database` sink (`BfwEngine.Events.Sinks.Database`) was removed to eliminate a high-frequency write path that competed with execution writes for the shared connection pool. The three remaining built-in sinks (console, telemetry, websocket) are DB-free. Users who need DB-backed event storage can build a plugin sink with its own connection management.
+**No database sink.** The three built-in sinks (console, telemetry, websocket) are DB-free, so event dispatch never competes with execution writes for the connection pool. Users who need DB-backed event storage can build a plugin sink with its own connection management.
 
 **`data_object_writes` is not a sink concern.** (cross-ref) The `data_object_writes` table is transactionally coupled with the DO snapshot write inside the PI transaction — it is **kernel state** (debugger reconstruction, audit) and is always written regardless of sink configuration.
 
@@ -93,9 +93,9 @@ PersistenceAdapter, MonitoringPanel, TimerSource, and DataStoreAdapter plugin ca
 ```elixir
 defmodule BfwEngine.Plugin.EventSink do
   @moduledoc """
-  Receives every `BfwEngine.Types.Event.*` the engine emits ([EngineEventBus + EventSinks](#engineeventbus--eventsinks-d37)).
+  Receives every `BfwEngine.Types.Event.*` the engine emits ([EngineEventBus + EventSinks](#engineeventbus--eventsinks)).
   Runs in its own supervised Task; crashes are isolated by EngineEventBus.
-  Sinks MUST NOT call back into core_execution or block the hot path.
+  Sinks MUST NOT call back into BfwEngine.Execution or block the hot path.
   """
 
   @callback init(opts :: keyword()) :: {:ok, state :: term()} | {:error, term()}
@@ -126,13 +126,13 @@ def on_load(facade) do
 end
 ```
 
-…and are dispatched identically to the built-in sinks. Plugins MUST NOT call `BfwEngine.Plugin.Registry.register/2` directly — the registry is private to `engine_plugins`; only the engine-injected facade may write to it.
+…and are dispatched identically to the built-in sinks. Plugins MUST NOT call `BfwEngine.Plugins.Registry.register_plugin/3` directly — the registry is private to `BfwEngine.Plugins`; only the engine-injected facade may write to it.
 
 ## Lifecycle Fan-out
 
 ### 3.6 Lifecycle → Persistence → API fan-out
 
-Every state transition inside core_execution calls `:telemetry.execute/3` with the
+Every state transition inside BfwEngine.Execution calls `:telemetry.execute/3` with the
 relevant event name and a typed `BfwEngine.Types.Event.*` payload.
 Event names include at least:
 
@@ -143,26 +143,26 @@ Event names include at least:
 - `[:bfw_engine, :data_object, :written]` — Data Object write. Emitted **after** the write transaction commits so subscribers never observe uncommitted values.
 - `[:bfw_engine, :message, :published]`, `[:bfw_engine, :message, :arrived]` — Message lifecycle (see [routing.md](./routing.md))
 - `[:bfw_engine, :signal, :published]`, `[:bfw_engine, :escalation, :raised]`, `[:bfw_engine, :timer, :fired]` — other event lifecycles
-Engine lifecycle events (`Event.EngineStarted`, `Event.EngineShutdown`) are published via `EngineEventBus.publish/1` only (no `:telemetry.execute/3` pairing). `EngineStarted` is emitted by `ResumeRunner` after all running PIs have been resumed at boot; `EngineShutdown` is emitted by <code>BfwEngine.Execution.Application.prep_stop/1</code> during graceful shutdown.
+Engine lifecycle events (`Event.EngineStarted`, `Event.EngineShutdown`) are published via `EngineEventBus.publish/1` only (no `:telemetry.execute/3` pairing). `EngineStarted` is emitted by `ResumeRunner` after all running PIs have been resumed at boot; `EngineShutdown` is emitted by <code>BfwEngine.Application.prep_stop/1</code> during graceful shutdown, after all process instances have stopped and before the sinks drain.
 
 - `Event.EngineOverloaded` — Emitted when the engine's load level crosses *upward* into `:elevated` or `:critical`. Published via `EngineEventBus` only (no `:telemetry.execute/3` pairing). The poller in `BfwEngine.Telemetry.Measurements` detects threshold crossings and publishes only on transitions, not every tick. Fields: `level` (`:elevated` | `:critical`), `active_process_instances`, `limit`, `occurred_at`.
 - `Event.EngineRecovered` — Symmetric counterpart to `EngineOverloaded`. Emitted when the load level drops back to `:normal` (e.g. elevated→normal, critical→normal). Consumers can use this to release back-pressure. Fields: `previous_level` (`:elevated` | `:critical`), `active_process_instances`, `limit`, `occurred_at`.
 - `Event.ProcessInstanceRetried` — Emitted by `Execution.retry_process_instance/1` after successfully starting the retry gen_statem. `process_instance_id` is the root PI, `target_process_instance_id` is the PI the user targeted. Paired with `[:bfw_engine, :process_instance, :retried]` telemetry event. `version`, `previous_version`, and `new_version` are **process version UUIDs** (not `bfw:version` deployment strings); `previous_version`/`new_version` are `nil` when no version migration. `process_model_id` is the BPMN process ID string (resolved from ModelCache). Fields: `process_instance_id`, `target_process_instance_id`, `process_model_id`, `version`, `previous_state`, `previous_version`, `new_version`, `reset_to_flow_node_instance_id`, `retried_by`, `occurred_at`.
 
-Each `:telemetry.execute/3` is paired with exactly one `EngineEventBus.publish/1` of the same typed payload ([EngineEventBus + EventSinks](#engineeventbus--eventsinks-d37)). Consumers of these events fall into two disjoint categories:
+Each `:telemetry.execute/3` is paired with exactly one `EngineEventBus.publish/1` of the same typed payload ([EngineEventBus + EventSinks](#engineeventbus--eventsinks)). Consumers of these events fall into two disjoint categories:
 
 **A. Kernel-state persistence** (always-on, transactionally coupled with the PI, not routed through the event bus):
 
-- **`process_instances` / `flow_node_instances` / `messages` / `signals` / `data_objects` / `data_object_writes`** — written by `peripheral_persistence` as part of the PI's own transaction (or the message/signal publish transaction). These writes happen **before or alongside** `EngineEventBus.publish/1`, never after it, so the event payload references a DB row that is already durable. Escalation and compensation observability is EngineEventBus only (`Event.EscalationRaised`, `Event.CompensationTriggered`) — there is no `escalations` table. `data_object_writes` in particular is always-on regardless of observability sink configuration, because downstream write-audit reconstruction is a runtime debugger feature.
+- **`process_instances` / `flow_node_instances` / `messages` / `signals` / `data_objects` / `data_object_writes`** — written by `BfwEngine.Persistence` as part of the PI's own transaction (or the message/signal publish transaction). These writes happen **before or alongside** `EngineEventBus.publish/1`, never after it, so the event payload references a DB row that is already durable. Escalation and compensation observability is EngineEventBus only (`Event.EscalationRaised`, `Event.CompensationTriggered`) — there is no `escalations` table. `data_object_writes` in particular is always-on regardless of observability sink configuration, because downstream write-audit reconstruction is a runtime debugger feature.
 
 **B. Event-bus sinks** (routed through `EngineEventBus`, [EngineEventBus + EventSinks](#engineeventbus--eventsinks) — each sink toggled independently):
 
 - **`console` sink** (default ON) — structured JSON to stdout via `logger_json`, filtered by `BFE_LOG_MIN_SEVERITY`.
-- **`telemetry` sink** (default ON, owned by `peripheral_telemetry`) — increments `[:bfw_engine, :event_bus]` (Prometheus event-bus counter). Does **not** assemble `/stats` ([observability.md](./observability.md)).
-- **`websocket` sink** (default ON, owned by `api_web`) — broadcasts the typed event on the WebSocket channel for subscribed clients. Data Object writes push `%Event.DataObjectWritten{}` so live debuggers/UIs can render the new value without re-querying. `SinkFailed` is not accepted.
+- **`telemetry` sink** (default ON, owned by `BfwEngine.Telemetry`) — increments `[:bfw_engine, :event_bus]` (Prometheus event-bus counter). Does **not** assemble `/stats` ([observability.md](./observability.md)).
+- **`websocket` sink** (default ON, owned by `BfwEngineWeb`) — broadcasts the typed event on the WebSocket channel for subscribed clients. Data Object writes push `%Event.DataObjectWritten{}` so live debuggers/UIs can render the new value without re-querying. `SinkFailed` is not accepted.
 - **plugin sinks** — any number of `@behaviour BfwEngine.Plugin.EventSink` implementations registered on boot ([plugins.md](./plugins.md)). Example plugin targets: Datadog, Prometheus push-gateway, Kafka topic, custom S3 JSONL archive, a replica Postgres with different retention policy. Users who need DB-backed event storage implement this as a plugin sink with its own connection pool.
 
-All sinks run **concurrently** under supervised `Task`s started from `EngineEventBus`. A crash in one sink never affects another sink, never affects kernel-state persistence, and never affects core_execution (see [EngineEventBus + EventSinks](#engineeventbus--eventsinks-d37) for the `Event.SinkFailed` isolation model). `core_execution.publish/1` is always non-blocking — the hot path does not wait for sinks.
+All sinks run **concurrently**, each in its own `SinkWorker` under `SinkSupervisor`. A crash in one sink never affects another sink, never affects kernel-state persistence, and never affects BfwEngine.Execution (see [EngineEventBus + EventSinks](#engineeventbus--eventsinks) for the `Event.SinkFailed` isolation model). `EngineEventBus.publish/1` is always non-blocking — the hot path does not wait for sinks.
 
 **Integration tests** assert kernel tables (`flow_node_instances`,
 `data_object_writes`, `gateway_pending_arrivals`, and so on). The engine
@@ -198,7 +198,7 @@ Child-spawn observability events (`CallActivityChildStarted`, `SubProcessChildSt
 
 A Compensate Intermediate Throw Event does **not** emit `FlowNodeInstanceStateChanged` for a waiting→finished transition. With targets, the throw FNI parks active→waiting (`FlowNodeInstanceStateChanged`) while its handlers run, then emits `FlowNodeInstanceFinished`; without targets it goes active→finished directly. `CompensationTriggered` / `ActivityCompensated` accompany the run. `waitForCompletion="false"` is parsed but treated as `true`.
 
-**WebSocket sink fan-out.** The WebSocket sink (`BfwEngineWeb.Ws.Sinks.WebSocket`, `apps/api_web/lib/bfw_engine_web/ws/sinks/websocket.ex`) broadcasts each accepted event to up to four PubSub topics:
+**WebSocket sink fan-out.** The WebSocket sink (`BfwEngineWeb.Ws.Sinks.WebSocket`, `lib/bfw_engine_web/ws/sinks/websocket.ex`) broadcasts each accepted event to up to four PubSub topics:
 
 1. `process_instance:<processInstanceId>` — when the event carries `process_instance_id` (primary targeted channel for the PI that produced the event). Events without `process_instance_id` (child-spawn notifications) use `parent_process_instance_id` instead.
 2. `process_instance:<rootProcessInstanceId>` — when `root_process_instance_id` is present **and** differs from the primary PI id (`process_instance_id` or, for child-spawn events, `parent_process_instance_id`).
@@ -242,11 +242,11 @@ Selected `BfwEngine.Types.Event.*` structs published via `EngineEventBus`. WebSo
 
 **Messages vs signals.** Messages are routed by `(messageName, correlationValue)` and carry a payload — subscribers match on both name and correlation (see [routing.md](./routing.md) §3.5). Signals are pure broadcast: every subscription registered for the `signalName` receives a copy, with **no correlation key** and **no payload**. `origin` on `MessagePublished` / `SignalPublished` is a map with `source` (`"api"` \| `"pi"` \| `"plugin"`) plus optional `processInstanceId`, `flowNodeInstanceId`, `pluginName`, and `triggeredBy`. A plugin publish carries `source: "plugin"` with `pluginName` (derived from the `plugin:<name>` identity); any other API caller carries `source: "api"` with `triggeredBy`. A subprocess's `childProcessModelId` is `<parent process id>__subprocess__<node id>`; for a subprocess nested in a subprocess the parent part is the top-level process id, never a chain of earlier suffixes (`ChildLifecycle.subprocess_model_id/2`). `deliveries` is a list of `{processInstanceId, flowNodeInstanceId}` pairs — one entry per live recipient; a subscription whose waiting process has died, or whose flow node instance its process instance has cancelled (`CancelledFlowNodeInstances`, see [execution.md](./execution.md) §Boundary Fire Processing item 5), is pruned at publish time and never listed (an Event Subprocess start lists its start event id as `flowNodeInstanceId`). `startedProcessInstanceIds` lists PIs created via Message/Signal Start Events during the same publish. `pending` is `true` when zero subscriptions matched **and** zero Start Events fired, and the publish was buffered for TTL rematch ([routing.md](./routing.md) §3.5.6 for signals).
 
-Message events are paired with `:telemetry.execute/3` on `[:bfw_engine, :message, :published]` and `[:bfw_engine, :message, :arrived]` respectively. Signal events are paired with `[:bfw_engine, :signal, :published]` and `[:bfw_engine, :signal, :arrived]`. Struct definitions live in `apps/core_types/lib/bfw_engine/types/event.ex`; Jason encoders in `apps/core_events/lib/bfw_engine/events/json_encoders.ex`.
+Message events are paired with `:telemetry.execute/3` on `[:bfw_engine, :message, :published]` and `[:bfw_engine, :message, :arrived]` respectively. Signal events are paired with `[:bfw_engine, :signal, :published]` and `[:bfw_engine, :signal, :arrived]`. Struct definitions live in `lib/bfw_engine/types/event.ex`; Jason encoders in `lib/bfw_engine/events/json_encoders.ex`.
 
 ## Task inbox events
 
-`UserTaskCreated` and `UserTaskFinished` model the task inbox: a User Task, or a Manual Task with `bfw:requireConfirmation="true"`, waiting for an external actor. `BfwEngine.Execution.TaskInboxEvents` (`apps/core_execution/lib/bfw_engine/execution/task_inbox_events.ex`) is the single publisher of both — `inbox_task?/1` decides which flow nodes qualify, and every `FlowNodeInstanceFinished` publish in `core_execution` goes through `publish_flow_node_instance_finished/2`, which also derives `UserTaskFinished` when the finishing flow node is an inbox task. A static test enforces that no other call site in `core_execution` publishes `FlowNodeInstanceFinished` directly, and that no umbrella app publishes `UserTaskCreated` or `UserTaskFinished` outside `TaskInboxEvents`.
+`UserTaskCreated` and `UserTaskFinished` model the task inbox: a User Task, or a Manual Task with `bfw:requireConfirmation="true"`, waiting for an external actor. `BfwEngine.Execution.TaskInboxEvents` (`lib/bfw_engine/execution/task_inbox_events.ex`) is the single publisher of both — `inbox_task?/1` decides which flow nodes qualify, and every `FlowNodeInstanceFinished` publish in `BfwEngine.Execution` goes through `publish_flow_node_instance_finished/2`, which also derives `UserTaskFinished` when the finishing flow node is an inbox task. A static test enforces that no other call site in `BfwEngine.Execution` publishes `FlowNodeInstanceFinished` directly, and that no other module publishes `UserTaskCreated` or `UserTaskFinished` outside `TaskInboxEvents`.
 
 - **Created** is published by the PI process when it parks the FNI (`ProcessInstance.park_waiting_fni/4`), after its entry is `:waiting` and after the `FlowNodeInstanceStateChanged` (`active` → `waiting`), for User Tasks and for confirming Manual Tasks (`assignees: []` on the Manual Task side — it has no `bfw:assignees`). A finish or confirm call sent in reaction to the event is therefore never answered `fni_not_waiting`. Non-confirming Manual Tasks publish neither event.
 - **Finished** is derived from the terminal state: `:finished` becomes outcome `completed`; every other terminal state (`:aborted`, `:interrupted`, `:error`, `:fatal`) becomes outcome `aborted`. This covers every withdrawal path — boundary interrupt, Terminate / Error / Cancel End, Complex-Join region cancel, PI abort, fatal, and error cascade — not only the explicit `PUT /user-tasks/:id/cancel`, which still yields exactly one `UserTaskFinished(:aborted)` for the cancelled task. `UserTaskFinished` is published only when the terminal state is `:finished`, or when the task had already reached `waiting`. A failure that happens before `waiting` publishes `FlowNodeInstanceFinished` and no inbox event.
@@ -306,7 +306,7 @@ These fields enable the Studio Debugger to group iteration FNIs under their shel
 
 ### Wire Format
 
-Both new events are serialized as camelCase JSON by the `Jason.Encoder` implementations in `apps/core_events/lib/bfw_engine/events/json_encoders.ex`. The WebSocket sink broadcasts them to `process_instance:<piId>` and `process_instance:<rootPiId>` channels.
+Both new events are serialized as camelCase JSON by the `Jason.Encoder` implementations in `lib/bfw_engine/events/json_encoders.ex`. The WebSocket sink broadcasts them to `process_instance:<piId>` and `process_instance:<rootPiId>` channels.
 
 **SDK types:** `MultiInstanceStarted` and `MultiInstanceCompleted` in `@elraptorus/bfw_engine_sdk` (`events/engine-events.ts`). `loopType` is typed as `'parallel_mi' | 'sequential_mi' | 'standard_loop'`.
 
@@ -348,4 +348,4 @@ Both events carry `rootProcessInstanceId` and are broadcast to both `process_ins
 
 ### `SubProcessChildStarted` — ad-hoc flag
 
-`SubProcessChildStarted` now carries `isAdHocSubprocess: boolean` (default `false`) alongside the existing `isEventSubprocess` flag. This enables the Studio debugger to distinguish ad-hoc child PI spawns from embedded subprocess and event subprocess spawns.
+`SubProcessChildStarted` carries `isAdHocSubprocess: boolean` (default `false`) next to `isEventSubprocess`. This enables the Studio debugger to distinguish ad-hoc child PI spawns from embedded subprocess and event subprocess spawns.

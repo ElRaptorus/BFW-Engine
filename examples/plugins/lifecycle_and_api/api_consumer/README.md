@@ -2,7 +2,7 @@
 
 This example mirrors [`test/support/example_plugin.ex`](https://github.com/ElRaptorus/BFW-Engine/blob/main/test/support/example_plugin.ex): stash the `BfwEngine.EngineFacade` in an Agent during `on_load/1`, then spawn asynchronous work from `on_ready/1` when every registration and socket is ready.
 
-The worker code is intentionally verbose. It logs each phase of a plugin-driven deploy/start/query/finish loop using only namespaces from [`BfwEngine.EngineFacade`](https://github.com/ElRaptorus/BFW-Engine/blob/main/apps/engine_sdk/lib/bfw_engine/engine_facade.ex):
+The worker code is intentionally verbose. It logs each phase of a plugin-driven deploy/start/query/finish loop using only namespaces from [`BfwEngine.EngineFacade`](https://github.com/ElRaptorus/BFW-Engine/blob/main/lib/bfw_engine/engine_facade.ex):
 
 | Namespace | Representative calls |
 |-----------|----------------------|
@@ -39,8 +39,8 @@ Bundled BPMN lives in [`bpmn/api_demo_process.bpmn`](bpmn/api_demo_process.bpmn)
 
 ## Dependencies
 
-`ApiConsumer.Worker` calls `BfwEngine.BPMN.parse_and_validate/1`, so the hosting OTP app must depend on `core_bpmn` in addition to `engine_sdk`.
+`ApiConsumer.Worker` calls `BfwEngine.BPMN.parse_and_validate/1`, which is part of the `:bfw_engine` dependency the hosting OTP app already has.
 
 ## Tests
 
-`test/api_consumer_worker_test.exs` stubs every façade closure to avoid needing Ash, PostgreSQL, or a live engine. Copy the tree into an umbrella app before running `mix test`.
+`test/api_consumer_worker_test.exs` stubs every façade closure to avoid needing Ash, PostgreSQL, or a live engine. Copy the tree into an OTP app that depends on `:bfw_engine` before running `mix test`.

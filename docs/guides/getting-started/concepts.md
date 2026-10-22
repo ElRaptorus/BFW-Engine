@@ -162,7 +162,7 @@ For the full expression reference including types, built-in functions, and examp
 
 ## Plugin System
 
-The engine is extensible through a behaviour-based plugin system. Plugins implement one or more `@behaviour` modules from the `engine_sdk`:
+The engine is extensible through a behaviour-based plugin system. Plugins implement one or more `@behaviour` modules from the `BfwEngine.Plugin`:
 
 | Behaviour | Purpose |
 |-----------|---------|

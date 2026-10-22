@@ -1,4 +1,4 @@
-# The umbrella loads this file with Code.compile_file/1 because it is a path
+# The Engine loads this file with Code.compile_file/1 because it is a path
 # dependency, which defines the module in memory. The editor compiles the same
 # file again for diagnostics. Restored immediately so other redefinitions still warn.
 previous_ignore_module_conflict = Code.get_compiler_option(:ignore_module_conflict)
@@ -11,7 +11,7 @@ try do
 
     Wraps the Engine's REST, GraphQL, and WebSocket surfaces (`BfwEngine.Client`
     and friends) for host applications that embed the Engine as an external
-    service. Not part of the Engine umbrella — this is an independently
+    service. Not part of the Engine application — this is an independently
     buildable Hex-style package consumed via a path or Git dependency.
     """
 

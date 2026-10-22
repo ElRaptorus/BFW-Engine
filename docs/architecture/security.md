@@ -28,7 +28,7 @@ Plugins are **in-BEAM only** and sit inside the trust boundary with a privileged
 
 ## Authentication
 
-**JWT by default, pluggable .** The built-in validator in `api_auth` accepts:
+**JWT by default, pluggable .** The built-in validator in `BfwEngine.Auth` accepts:
 
 | Algorithm family | Configuration | Library |
 |-----------------|---------------|---------|
@@ -78,7 +78,7 @@ Key design choices (summary only — authorization.md is the source of truth):
 ### Ash Policy Layer for the BPMN Catalog
 
 `Process` and `ProcessVersion` resources are protected by `Ash.Policy.Authorizer`
-with the following policies (implemented 2026-05-07, S-1):
+with the following policies:
 
 | Resource | Action type | Policy |
 |----------|-------------|--------|
@@ -90,11 +90,17 @@ with the following policies (implemented 2026-05-07, S-1):
 | `ProcessVersion` | `:update` | `authorize_if expr(^actor(:delete_bpmn) == true)` (covers `soft_delete`) |
 | All above | any | `bypass do authorize_if {ZeekyBoogieDoog, []} end` — admin override |
 
-`ProcessInstance` and `FlowNodeInstance` were already policy-protected (PI/FNI
-visibility §5.1). The `authorize_if actor_absent()` bypass that previously
-allowed reads without any actor has been removed (S-2). All legitimate internal
+`ProcessInstance` and `FlowNodeInstance` are policy-protected by the PI/FNI
+visibility rules (§5.1). No policy authorizes a read without an actor
+(`actor_absent()` is never a pass condition). All legitimate internal
 reads (`execution_adapter`, `called_element_resolver_impl`, `final_tokens`, system
 safety checks in `process_controller`) use `authorize?: false` explicitly.
+
+The GraphQL field resolvers in `BfwEngineWeb.Graphql.ModelResolvers`
+(`FlowNodeInstance.processVersion`, `flowNode`) are the one wire-layer place
+that calls Ash directly. They read with the request actor, exactly as
+AshGraphql's generated resolvers do, so the policies above still decide
+visibility. `facade_enforcement_test.exs` allows that file and no other.
 
 **Ash actor propagation for REST.** `BfwEngineWeb.Http.Plugs.AshActorPlug` is the
 third plug in the `:authenticated` pipeline (after `BfwEngine.Auth.Plug`). It calls
@@ -162,7 +168,7 @@ concern.
 All database access goes through Ash resources or raw Ecto queries with bound
 parameters. **No user-controlled input is ever interpolated into SQL.** The
 single exception — partition DDL in
-`apps/peripheral_persistence/lib/bfw_engine/persistence/partitions.ex` — uses
+`lib/bfw_engine/persistence/partitions.ex` — uses
 inline interpolation because Postgres does not support parameter binding inside
 `CREATE TABLE ... PARTITION OF ... FOR VALUES FROM (...) TO (...)`. The values
 that flow into that DDL are the engine-controlled `@partitioned_tables` constant
@@ -194,7 +200,7 @@ Per-plugin claim sets / per-action allow-deny are not an engine feature. Plugins
 
 - All secrets are read from environment variables (`BFE_JWT_HS256_SECRET`, `BFE_DATABASE_URL`, etc.) or a configurable secret-provider behaviour.
 - **No hard-coded secrets** anywhere in the codebase — enforced by `mix sobelow` in CI.
-- In test environments, `engine_sdk.MintTestToken` uses `BFE_JWT_HS256_SECRET` to sign test JWTs.
+- In test environments, `mix bfw.mint_token` uses `BFE_JWT_HS256_SECRET` to sign test JWTs.
 
 ---
 
@@ -388,7 +394,7 @@ reference when commissioning a penetration test.
 
 | OWASP Category | Engine disposition | Details |
 |----------------|-------------------|---------|
-| **A01 — Broken Access Control** | Addressed | Default-deny JWT auth; lane-as-claim; PI visibility rules; execution-detached model. Ash policy layer on all five Ash resources (`Process`, `ProcessVersion`, `ProcessInstance`, `FlowNodeInstance`, `GatewayPendingArrival`); `actor_absent()` bypass removed from PI/FNI reads. See [authorization.md](authorization.md) and Authorization §Ash Policy Layer above. |
+| **A01 — Broken Access Control** | Addressed | Default-deny JWT auth; lane-as-claim; PI visibility rules; execution-detached model. Ash policy layer on all five Ash resources (`Process`, `ProcessVersion`, `ProcessInstance`, `FlowNodeInstance`, `GatewayPendingArrival`); no policy passes on `actor_absent()`. See [authorization.md](authorization.md) and Authorization §Ash Policy Layer above. |
 | **A02 — Cryptographic Failures** | Addressed | JWT via JOSE (HS256 min-32-byte / RS256 / ES256); no custom crypto; secrets from env vars; `mix sobelow` enforces no hardcoded secrets |
 | **A03 — Injection** | Addressed | SQL: Ash/Ecto parameterization (zero string interpolation). NoSQL: not applicable. LDAP: not applicable. OS command: no `System.cmd` with user input. FEEL expressions: sandboxed evaluator with no side effects |
 | **A04 — Insecure Design** | Addressed | Threat model documented (see above); defense-in-depth via payload cap, plugin quarantine, uniform error responses |
@@ -421,7 +427,6 @@ the recommended workaround.
 
 | Gap | Rationale | Workaround |
 |-----|-----------|------------|
-| ~~Pluggable authentication~~ | **Implemented** via `@behaviour BfwEngine.Plugin.AuthProvider`. Claims are materialized in `Identity.claims` at `verify_and_resolve/1`; there is no lazy per-claim resolver | Register a custom provider via `facade.register_auth_provider.(module)` |
 | **Per-plugin claim sets / per-action allow-deny** | Plugins are inside the trust boundary by design | Include/exclude lists control which plugins load. Callers that need JWT claim checks use the public API |
 | **Push-gateway / remote-write for Prometheus** | Engine exposes pull-only `/metrics` | Run Prometheus scrape against the engine or federate via your own agent |
 | **Cross-cluster message routing** | Single-node deployment expected in v1 | Messages reach only same-node subscriptions |

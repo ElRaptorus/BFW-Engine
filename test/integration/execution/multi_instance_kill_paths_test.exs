@@ -15,7 +15,7 @@ defmodule BfwEngine.Integration.Execution.MultiInstanceKillPathsTest do
 
   setup do
     Application.put_env(
-      :core_execution,
+      :bfw_engine,
       :service_task_dispatch,
       BfwEngine.Plugins.RegistryDispatch
     )

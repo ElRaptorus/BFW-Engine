@@ -1,10 +1,28 @@
 # Testing
 
+## Test layout
+
+| Path | Runs through | Content |
+|------|--------------|---------|
+| `test/unit/<subsystem>/` | `mix test` (`test_paths: ["test/unit"]`) | One folder per boundary (`api`, `auth`, `bpmn`, `dmn`, `events`, `execution`, `expressions`, `persistence`, `plugin_contracts`, `plugins`, `telemetry`, `timers`, `types`, `web`); test files mirror the `lib/` path below it |
+| `test/unit/architecture/` | `mix test` | Static scans over all of `lib/` |
+| `test/unit/<subsystem>/support/` | compiled through `elixirc_paths(:test)` | Case templates, factories, fakes of that subsystem |
+| `test/unit/harness/support/` | compiled through `elixirc_paths(:test)` | Cross-subsystem test harness: `service_reset.ex` and `test.ex` (the boundary of the test support modules) |
+| `test/unit/test_helper.exs` | `mix test` | The one ExUnit helper of the unit suite |
+| `test/integration/` | `mix test.integration` (`test/integration_runner.exs`) | Full engine against PostgreSQL, HTTP, WebSocket |
+| `test/conformance/` | `mix test.conformance` (`test/conformance_runner.exs`) | YAML specs (`C*.yaml`), shared with BFW-Engine-Lite |
+| `test/load/` | `mix test.load*` (`test/load_runner.exs`) | Opt-in load and durability benchmarks, not part of `mix quality` |
+| `test/support/` | `Code.require_file` in the three runners | Integration, conformance and load harness (`IntegrationCase`, `ExecutionCase`, `ConformanceSteps`, …) |
+| `test/fixtures/` | read by all suites | `bpmns/`, `dmns/`; `bpmns/` is also read by BFW-Engine-Lite |
+| `test/unit/dmn/fixtures/dmns/` | DMN unit tests, SDK DMN parser conformance | Only models no other suite uses; `read!/1` in `test/unit/dmn/support/dmn_fixtures.ex` and the SDK test read this folder first, then `test/fixtures/dmns/` |
+
+Because everything under `test/unit/*/support` is compiled in the `:test` environment, unit support modules (for example the JWT signer in `test/unit/auth/support/` and `test/unit/harness/support/service_reset.ex`) are also available to the runner suites. `mix quality` runs integration and conformance under `:cover` (`mix test.coverdata`), then the unit suite with `coveralls.html --import-cover cover`, so the reported coverage is the merge of all three suites (`coveralls.json` `minimum_coverage`).
+
 ## Architecture tests
 
-`apps/api_web/test/architecture/dependency_direction_test.exs` checks umbrella edges, `Mix.env` in `lib/` (allowlist: `repo_router.ex` and `bfw.gen.plugin.ex`), and forbids module suffixes `Helpers`, `Utils`, `Util`, `Common`, and `Misc`. `facade_enforcement_test.exs` rejects direct `Ash.*` calls in `api_web`.
+Subsystem edges are enforced at compile time by the `boundary` compiler (see [`../Architecture.md`](../Architecture.md) §Subsystem Boundaries). `test/unit/architecture/library_conventions_test.exs` checks `Mix.env` in `lib/` (allowlist: `repo_router.ex` and `bfw.gen.plugin.ex`), and forbids module suffixes `Helpers`, `Utils`, `Util`, `Common`, and `Misc`. `test/unit/web/architecture/facade_enforcement_test.exs` rejects direct `Ash.*` calls in `BfwEngineWeb`.
 
-Tests reset GenServers through `ServiceReset` in each app's `test/support` (and `BfwEngine.Test.ServiceReset` for the root suite) by terminating and restarting the supervised child. They do not call reset functions on the server. Assertions use return values, persisted rows, engine events, and telemetry. `:sys.get_state` is only a discarded synchronisation barrier (`timer_start_listener_test`, `timer_start_integration_test`). Tests that `Application.put_env` are `async: false`.
+Tests reset GenServers through the ServiceReset module (`test/unit/harness/support/service_reset.ex`) by terminating and restarting the supervised child. They do not call reset functions on the server. Assertions use return values, persisted rows, engine events, and telemetry. `:sys.get_state` is only a discarded synchronisation barrier (`timer_start_listener_test`, `timer_start_integration_test`). Tests that `Application.put_env` are `async: false`.
 
 ## Unit tests
 
@@ -30,10 +48,8 @@ When they land:
 
 The conformance corpus lives in `test/conformance/` and is executed via
 `mix test.conformance` (or as part of `mix test.full` / `mix quality`). YAML specs
-are loaded with `YamlElixir` from `api_web`'s `yaml_elixir` dependency (also used
-for OpenAPI at runtime). The umbrella root does not declare `yaml_elixir`: Mix
-rejects a root `only: :test` restriction when a child app needs the package in
-every environment.
+are loaded with `YamlElixir`, a runtime dependency of `:bfw_engine` (also used
+for OpenAPI at runtime).
 
 **Framework modules:**
 
@@ -124,17 +140,17 @@ at the edge.
 
 ### Elixir client integration tests
 
-`test/integration/client/` exercises the `bfw_engine_client` package (see [sdk-client.md](./sdk-client.md) §Elixir Client) against a real running endpoint, not Docker. `test/support/client_endpoint.ex` starts a `Bandit` listener (`plug: BfwEngineWeb.Http.Endpoint`, `ip: :loopback`, `port: 0`) under the test supervisor in front of the umbrella's already-running endpoint and reads back the assigned port; the client then makes real REST calls and opens a real WebSocket join through that listener. Package unit tests (inside `packages/elixir/bfw_engine_client/test/`) instead use `Req.Test` for every REST operation, `Slipstream.SocketTest` for `Notifications`, and `Igniter.Test` for the installer task.
+`test/integration/client/` exercises the `bfw_engine_client` package (see [sdk-client.md](./sdk-client.md) §Elixir Client) against a real running endpoint, not Docker. `test/support/client_endpoint.ex` starts a `Bandit` listener (`plug: BfwEngineWeb.Http.Endpoint`, `ip: :loopback`, `port: 0`) under the test supervisor in front of the engine's already-running endpoint and reads back the assigned port; the client then makes real REST calls and opens a real WebSocket join through that listener. Package unit tests (inside `packages/elixir/bfw_engine_client/test/`) instead use `Req.Test` for every REST operation, `Slipstream.SocketTest` for `Notifications`, and `Igniter.Test` for the installer task.
 
 ### Execution integration tests
 
 The first tier of execution integration tests verifies the core PI/FNI runtime
 against real `.bpmn` fixture files, a live PostgreSQL database (Ecto Sandbox),
 and the EngineEventBus — without HTTP/WS/GraphQL round-trips. They complement
-the unit tests in `core_execution/` which use
+the unit tests in `test/unit/execution/`, which use
 programmatic `BpmnFactory` structs and the `NoOp` persistence adapter.
 
-**Location**: `test/integration/execution/` (umbrella root)
+**Location**: `test/integration/execution/`
 
 **Support modules** (`test/support/`):
 
@@ -146,7 +162,7 @@ programmatic `BpmnFactory` structs and the `NoOp` persistence adapter.
 | `DbAssertions` | Ash-backed query helpers: `fetch_process_instance!/1`, `list_child_process_instance_ids/1`, `await_child_process_instance_ids/2`, `fetch_flow_node_instances/1`, `assert_pi_state!/2` (always runs `assert_execution_chain!/2` unless `verify_execution_chain: false`: non-boundary `input_token` map before input mapping, finished non-boundary `output_token` map after output mapping, timestamps, all FNIs terminal on a terminal PI, Started → optional `active→waiting` StateChanged → Finished with matching `terminal_state`; parked types plus MI/loop shells with iterations must have StateChanged), `assert_fni_count!/2`, `assert_all_fnis_state!/2`. Sandbox retries cover `OwnershipError` and `ConnectionError` after interrupted FNI writes. `fetch_process_instance/1` returns `nil` only for a genuine not-found. |
 | `ProcessInteractions` | `find_waiting_fni/2` / `await_waiting_flow_node_instance/3` skip MI/loop **shell** FNIs (`type_properties.mi_shell`). Finish-user-task / finish-async helpers must target iteration FNIs, not the shell. |
 
-**SDK parser parity:** `packages/js/sdk/test/conformance/parser-conformance.test.ts` parses every `.bpmn` under `test/fixtures/bpmns/`, `apps/core_bpmn/test/fixtures/bpmns/`, and `packages/js/client/test/integration/fixtures/` with the TypeScript parser and deep-compares it with a snapshot of the Elixir parser. Regenerate with `MIX_ENV=test mix run scripts/generate-parser-snapshots.exs`, then `pnpm --dir packages/js/sdk run format` (the formatter reorders nothing semantic; revert snapshots whose only change is key order). A new parser feature needs a fixture that exercises it (e.g. `parser_coverage_mi_data_items.bpmn`).
+**SDK parser parity:** `packages/js/sdk/test/conformance/parser-conformance.test.ts` parses every `.bpmn` under `test/fixtures/bpmns/`, `test/unit/bpmn/fixtures/bpmns/`, and `packages/js/client/test/integration/fixtures/` with the TypeScript parser and deep-compares it with a snapshot of the Elixir parser. Regenerate with `MIX_ENV=test mix run scripts/generate-parser-snapshots.exs`, then `pnpm --dir packages/js/sdk run format` (the formatter reorders nothing semantic; revert snapshots whose only change is key order). A new parser feature needs a fixture that exercises it (e.g. `parser_coverage_mi_data_items.bpmn`).
 
 **BPMN fixtures** (`test/fixtures/bpmns/`):
 
@@ -174,13 +190,13 @@ programmatic `BpmnFactory` structs and the `NoOp` persistence adapter.
 
 **Running**: `MIX_ENV=test mix run test/integration_runner.exs` (or `mix test.integration`). Pass one or more relative directories or `*_test.exs` paths after `--` to narrow the tree (for example `mix test.cookbook` → `test/integration_runner.exs -- integration/plugins`).
 
-#### Mix test aliases (umbrella root)
+#### Mix test aliases
 
 | Alias | What it runs |
 |-------|----------------|
-| `mix test.unit` | Per-app unit tests (`--exclude integration`) |
-| `mix test.examples` | Cookbook unit wrappers in `apps/engine_plugins/test/examples/` (acceptance i). Does not boot the engine. |
-| `mix test.integration` | Full `test/integration/**` suite against the started umbrella, including cookbook boot + README link-check. Excludes `@tag :release`. |
+| `mix test.unit` | Unit tests under `test/unit/` (`--exclude integration`) |
+| `mix test.examples` | Cookbook unit wrappers in `test/unit/plugins/examples/` (acceptance i). Does not boot the engine. |
+| `mix test.integration` | Full `test/integration/**` suite against the started engine, including cookbook boot + README link-check. Excludes `@tag :release`. |
 | `mix test.release` | The prod-release inclusion test (`plugin_release_test.exs`) only. `preferred_envs` selects `MIX_ENV=test`. Sets `BFE_TEST_RELEASE=1` so the integration runner includes `:release`. Not part of `mix quality`. Packages CI runs it after the production release; that step runs `mix deps.get` first because the job fetched dependencies with `--only prod`. The test deletes `_build/prod/rel/bfw_engine` on exit. |
 | `mix test.cookbook` | Same integration runner, glob only `test/integration/plugins/**` (acceptance ii + iii). Do **not** also invoke this from `mix quality` / CI (would double-run). |
 | `mix test.conformance` | YAML-driven conformance specs |
@@ -332,7 +348,7 @@ Negative-path integration tests exercising `BFE_TOKEN_MAX_BYTES` enforcement at 
 - **CAP-TRIGGER-MSG**: `POST /messages/{message_name}/trigger` with an oversize `payload`. **Assert:** HTTP 413 with structured body; **no** `messages` row, **no** delivery, **no** Message Start Event fires (even if one exists for the supplied name). GraphQL has no command equivalent (query-only).
 - **CAP-TASK-FINISH**: `PUT /user-tasks/{fniId}/finish` with an oversize `values` object. **Assert:** HTTP 413 with `field` `values`; the User Task FNI remains `waiting` (the caller retries with a smaller body); the PI stays running.
 - **CAP-EXACTLY-AT-LIMIT**: every boundary above except User Task finish is repeated with `mint_payload(65536)` (exactly at the cap). **Assert:** every such call succeeds; no `:payload_too_large` signal on those paths; normal execution proceeds; subsequent calls with `mint_payload(65537)` on the same PI still fail as expected (cap is stateless per-call). User Task finish stores `{ actionId, values }`, so a `values` object of exactly 65536 bytes is HTTP 413 with `field` `user_task_result` and the FNI stays `waiting`. The `values` object that succeeds is sized so the envelope is 65536 bytes.
-- **CAP-CONFIGURABLE**: the full matrix is rerun with `BFE_TOKEN_MAX_BYTES=131072`. **Assert:** all `CAP-*` tests that previously failed at 65537 now succeed; fresh failures appear at 131073. The minimum `1024` is exercised via a separate boot-time assertion: `BFE_TOKEN_MAX_BYTES=512` refuses to boot with a structured error referencing `minimum_required: 1024`.
+- **CAP-CONFIGURABLE**: the full matrix is rerun with `BFE_TOKEN_MAX_BYTES=131072`. **Assert:** every `CAP-*` input that is rejected at 65537 under the default cap is accepted; rejections start at 131073. The minimum `1024` is exercised via a separate boot-time assertion: `BFE_TOKEN_MAX_BYTES=512` refuses to boot with a structured error referencing `minimum_required: 1024`.
 - **CAP-MEMORY-BEHAVIOR**: a micro-load variant (50 req/s for 30 s, alternating at-cap and cap+1-byte payloads across every boundary). **Assert:** engine RSS stays flat ±5 MB; GenServer mailbox depths stay bounded; no partial work leaks into `flow_node_instances` or `messages` tables. Validates the "enforcement precedes allocation that scales with payload size" invariant.
 
 ### Token-storage shape assertions
@@ -370,7 +386,7 @@ Concurrent mixed-workload tests that exercise execution writes and GraphQL reads
 
 #### Resume pressure tests (`resume_pressure_test.exs`)
 
-RP1/RP2 seed 1,000–5,000 waiting user-task PIs and measure `ResumeRunner.resume_all/0`. Concurrent Absinthe/Ash GraphQL during resume used to abort the Ecto sandbox owner. Load tests now use a real connection pool; GraphQL-under-resume is still omitted from RP1/RP2 so the recorded KPI stays resume throughput only.
+RP1/RP2 seed 1,000–5,000 waiting user-task PIs and measure `ResumeRunner.resume_all/0`. Load tests use a real connection pool (concurrent Absinthe/Ash GraphQL during resume aborts an Ecto sandbox owner). GraphQL-under-resume is omitted from RP1/RP2 so the recorded KPI is resume throughput only.
 
 #### DMN load tests (`dmn_load_test.exs`)
 
@@ -418,9 +434,9 @@ Smoke while iterating: `BFE_LOAD_COMPRESSION_COUNT=1000 BFE_LOAD_CHAOS_SECONDS=3
 
 #### Hot-path triage
 
-A recorded KPI is a **hot path** only if E6/E7/E8/E10/E11/E12 P99 `queue_time_ms` is ≥ 1 000, E8 wall time exceeds 5× the first measured baseline (206 507 ms on 2026-09-02; the test assert is capped at 600 s because 5× would exceed the timeout), `:erlang.memory()[:total]` is still climbing after `terminate_all_process_instances`, or resume/seeding throughput falls implausibly below the existing L-test ceilings. End-of-suite `memoryBytes.total` on the JSON report is a snapshot at write time, not a leak detector.
+A recorded KPI is a **hot path** only if E6/E7/E8/E10/E11/E12 P99 `queue_time_ms` is ≥ 1 000, E8 wall time exceeds 5× the triage baseline (206 507 ms; the test assert is capped at 600 s because 5× would exceed the timeout), `:erlang.memory()[:total]` is still climbing after `terminate_all_process_instances`, or resume/seeding throughput falls implausibly below the existing L-test ceilings. End-of-suite `memoryBytes.total` on the JSON report is a snapshot at write time, not a leak detector.
 
-The first standard run (2026-09-03, Linux, Postgres in Docker) found **no hot path**. A later full suite on the same machine recorded E6 57 582 ms with queue P99 17 ms; E7 83 908 ms / 8 ms; E8 198 542 ms / 18 ms (first E8 baseline 206 507 ms). E9 1 KiB / 16 KiB / 64 KiB completed in 7 415 / 10 577 / 16 006 ms. Resume and seeding L-tests stayed inside their existing ceilings. Core was not rewritten.
+Reference measurements (Linux, PostgreSQL in Docker), none of them a hot path: E6 57 582 ms with queue P99 17 ms; E7 83 908 ms / 8 ms; E8 198 542 ms / 18 ms (E8 triage baseline 206 507 ms). E9 1 KiB / 16 KiB / 64 KiB: 7 415 / 10 577 / 16 006 ms. Resume and seeding L-tests stay inside their ceilings.
 
 #### Benchmark reporting
 
@@ -471,7 +487,7 @@ These are harness rules, not product pitfalls. Helpers in `test/support/` alread
 - Test Postgres is host port **5543** (`config/test.exs`). Do not map CI to 5432 only.
 - Production-sized pools need Postgres `max_connections` ≥ 200. Docker smoke asserts `GET /health` **HTTP 204**.
 - `priv/read_repo/migrations` must exist (may be empty). `mix ecto.migrate` looks there for ReadRepo.
-- Coverage: `mix test.coverdata` then `mix coveralls --umbrella --import-cover cover`. Never `mix coveralls.github` / `.post`. Do not `:cover.compile` `Elixir.BfwEngine.Expressions.Nif.beam`.
+- Coverage: `mix test.coverdata` then `mix coveralls --import-cover cover`. Never `mix coveralls.github` / `.post`. Do not `:cover.compile` `Elixir.BfwEngine.Expressions.Nif.beam`.
 - One GitHub Actions cache for `deps` + `_build`; save **after compile and before coverage**. PLTs are a separate `priv/plts` cache. Packages CI must install Rust (FEEL NIF) before `mix release`.
 - There is no `Ash.set_actor` helper — use `Ash.PlugHelpers.set_actor/2`. Ash 3.33+ needs `default_string_length_count` on string attributes or the resource fails to compile.
 - `ExecutionCase`: checkout the sandbox (or truncate the pool) **before** `ServiceReset.scheduler/0`.
@@ -484,17 +500,17 @@ These are harness rules, not product pitfalls. Helpers in `test/support/` alread
 - `assert_pi_state!` verifies the persisted execution chain unless `verify_execution_chain: false`.
 - Load tests: set `BFE_LOAD_TEST_POOL=1` **before** Mix loads `config/test.exs`. Do not run `test/load` under the Ecto sandbox.
 - Packages JS: Vitest 5 uses `{ concurrent: false }`, not `describe.sequential`.
-- `core_events` unit tests that publish a message or signal without a recipient: set `:message_persistence_adapter` / `:signal_persistence_adapter` to `nil` in `setup` and restore them in `on_exit`. In the umbrella run the default is the real Ash adapter outside any sandbox, so the pending row survives and breaks later count assertions in `MessagePersistenceAdapterTest`.
+- `BfwEngine.Events` unit tests that publish a message or signal without a recipient: set `:message_persistence_adapter` / `:signal_persistence_adapter` to `nil` in `setup` and restore them in `on_exit`. In the full test run the default is the real Ash adapter outside any sandbox, so the pending row survives and breaks later count assertions in `MessagePersistenceAdapterTest`.
 
 ## CI enforcement
 
 `.github/workflows/ci.yml` (push / pull_request to `main` and `develop`, plus `workflow_dispatch`):
 
-- Postgres service published on host port **5543** (`config/test.exs`); `mix do --app peripheral_persistence ecto.create` + `ecto.migrate` before tests (`priv/read_repo/migrations` exists empty so Mix does not error on the read pool)
+- Postgres service published on host port **5543** (`config/test.exs`); `mix ecto.create` + `ecto.migrate` before tests (`priv/read_repo/migrations` exists empty so Mix does not error on the read pool)
 - `mix format --check-formatted`
 - `mix credo --strict`
-- One Mix cache of `deps` + `_build`, keyed on OS + `mix-precover` + `MIX_ENV` + OTP + Elixir + `mix.lock` (no app source hashes). Restore at job start; save after `mix compile --warnings-as-errors` and **before** coverage so ExCoveralls-instrumented BEAMs are not reused on the next run. Dialyzer PLTs stay a separate `priv/plts` cache (see `mix.exs` `plt_core_path` / `plt_local_path`) keyed on OS + OTP + Elixir + `mix.lock`. `_build` cache does not include PLTs. Packages CI uses the same unified Mix cache with a `-prod-` key prefix, then **`mix compile --force`** before `mix release` — without `--force`, a mix.lock cache hit can keep a stale `api_web` GraphQL schema in the OTP release while the JS client from this commit queries new fields. `igniter` is `runtime: false` (not started). It is **not** `only: :dev`: Spark Mix tasks reference `Igniter` at compile time, so Elixir 1.20 type-checking fails if Igniter is absent from the test or prod load path. Ash policy SAT (via `crux`) uses Hex `simple_sat` — a pure Elixir solver. Do not drop it without a replacement (`picosat_elixir` or `simple_sat`); with neither, GraphQL/Ash authorization returns empty results. Mix may compile `crux` before optional SAT backends; CI and `mix setup` run `mix deps.compile.sat` (`simple_sat` then `crux --force`) before the rest of `deps.compile`. Cold `mix deps.compile` sets `MIX_OS_DEPS_COMPILE_PARTITION_COUNT` to `nproc`
-- `mix test.coverdata` then `mix coveralls --umbrella --import-cover cover` — same coverage merge as `mix quality` (integration + conformance under one `:cover` session, then per-app unit tests). Enforces `coveralls.json` `minimum_coverage`. Does **not** upload to coveralls.io (`mix coveralls.github` / `mix coveralls.post` are the upload tasks and must not be used). Do **not** gate coverage on `mix coveralls --umbrella` alone (unit tests only; ~65% vs the 80% gate). `test/coverage_runner.exs` must **not** `:cover.compile` `Elixir.BfwEngine.Expressions.Nif.beam`. Cookbook `mix test.cookbook` is **not** a separate CI step (the plugins tests are already in the integration glob). CI installs Node.js 26 (`actions/setup-node` `node-version: 26`) so `node_script` / `ScriptSandbox` `.js` tests run; `ubuntu-latest` already provides `python3`.
+- One Mix cache of `deps` + `_build`, keyed on OS + `mix-precover` + `MIX_ENV` + OTP + Elixir + `mix.lock` (no app source hashes). Restore at job start; save after `mix compile --warnings-as-errors` and **before** coverage so ExCoveralls-instrumented BEAMs are not reused on the next run. Dialyzer PLTs stay a separate `priv/plts` cache (see `mix.exs` `plt_core_path` / `plt_local_path`) keyed on OS + OTP + Elixir + `mix.lock`. `_build` cache does not include PLTs. Packages CI uses the same unified Mix cache with a `-prod-` key prefix, then **`mix compile --force`** before `mix release` — without `--force`, a mix.lock cache hit can keep a stale `BfwEngineWeb` GraphQL schema in the OTP release while the JS client from this commit queries new fields. `igniter` is `runtime: false` (not started). It is **not** `only: :dev`: Spark Mix tasks reference `Igniter` at compile time, so Elixir 1.20 type-checking fails if Igniter is absent from the test or prod load path. Ash policy SAT (via `crux`) uses Hex `simple_sat` — a pure Elixir solver. Do not drop it without a replacement (`picosat_elixir` or `simple_sat`); with neither, GraphQL/Ash authorization returns empty results. Mix may compile `crux` before optional SAT backends; CI and `mix setup` run `mix deps.compile.sat` (`simple_sat` then `crux --force`) before the rest of `deps.compile`. Cold `mix deps.compile` sets `MIX_OS_DEPS_COMPILE_PARTITION_COUNT` to `nproc`
+- `mix test.coverdata` then `mix coveralls --import-cover cover` — same coverage merge as `mix quality` (integration + conformance under one `:cover` session, then the unit tests). Enforces `coveralls.json` `minimum_coverage`. Does **not** upload to coveralls.io (`mix coveralls.github` / `mix coveralls.post` are the upload tasks and must not be used). Do **not** gate coverage on `mix coveralls` alone (unit tests only; ~65% vs the 80% gate). `test/coverage_runner.exs` must **not** `:cover.compile` `Elixir.BfwEngine.Expressions.Nif.beam`. Cookbook `mix test.cookbook` is **not** a separate CI step (the plugins tests are already in the integration glob). CI installs Node.js 26 (`actions/setup-node` `node-version: 26`) so `node_script` / `ScriptSandbox` `.js` tests run; `ubuntu-latest` already provides `python3`.
 - `mix sobelow` for security
 - `mix deps.audit`
 - Docker smoke: `postgres:18-alpine` with `max_connections=200` so production pool defaults (100 write + 50 read) can check out; smoke asserts `GET /health` **HTTP 204** (empty body — not JSON `"status":"ok"`)

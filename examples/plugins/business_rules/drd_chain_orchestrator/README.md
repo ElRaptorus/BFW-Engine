@@ -92,10 +92,10 @@ mix test examples/plugins/business_rules/drd_chain_orchestrator/test/trace_inspe
 mix test examples/plugins/business_rules/drd_chain_orchestrator/test/drd_chain_orchestrator_worker_test.exs
 ```
 
-From the umbrella test suite (loads example sources via `apps/engine_plugins/test/examples/`):
+From the Engine test suite (loads example sources via `test/unit/plugins/examples/`):
 
 ```bash
-mix test apps/engine_plugins/test/examples/drd_chain_orchestrator_from_examples_test.exs
+mix test test/unit/plugins/examples/drd_chain_orchestrator_from_examples_test.exs
 ```
 
 ## Architecture

@@ -4,13 +4,13 @@ The engine ships one built-in OTP plugin capability and three built-in event sin
 
 The HTTP Service Task handler is registered by `BfwEngine.Plugins.Loader` before user plugins (implementation key `"http"`). Registration is first-wins, so it cannot be overridden: a plugin that registers `"http"` gets `{:error, :conflict, "bfw:builtin"}`. Use another implementation key for a custom HTTP handler. Built-in event sinks are **not** OTP plugins: `SinkRegistrar` attaches them to `EngineEventBus` at boot. They implement `@behaviour BfwEngine.Plugin.EventSink` but are not loaded via `BFE_PLUGINS_INBEAM`.
 
-There is no `bfw:postgres_persistence` plugin. Execution persistence is `BfwEngine.Execution.Persistence` (AshPostgres via `ExecutionAdapter` in production, `NoOp` in tests), configured with `:core_execution, :persistence_adapter`.
+There is no `bfw:postgres_persistence` plugin. Execution persistence is `BfwEngine.Execution.Persistence` (AshPostgres via `ExecutionAdapter` in production, `NoOp` in tests), configured with `:bfw_engine, :persistence_adapter`.
 
 ## HTTP Service Task Handler
 
 **Implementation:** `implementation="http"`  
 **Module:** `BfwEngine.Plugins.Builtin.HttpServiceTaskHandler`  
-**Location:** `apps/engine_plugins/`
+**Location:** `lib/bfw_engine/plugins/`
 
 Performs asynchronous HTTP requests using the `Req` library (all Service Task handlers are async-only). `handle_enter/3` validates inputs, spawns a Task for the HTTP call, and returns `{:async, flow_node_instance_id}`. On success, the Task calls `finish_async_service_task`; on failure, `fail_async_service_task`.
 

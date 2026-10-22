@@ -22,9 +22,9 @@ The standard BPMN `implementation` attribute serves as an explicit mode discrimi
 | `"feel"` | FEEL | `<bpmn:script>` | Evaluate an inline FEEL expression against the token |
 | `"dmn"` | DMN | `bfw:decisionRef` | Evaluate a deployed DMN decision table |
 
-The validator rejects any Business Rule Task with a missing, blank, or unrecognized `implementation` value. This includes `"plugin"`, which was removed — BRTs exclusively evaluate business rules via FEEL or DMN.
+The validator rejects any Business Rule Task with a missing, blank, or unrecognized `implementation` value. `"plugin"` is not a valid value.
 
-> **Note:** Plugin delegation was removed. Business Rule Tasks
+> **Note:** Business Rule Tasks
 > exclusively evaluate business rules via FEEL or DMN. Plugins observe
 > BRT execution via engine events and analyze results through the
 > facade — they never replace the execution path.

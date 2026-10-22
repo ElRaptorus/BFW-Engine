@@ -135,20 +135,11 @@ Standalone Node.js projects demonstrating the `@elraptorus/bfw_engine_sdk` packa
 
 | Command | What it covers |
 |---------|----------------|
-| `mix test.examples` | Unit wrappers under `apps/engine_plugins/test/examples/` (acceptance i). Does **not** boot the engine. |
+| `mix test.examples` | Unit wrappers under `test/unit/plugins/examples/` (acceptance i). Does **not** boot the engine. |
 | `mix test.cookbook` | Live-engine sequential boot asserts + README link-check under `test/integration/plugins/` (acceptance ii + iii) |
 | `mix test.integration` | Full integration suite, including the cookbook files |
 
 Do **not** add `mix test.cookbook` to `mix quality` / CI — those already run the full integration glob.
-
-### Original `examples/inbeam/*` names
-
-| Original name | Current tree |
-|---------------|--------------|
-| `hello-service-task` | `plugins/service_task_handlers/echo/` |
-| `lifecycle-aware` | `plugins/lifecycle_and_api/lifecycle_aware/` |
-| `event-sink-stdout` | `plugins/event_sinks/structured_logger/` |
-| `event-sink-sse` | `plugins/event_sinks/sse/` |
 
 ### JS Client/SDK examples
 

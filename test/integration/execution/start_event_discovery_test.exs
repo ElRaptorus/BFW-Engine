@@ -7,7 +7,7 @@ defmodule BfwEngine.Integration.Execution.StartEventDiscoveryTest do
   """
   use BfwEngine.ExecutionCase, async: false
 
-  alias BfwEngine.Persistence.Application, as: PersistenceApplication
+  alias BfwEngine.Persistence.Supervisor, as: PersistenceSupervisor
   alias BfwEngine.Test.ServiceReset
   alias BfwEngine.Timers.StartEventManager
 
@@ -54,7 +54,7 @@ defmodule BfwEngine.Integration.Execution.StartEventDiscoveryTest do
       {201, _} = http_deploy("message_start_event.bpmn")
       ServiceReset.bpmn_model_cache()
 
-      :ok = PersistenceApplication.warm_start_event_index()
+      :ok = PersistenceSupervisor.warm_start_event_index()
 
       {200, result} = http_trigger_message("trigger-process", %{"data" => "start"})
       assert [_process_instance_id] = result["startedProcessInstanceIds"]

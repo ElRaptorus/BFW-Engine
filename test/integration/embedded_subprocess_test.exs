@@ -1,6 +1,6 @@
 defmodule BfwEngine.Integration.EmbeddedSubprocessTest do
   @moduledoc """
-  Umbrella-level integration tests for embedded `<bpmn:subProcess>` execution.
+  Integration tests for embedded `<bpmn:subProcess>` execution.
 
   Exercises the full HTTP deploy → start → interact → assert lifecycle against
   real PostgreSQL persistence, covering happy paths, error boundaries, terminate

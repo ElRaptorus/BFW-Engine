@@ -26,7 +26,7 @@ defmodule IncidentReporter.MixProject do
 
   defp deps do
     [
-      {:engine_sdk, path: "../../../../apps/engine_sdk"},
+      {:bfw_engine, path: "../../../.."},
       {:jason, "~> 1.4"}
       # For the RabbitMQ adapter, add {:amqp, "~> 3.3"} to your own project's deps.
       # The adapter uses dynamic dispatch (apply/3) and compiles without the amqp package.

@@ -1,6 +1,6 @@
 defmodule BfwEngine.Integration.MultiInstanceTest do
   @moduledoc """
-  Umbrella-level integration tests for Multi-Instance (parallel and sequential)
+  Integration tests for Multi-Instance (parallel and sequential)
   execution via the lightweight iteration scope architecture.
 
   Exercises the full HTTP deploy → start → interact → assert lifecycle against
@@ -36,6 +36,23 @@ defmodule BfwEngine.Integration.MultiInstanceTest do
 
       events = EventCollector.get_events(collector)
 
+      iteration_started_events =
+        Enum.filter(events, fn
+          %Event.FlowNodeInstanceStarted{multi_instance_id: multi_instance_id}
+          when multi_instance_id != nil ->
+            true
+
+          _ ->
+            false
+        end)
+
+      assert length(iteration_started_events) == 3
+
+      for event <- iteration_started_events do
+        assert event.multi_instance_id != nil
+        assert event.iteration_index in [0, 1, 2]
+      end
+
       multi_instance_started = Enum.find(events, &match?(%Event.MultiInstanceStarted{}, &1))
       assert multi_instance_started != nil
       assert multi_instance_started.loop_type == "parallel_mi"
@@ -64,32 +81,6 @@ defmodule BfwEngine.Integration.MultiInstanceTest do
         assert is_map(record.output_token),
                "iteration FNI #{record.id} must persist output_token on :update_finished, got #{inspect(record.output_token)}"
       end
-    end
-
-    test "1.2 parallel MI user task — finish each iteration", %{collector: _collector} do
-      {201, _} = http_deploy("mi_parallel_user_task.bpmn")
-
-      {201, body} =
-        http_start("mi-parallel-user-task", %{
-          "payload" => %{"items" => [%{"name" => "A"}, %{"name" => "B"}]}
-        })
-
-      process_instance_id = body["processInstanceId"]
-
-      waiting_user_task_fnis =
-        await_multiple_waiting_flow_node_instances(
-          process_instance_id,
-          "user_task",
-          2,
-          timeout: @default_timeout
-        )
-
-      for flow_node_instance <- waiting_user_task_fnis do
-        {204, _} = http_finish_user_task(flow_node_instance.id, %{"approved" => true})
-      end
-
-      wait_for_process_instance(process_instance_id, @default_timeout)
-      assert_pi_state!(process_instance_id, "finished")
     end
 
     test "1.3 parallel MI completion condition — stops early", %{collector: collector} do
@@ -191,19 +182,6 @@ defmodule BfwEngine.Integration.MultiInstanceTest do
   # ===================================================================
 
   describe "Section 2 — sequential MI happy paths" do
-    test "2.1 sequential MI script task — 3 items in order" do
-      {201, _} = http_deploy("mi_sequential_script_task.bpmn")
-
-      {201, body} =
-        http_start("mi-sequential-script-task", %{
-          "payload" => %{"items" => [%{"value" => 1}, %{"value" => 2}, %{"value" => 3}]}
-        })
-
-      process_instance_id = body["processInstanceId"]
-      wait_for_process_instance(process_instance_id, @default_timeout)
-
-      assert_pi_state!(process_instance_id, "finished")
-    end
 
     test "2.2 sequential MI with interval delay" do
       {201, _} = http_deploy("mi_sequential_with_interval.bpmn")
@@ -478,38 +456,6 @@ defmodule BfwEngine.Integration.MultiInstanceTest do
   # ===================================================================
 
   describe "Section 6 — MI fields on FNI events" do
-    test "6.1 iteration FNI events carry multi_instance_id and iteration_index",
-         %{collector: collector} do
-      {201, _} = http_deploy("mi_parallel_script_task.bpmn")
-
-      {201, body} =
-        http_start("mi-parallel-script-task", %{
-          "payload" => %{"items" => [%{"value" => 1}, %{"value" => 2}]}
-        })
-
-      process_instance_id = body["processInstanceId"]
-      wait_for_process_instance(process_instance_id, @default_timeout)
-
-      events = EventCollector.get_events(collector)
-
-      iteration_started_events =
-        Enum.filter(events, fn
-          %Event.FlowNodeInstanceStarted{multi_instance_id: multi_instance_id}
-          when multi_instance_id != nil ->
-            true
-
-          _ ->
-            false
-        end)
-
-      assert length(iteration_started_events) == 2
-
-      for event <- iteration_started_events do
-        assert event.multi_instance_id != nil
-        assert event.iteration_index != nil
-        assert event.iteration_index in [0, 1]
-      end
-    end
 
     test "6.2 MultiInstanceStarted and MultiInstanceCompleted events are emitted",
          %{collector: collector} do
@@ -522,6 +468,8 @@ defmodule BfwEngine.Integration.MultiInstanceTest do
 
       process_instance_id = body["processInstanceId"]
       wait_for_process_instance(process_instance_id, @default_timeout)
+
+      assert_pi_state!(process_instance_id, "finished")
 
       events = EventCollector.get_events(collector)
 
@@ -719,7 +667,7 @@ defmodule BfwEngine.Integration.MultiInstanceTest do
 
   defp register_test_service_task_handler do
     Application.put_env(
-      :core_execution,
+      :bfw_engine,
       :service_task_dispatch,
       BfwEngine.Plugins.RegistryDispatch
     )

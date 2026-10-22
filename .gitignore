@@ -33,7 +33,7 @@ Thumbs.db
 *~
 .superpowers
 
-# Rust / Cargo build artifacts (Rustler NIF crates live in apps/*/native/)
+# Rust / Cargo build artifacts (the Rustler NIF crate lives in native/)
 **/native/*/target/
 
 # Node / TypeScript packages
@@ -51,7 +51,7 @@ excoveralls.json
 # Docker runtime data
 /tmp/
 .docker-compose-data/
-apps/core_expressions/priv/native/*.so
+priv/native/*.so
 
 # Generated load-benchmark JSON (directory kept via .gitkeep)
 test/load/reports/*.json

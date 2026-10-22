@@ -32,7 +32,7 @@ defmodule BfwEngine.Test.ConformanceSteps do
   @doc "Registers the conformance example plugin (echo and async-park service task handlers)."
   def load_example_plugin do
     Application.put_env(
-      :core_execution,
+      :bfw_engine,
       :service_task_dispatch,
       BfwEngine.Plugins.RegistryDispatch
     )

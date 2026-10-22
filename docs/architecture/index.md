@@ -25,7 +25,7 @@ up to date when a code change touches its scope.
 - **[execution.md](execution.md)** — PI/FNI runtime, handler dispatch, compensation, supervision tree, persistence adapter, Start Event resolution, FinalToken derivation
 - **[dmn.md](dmn.md)** — DMN model, parser, validator, evaluator, Decision Services, evaluation trace, persistence catalog, REST API
 - **[sdk-client.md](sdk-client.md)** — TypeScript SDK and client packages: structure, dependency direction, error mapping, authentication, integration tests
-- **[timers.md](timers.md)** — `core_timers`: Scheduler, ISO 8601 parser, StartEventManager, persistence, configuration, telemetry
+- **[timers.md](timers.md)** — `BfwEngine.Timers`: Scheduler, ISO 8601 parser, StartEventManager, persistence, configuration, telemetry
 - **[persistence.md](persistence.md)** — Dual connection pool (read/write), repo routing, CoDel queue tuning, PersistenceRetry, pool telemetry
 - **[common-pitfalls.md](common-pitfalls.md)** — Recurring constraints a person could hit again (not CI/test novels)
 

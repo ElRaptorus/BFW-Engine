@@ -720,10 +720,10 @@ defmodule BfwEngine.Integration.Execution.ResumeRobustnessTest do
 
   describe "A23: a child row that cannot be read on resume is not mistaken for a deleted child" do
     setup do
-      previous_adapter = Application.get_env(:core_execution, :persistence_adapter)
+      previous_adapter = Application.get_env(:bfw_engine, :persistence_adapter)
 
       on_exit(fn ->
-        Application.put_env(:core_execution, :persistence_adapter, previous_adapter)
+        Application.put_env(:bfw_engine, :persistence_adapter, previous_adapter)
       end)
     end
 
@@ -735,7 +735,7 @@ defmodule BfwEngine.Integration.Execution.ResumeRobustnessTest do
       {:ok, _task} = await_waiting_fni_by_node_id(child_process_instance_id, "Sub_UserTask")
 
       stop_all_process_instances()
-      Application.put_env(:core_execution, :persistence_adapter, ChildLookupFailingAdapter)
+      Application.put_env(:bfw_engine, :persistence_adapter, ChildLookupFailingAdapter)
       {:ok, 1} = ResumeRunner.resume_all()
 
       assert_shell_resume_failed(process_instance_id, "SubProcess_1", child_process_instance_id)
@@ -751,7 +751,7 @@ defmodule BfwEngine.Integration.Execution.ResumeRobustnessTest do
       {:ok, _esp_task} = await_waiting_fni_by_node_id(child_process_instance_id, "ESP_UserTask")
 
       stop_all_process_instances()
-      Application.put_env(:core_execution, :persistence_adapter, ChildLookupFailingAdapter)
+      Application.put_env(:bfw_engine, :persistence_adapter, ChildLookupFailingAdapter)
       {:ok, 1} = ResumeRunner.resume_all()
 
       assert_shell_resume_failed(process_instance_id, "ESP_Escalate", child_process_instance_id)
@@ -768,7 +768,7 @@ defmodule BfwEngine.Integration.Execution.ResumeRobustnessTest do
       delete_process_instance(child_process_instance_id)
 
       Application.put_env(
-        :core_execution,
+        :bfw_engine,
         :persistence_adapter,
         TypePropertiesPatchFailingAdapter
       )
@@ -789,7 +789,7 @@ defmodule BfwEngine.Integration.Execution.ResumeRobustnessTest do
     end
 
     test "retry answers 503 service_unavailable when the process instance cannot be read" do
-      Application.put_env(:core_execution, :persistence_adapter, ChildLookupFailingAdapter)
+      Application.put_env(:bfw_engine, :persistence_adapter, ChildLookupFailingAdapter)
 
       assert {503, %{"error" => "service_unavailable"}} =
                http_retry_process_instance(Ash.UUIDv7.generate())
@@ -955,10 +955,10 @@ defmodule BfwEngine.Integration.Execution.ResumeRobustnessTest do
 
   describe "A1: orderly shutdown" do
     setup do
-      previous_adapter = Application.get_env(:core_execution, :persistence_adapter)
+      previous_adapter = Application.get_env(:bfw_engine, :persistence_adapter)
 
       on_exit(fn ->
-        Application.put_env(:core_execution, :persistence_adapter, previous_adapter)
+        Application.put_env(:bfw_engine, :persistence_adapter, previous_adapter)
 
         _restart_result =
           Supervisor.restart_child(
@@ -968,12 +968,12 @@ defmodule BfwEngine.Integration.Execution.ResumeRobustnessTest do
       end)
     end
 
-    test "prep_stop stops every process instance and leaves its rows for the next resume" do
+    test "shutdown_process_instances stops every process instance and leaves its rows for the next resume" do
       process_instance_id = http_deploy_and_start("user_task_simple.bpmn", "UserTaskSimple")
       user_task = poll_fni_state(process_instance_id, "user_task", "waiting")
       {:ok, process_instance_pid} = poll_pi_alive(process_instance_id)
 
-      assert :application_state == BfwEngineWeb.Application.prep_stop(:application_state)
+      :ok = BfwEngine.Execution.shutdown_process_instances()
 
       refute Process.alive?(process_instance_pid)
 
@@ -993,12 +993,12 @@ defmodule BfwEngine.Integration.Execution.ResumeRobustnessTest do
                await_process_instance_state(process_instance_id, "finished")
     end
 
-    test "starts after prep_stop answer engine_shutting_down instead of crashing" do
+    test "starts after shutdown_process_instances answer engine_shutting_down instead of crashing" do
       {201, _} = http_deploy("user_task_simple.bpmn")
       {201, _} = http_deploy("message_start_event.bpmn")
       MessageSubscriptions.mark_ready()
 
-      assert :application_state == BfwEngineWeb.Application.prep_stop(:application_state)
+      :ok = BfwEngine.Execution.shutdown_process_instances()
 
       assert {503, %{"error" => "engine_shutting_down"}} = http_start("UserTaskSimple")
 
@@ -1017,13 +1017,13 @@ defmodule BfwEngine.Integration.Execution.ResumeRobustnessTest do
 
       {:ok, _aborted} = await_process_instance_state(process_instance_id, "aborted")
 
-      previous_adapter = Application.get_env(:core_execution, :persistence_adapter)
-      Application.put_env(:core_execution, :persistence_adapter, ShutdownDuringRetryAdapter)
+      previous_adapter = Application.get_env(:bfw_engine, :persistence_adapter)
+      Application.put_env(:bfw_engine, :persistence_adapter, ShutdownDuringRetryAdapter)
 
       assert {503, %{"error" => "engine_shutting_down"}} =
                http_retry_process_instance(process_instance_id)
 
-      Application.put_env(:core_execution, :persistence_adapter, previous_adapter)
+      Application.put_env(:bfw_engine, :persistence_adapter, previous_adapter)
       assert_pi_state!(process_instance_id, "running", verify_execution_chain: false)
 
       {:ok, _supervisor} =
@@ -1163,16 +1163,16 @@ defmodule BfwEngine.Integration.Execution.ResumeRobustnessTest do
 
   describe "A16: a named script re-run after a restart" do
     setup do
-      previous_dispatch = Application.get_env(:core_execution, :script_dispatch)
+      previous_dispatch = Application.get_env(:bfw_engine, :script_dispatch)
 
       Application.put_env(
-        :core_execution,
+        :bfw_engine,
         :script_dispatch,
         BfwEngine.Plugins.ScriptRegistryDispatch
       )
 
       BfwEngine.Test.ExamplePlugin.on_load(FacadeBuilder.build("bfw:test_resumed_script"))
-      on_exit(fn -> Application.put_env(:core_execution, :script_dispatch, previous_dispatch) end)
+      on_exit(fn -> Application.put_env(:bfw_engine, :script_dispatch, previous_dispatch) end)
     end
 
     test "sees resumed: true in its handler context" do

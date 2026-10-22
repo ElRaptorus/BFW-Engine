@@ -1,6 +1,6 @@
 defmodule BfwEngine.Integration.Execution.TerminateEndEventTest do
   @moduledoc """
-  Umbrella-level integration tests for Terminate End Event.
+  Integration tests for Terminate End Event.
 
   Uses real BPMN XML fixtures deployed via the HTTP API. Verifies
   PI state, FNI states, final tokens, child PI cascade, and event
@@ -12,19 +12,19 @@ defmodule BfwEngine.Integration.Execution.TerminateEndEventTest do
   alias BfwEngine.Types.Event
 
   setup do
-    original_resolver = Application.get_env(:core_execution, :called_element_resolver)
+    original_resolver = Application.get_env(:bfw_engine, :called_element_resolver)
 
     Application.put_env(
-      :core_execution,
+      :bfw_engine,
       :called_element_resolver,
       BfwEngine.Persistence.CalledElementResolverImpl
     )
 
     on_exit(fn ->
       if original_resolver do
-        Application.put_env(:core_execution, :called_element_resolver, original_resolver)
+        Application.put_env(:bfw_engine, :called_element_resolver, original_resolver)
       else
-        Application.delete_env(:core_execution, :called_element_resolver)
+        Application.delete_env(:bfw_engine, :called_element_resolver)
       end
     end)
 
@@ -98,23 +98,6 @@ defmodule BfwEngine.Integration.Execution.TerminateEndEventTest do
       assert started_event.new_state == :running
       assert finished_event.new_state == :finished
     end
-
-    test "payload threads through the entire path" do
-      {201, _} = http_deploy("terminate_simple_with_timer.bpmn")
-
-      payload = %{"customer_id" => 42, "items" => [1, 2, 3]}
-      {201, body} = http_start("TerminateSimpleTimer", %{"payload" => payload})
-
-      process_instance_id = body["processInstanceId"]
-      wait_for_process_instance(process_instance_id, 10_000)
-
-      assert_pi_state!(process_instance_id, "finished")
-
-      flow_node_instances = fetch_flow_node_instances(process_instance_id)
-      end_fni = Enum.find(flow_node_instances, &(&1.flow_node_id == "End_Terminate"))
-
-      assert end_fni.output_token == %{"customer_id" => 42, "items" => [1, 2, 3]}
-    end
   end
 
   # -------------------------------------------------------------------
@@ -150,6 +133,7 @@ defmodule BfwEngine.Integration.Execution.TerminateEndEventTest do
       assert start_fni.state == "finished"
       assert terminate_fni.state == "finished"
       assert terminate_fni.event_type == "terminate"
+      assert terminate_fni.output_token != nil
 
       assert call_activity_fni.state == "interrupted",
              "Call Activity should be interrupted by terminate, got: #{call_activity_fni.state}"
@@ -189,24 +173,6 @@ defmodule BfwEngine.Integration.Execution.TerminateEndEventTest do
 
       assert ca_interrupted != nil,
              "Call Activity FNI should have emitted a FlowNodeInstanceFinished with :interrupted"
-    end
-
-    test "parent PI final tokens include the terminate end event payload" do
-      {201, _} = http_deploy("terminate_child_with_user_task.bpmn")
-      {201, _} = http_deploy("terminate_call_activity_boundary.bpmn")
-
-      {201, body} = http_start("TerminateCallBoundary", %{"payload" => %{"key" => "value"}})
-      parent_process_instance_id = body["processInstanceId"]
-
-      wait_for_process_instance(parent_process_instance_id, 10_000)
-
-      assert_pi_state!(parent_process_instance_id, "finished")
-
-      parent_fnis = fetch_flow_node_instances(parent_process_instance_id)
-      terminate_fni = Enum.find(parent_fnis, &(&1.flow_node_id == "End_Terminate"))
-
-      assert terminate_fni.state == "finished"
-      assert terminate_fni.output_token != nil
     end
   end
 

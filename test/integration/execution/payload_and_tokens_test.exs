@@ -68,10 +68,10 @@ defmodule BfwEngine.Integration.PayloadAndTokensTest do
     end
 
     test "Call Activity child PI propagates end_event_name in finalTokens" do
-      original_resolver = Application.get_env(:core_execution, :called_element_resolver)
+      original_resolver = Application.get_env(:bfw_engine, :called_element_resolver)
 
       Application.put_env(
-        :core_execution,
+        :bfw_engine,
         :called_element_resolver,
         BfwEngine.Persistence.CalledElementResolverImpl
       )
@@ -112,9 +112,9 @@ defmodule BfwEngine.Integration.PayloadAndTokensTest do
       assert child_token["endEventId"] == "End_1"
 
       if original_resolver do
-        Application.put_env(:core_execution, :called_element_resolver, original_resolver)
+        Application.put_env(:bfw_engine, :called_element_resolver, original_resolver)
       else
-        Application.delete_env(:core_execution, :called_element_resolver)
+        Application.delete_env(:bfw_engine, :called_element_resolver)
       end
     end
 
@@ -149,12 +149,12 @@ defmodule BfwEngine.Integration.PayloadAndTokensTest do
     test "start payload exceeding cap returns 413" do
       {201, _} = http_deploy("linear_three_node.bpmn")
 
-      Application.put_env(:core_execution, :token_max_bytes, 2048)
+      Application.put_env(:bfw_engine, :token_max_bytes, 2048)
 
       large_data = %{"data" => String.duplicate("x", 5000)}
       {status, _body} = http_start("LinearThreeNode", %{"payload" => large_data})
 
-      Application.put_env(:core_execution, :token_max_bytes, 65_536)
+      Application.put_env(:bfw_engine, :token_max_bytes, 65_536)
 
       assert status == 413
     end

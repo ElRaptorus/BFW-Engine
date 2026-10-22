@@ -1,6 +1,6 @@
 defmodule BfwEngine.Integration.TaskInboxEventsTest do
   @moduledoc """
-  Umbrella-level integration tests for the task inbox events
+  Integration tests for the task inbox events
   (`UserTaskCreated`, `UserTaskFinished`) published by
   `BfwEngine.Execution.TaskInboxEvents`.
 

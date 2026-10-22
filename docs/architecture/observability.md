@@ -87,13 +87,13 @@ queries on request**, not a counter cache:
 
 | Block | Source |
 |-------|--------|
-| `engine` | `:peripheral_telemetry` config, `:core_execution` app vsn, `:persistent_term` start time, load from `DynamicSupervisor.count_children(BfwEngine.Execution.Supervisor)` vs `BFE_MAX_CONCURRENT_PIS` |
+| `engine` | `:bfw_engine` config, `:bfw_engine` app vsn, `:persistent_term` start time, load from `DynamicSupervisor.count_children(BfwEngine.Execution.Supervisor)` vs `BFE_MAX_CONCURRENT_PIS` |
 | `processInstances` | Ash `count` on `ProcessInstance` per state `running` / `finished` / `fatal` / `aborted` / `error` |
 | `flowNodeInstances` | Ash `count` on `FlowNodeInstance` per state including `waiting` / `interrupted` / `error` |
 | `userTasksPending.count` | waiting `user_task` FNIs |
 | `asyncFlowNodes.waiting` | waiting FNIs that are not user tasks |
 | `timers` | Scheduler ETS `:bfw_engine_timers_primary` size + count with `fire_at` ≤ now+60s |
-| `plugins` | `BfwEngine.Plugins.Registry.list_plugins/0` |
+| `plugins` | `BfwEngine.Plugins.Registry.list_plugins/0`, added by `StatsController` (not part of `snapshot/0`) |
 | `listeners` | `EngineEventBus.list_sinks/0` |
 | `dbPools` | configured `pool_size` for write `Repo` and, if started, `ReadRepo` |
 
@@ -160,7 +160,7 @@ from this snapshot). Disabling the telemetry sink does **not** zero
 Public Prometheus text (`text/plain`). Definitions:
 `BfwEngine.Telemetry.Metrics.metrics/0`. The reporter plus
 `:telemetry_poller` (period 10s) start only when
-`:peripheral_telemetry, :metrics_enabled` is true.
+`:bfw_engine, :metrics_enabled` is true.
 
 Scrape names use underscores (dots in the Telemetry.Metrics name become
 `_`). Catalog:
@@ -207,7 +207,7 @@ attach; `/metrics` does not):
 
 | Event | Typical site |
 |-------|----------------|
-| `[:bfw_engine, :timer, :armed \| :fired \| :cancelled]` | `core_timers` Scheduler |
+| `[:bfw_engine, :timer, :armed \| :fired \| :cancelled]` | `BfwEngine.Timers` Scheduler |
 | `[:bfw_engine, :message, :published \| :arrived]` | `MessagePublisher` |
 | `[:bfw_engine, :signal, :published \| :arrived]` | `SignalPublisher` |
 | `[:bfw_engine, :subprocess, :child_started]` | SubProcess / ESP spawn |
@@ -242,7 +242,6 @@ in-memory event ring buffer.
 
 | Gap | Notes |
 |-----|--------|
-| Built-in database EventSink | Removed; see Event sinks above |
 | Admin stats HTML | `/admin/` is GraphiQL + empty `BfwEngineWeb.Admin` namespace; Swagger is `GET /` ([post-v1-ideas.md](../post-v1-ideas.md) idea 7) |
 | `/stats` breakdowns | `byType` / `byAssigneeRole` / `byPlugin` / `monitoringPanelsCount` are stubs |
 
@@ -272,18 +271,18 @@ index: [api.md](./api.md).
 
 | Module | Path |
 |--------|------|
-| `BfwEngine.Events.EngineEventBus` | `apps/core_events/lib/bfw_engine/events/engine_event_bus.ex` |
-| `BfwEngine.Events.SinkRegistrar` | `apps/core_events/lib/bfw_engine/events/sink_registrar.ex` |
-| `BfwEngine.Events.Sinks.Console` | `apps/core_events/lib/bfw_engine/events/sinks/console.ex` |
-| `BfwEngine.Telemetry.Sink` | `apps/peripheral_telemetry/lib/bfw_engine/telemetry/sink.ex` |
-| `BfwEngine.Telemetry.StatsCollector` | `apps/peripheral_telemetry/lib/bfw_engine/telemetry/stats_collector.ex` |
-| `BfwEngine.Telemetry.Metrics` | `apps/peripheral_telemetry/lib/bfw_engine/telemetry/metrics.ex` |
-| `BfwEngine.Telemetry.Measurements` | `apps/peripheral_telemetry/lib/bfw_engine/telemetry/measurements.ex` |
-| `BfwEngine.Telemetry.DbQueryHandler` | `apps/peripheral_telemetry/lib/bfw_engine/telemetry/db_query_handler.ex` |
-| Telemetry OTP application | `apps/peripheral_telemetry/lib/bfw_engine/telemetry/application.ex` |
-| `BfwEngineWeb.Ws.Sinks.WebSocket` | `apps/api_web/lib/bfw_engine_web/ws/sinks/websocket.ex` |
-| `BfwEngineWeb.Http.StatsController` | `apps/api_web/lib/bfw_engine_web/http/controllers/stats_controller.ex` |
-| `BfwEngineWeb.Http.MetricsController` | `apps/api_web/lib/bfw_engine_web/http/controllers/metrics_controller.ex` |
-| `BfwEngineWeb.Http.HealthController` | `apps/api_web/lib/bfw_engine_web/http/controllers/health_controller.ex` |
-| `BfwEngineWeb.Http.InfoController` | `apps/api_web/lib/bfw_engine_web/http/controllers/info_controller.ex` |
-| `BfwEngineWeb.Admin` | `apps/api_web/lib/bfw_engine_web/admin.ex` |
+| `BfwEngine.Events.EngineEventBus` | `lib/bfw_engine/events/engine_event_bus.ex` |
+| `BfwEngine.Events.SinkRegistrar` | `lib/bfw_engine/events/sink_registrar.ex` |
+| `BfwEngine.Events.Sinks.Console` | `lib/bfw_engine/events/sinks/console.ex` |
+| `BfwEngine.Telemetry.Sink` | `lib/bfw_engine/telemetry/sink.ex` |
+| `BfwEngine.Telemetry.StatsCollector` | `lib/bfw_engine/telemetry/stats_collector.ex` |
+| `BfwEngine.Telemetry.Metrics` | `lib/bfw_engine/telemetry/metrics.ex` |
+| `BfwEngine.Telemetry.Measurements` | `lib/bfw_engine/telemetry/measurements.ex` |
+| `BfwEngine.Telemetry.DbQueryHandler` | `lib/bfw_engine/telemetry/db_query_handler.ex` |
+| Telemetry supervisor | `lib/bfw_engine/telemetry/supervisor.ex` |
+| `BfwEngineWeb.Ws.Sinks.WebSocket` | `lib/bfw_engine_web/ws/sinks/websocket.ex` |
+| `BfwEngineWeb.Http.StatsController` | `lib/bfw_engine_web/http/controllers/stats_controller.ex` |
+| `BfwEngineWeb.Http.MetricsController` | `lib/bfw_engine_web/http/controllers/metrics_controller.ex` |
+| `BfwEngineWeb.Http.HealthController` | `lib/bfw_engine_web/http/controllers/health_controller.ex` |
+| `BfwEngineWeb.Http.InfoController` | `lib/bfw_engine_web/http/controllers/info_controller.ex` |
+| `BfwEngineWeb.Admin` | `lib/bfw_engine_web/admin.ex` |

@@ -82,7 +82,7 @@ defmodule BfwEngine.Test.ConformanceRunner do
   def run_interactive(spec) do
     with_capabilities(spec["requires"] || [], fn ->
       Application.put_env(
-        :core_execution,
+        :bfw_engine,
         :called_element_resolver,
         BfwEngine.Persistence.CalledElementResolverImpl
       )
@@ -150,12 +150,12 @@ defmodule BfwEngine.Test.ConformanceRunner do
   end
 
   defp enable_capability("payload_cap"),
-    do: Application.put_env(:core_execution, :token_max_bytes, @payload_cap_bytes)
+    do: Application.put_env(:bfw_engine, :token_max_bytes, @payload_cap_bytes)
 
   defp enable_capability("plugin_script"),
     do:
       Application.put_env(
-        :core_execution,
+        :bfw_engine,
         :script_dispatch,
         BfwEngine.Plugins.ScriptRegistryDispatch
       )
@@ -163,10 +163,10 @@ defmodule BfwEngine.Test.ConformanceRunner do
   defp enable_capability(_capability), do: :ok
 
   defp disable_capability("payload_cap"),
-    do: Application.put_env(:core_execution, :token_max_bytes, 65_536)
+    do: Application.put_env(:bfw_engine, :token_max_bytes, 65_536)
 
   defp disable_capability("plugin_script"),
-    do: Application.delete_env(:core_execution, :script_dispatch)
+    do: Application.delete_env(:bfw_engine, :script_dispatch)
 
   defp disable_capability(_capability), do: :ok
 

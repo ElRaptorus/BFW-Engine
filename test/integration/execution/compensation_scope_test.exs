@@ -377,10 +377,10 @@ defmodule BfwEngine.Integration.Execution.CompensationScopeTest do
 
   describe "a failing inner compensation handler" do
     setup do
-      previous_dispatch = Application.fetch_env(:core_execution, :service_task_dispatch)
+      previous_dispatch = Application.fetch_env(:bfw_engine, :service_task_dispatch)
 
       Application.put_env(
-        :core_execution,
+        :bfw_engine,
         :service_task_dispatch,
         BfwEngine.Plugins.RegistryDispatch
       )
@@ -393,10 +393,10 @@ defmodule BfwEngine.Integration.Execution.CompensationScopeTest do
 
         case previous_dispatch do
           {:ok, dispatch} ->
-            Application.put_env(:core_execution, :service_task_dispatch, dispatch)
+            Application.put_env(:bfw_engine, :service_task_dispatch, dispatch)
 
           :error ->
-            Application.delete_env(:core_execution, :service_task_dispatch)
+            Application.delete_env(:bfw_engine, :service_task_dispatch)
         end
       end)
     end

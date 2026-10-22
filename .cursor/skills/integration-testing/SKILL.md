@@ -58,8 +58,8 @@ Architecture reference: [`docs/architecture/testing.md`](../../../docs/architect
 
 ## Full-Stack Integration Tests (Project Root)
 
-Full-stack integration tests live at the **project root**, not inside any
-individual umbrella app. They test the engine as a black box.
+Full-stack integration tests live in `test/integration/`, outside the
+unit test tree. They test the engine as a black box.
 
 ### Directory layout
 
@@ -87,7 +87,7 @@ test/
 
 ### Prerequisites
 
-Umbrella-level integration tests require a running PostgreSQL Docker container.
+Integration tests require a running PostgreSQL Docker container.
 **Before running any integration test**, follow the `ensure-test-db` skill to
 verify the container is running and ready. It is NOT acceptable to skip tests
 because PostgreSQL is unavailable — agents MUST start the container.
@@ -120,7 +120,7 @@ mix test.integration
 # Direct invocation
 MIX_ENV=test mix run test/integration_runner.exs
 
-# Full quality gate (compile + credo + unit + integration)
+# Full quality gate (see mix.exs `quality` alias)
 mix quality
 ```
 
@@ -128,8 +128,7 @@ mix quality
 
 `BfwEngine.IntegrationCase` provides:
 
-- **State reset** between tests via `BfwEngine.Test.ServiceReset` (and the
-  per-app `ServiceReset` modules). Each function restarts the supervised
+- **State reset** between tests via `BfwEngine.Test.ServiceReset`. Each function restarts the supervised
   child, which rebuilds its ETS or agent state.
 - **JWT helpers**: `sign_jwt/1`, `conn_with_auth/3`
 - **Router helper**: `route/1` sends a conn through the real HTTP router
@@ -140,7 +139,7 @@ defmodule BfwEngine.Integration.MyTest do
   use BfwEngine.IntegrationCase, async: false
 
   test "authenticated route returns 200" do
-    with_config(:api_auth, :auth_disabled, false, fn ->
+    with_config(:bfw_engine, :auth_disabled, false, fn ->
       conn = conn_with_auth(:get, "/stats", %{"sub" => "user-1"})
       assert route(conn).status == 200
     end)
@@ -177,36 +176,34 @@ Register sinks with the event bus using the 3-arity API:
 
 ---
 
-## Per-App Unit and Domain Tests
+## Unit and Domain Tests
 
-Each umbrella app has its own `test/` directory for domain-specific tests.
+Each subsystem has its own `test/unit/<subsystem>/` directory for domain-specific tests.
 
-### CaseTemplate reference
+### Case templates
 
-| Template | Module | Use when… | Sets up |
-|----------|--------|-----------|---------|
-| `DataCase` | `BfwEngine.DataCase` | Ash resources, Ecto queries | Ecto sandbox |
-| `ConnCase` | `BfwEngine.ConnCase` | REST, GraphQL, task completions | Ecto sandbox + Phoenix endpoint |
-| `EngineCase` | `BfwEngine.EngineCase` | Full round-trip: deploy → start → assert | Ecto sandbox + Phoenix + all engine GenServers |
+See [reference.md](reference.md) §Case templates: `BfwEngine.Persistence.DataCase` (Ash / Ecto in the sandbox), `BfwEngine.IntegrationCase` (REST / GraphQL / WebSocket round-trips), `BfwEngine.ExecutionCase` (BPMN execution scenarios).
 
-### Per-app test directory layout
+### Unit test directory layout
 
 ```
-apps/<app>/test/
-├── test_helper.exs
-├── support/
-│   └── *.ex              # App-specific test helpers
-└── <domain>_test.exs     # Unit tests
+test/unit/
+├── test_helper.exs           # one helper for all unit tests
+├── architecture/             # static scans over all of lib/
+├── harness/support/          # BfwEngine.Test.ServiceReset, BfwEngine.Test boundary
+└── <subsystem>/
+    ├── support/
+    │   └── *.ex              # helpers, compiled into the :test build
+    └── **/*_test.exs         # unit tests
 ```
 
 ---
 
-## AuthHelper (per-app)
+## AuthHelper (unit tests)
 
-`apps/api_auth/test/support/auth_helper.ex` and `apps/api_web/test/support/auth_helper.ex`
-mint JWTs for per-app tests.
-
-For integration tests, use `BfwEngine.IntegrationCase.sign_jwt/1` instead.
+`BfwEngine.Test.AuthHelper` (`test/unit/auth/support/auth_helper.ex`) mints JWTs
+for every suite. `IntegrationCase.sign_jwt/1` and `ExecutionCase.sign_jwt/1`
+delegate to it.
 
 ---
 
@@ -323,19 +320,18 @@ Each `.bpmn` fixture has an optional companion `.yaml` test spec that declares:
 - Data Object expected values
 
 These specs feed the assertion framework described in
-[`testing.md`](../../../docs/architecture/testing.md) §12.4.3.
+[`testing.md`](../../../docs/architecture/testing.md) §Assertion framework.
 
 ---
 
-## FixtureProvider
+## Payload fixtures
 
-Centralized fixture factory. Never inline fixture data in test bodies.
-
-### Payload helpers
+Never inline fixture data in test bodies. Sized payloads come from
+`BfwEngine.Test.PayloadCapFixtures`:
 
 ```elixir
-FixtureProvider.mint_payload(1024)
-FixtureProvider.oversize_payload()
+PayloadCapFixtures.mint_payload(1024)
+PayloadCapFixtures.oversize_payload()
 ```
 
 ---
@@ -350,10 +346,10 @@ the CI pipeline and block every other contributor.
 
 ### Why "pre-existing" is not an excuse
 
-Bifrost Forge World Engine is a highly interconnected umbrella project. A change
-to `core_execution` can break tests in `api_web`. A new handler in
+Bifrost Forge World Engine is a highly interconnected project. A change
+to `BfwEngine.Execution` can break tests in `BfwEngineWeb`. A new handler in
 `handler_dispatch.ex` can cause cascading failures in conformance tests. A
-new PI state can break retry logic in `api_facade`. **It is never safe to
+new PI state can break retry logic in `BfwEngine.Api`. **It is never safe to
 assume a failing test is unrelated to your changes.**
 
 Even if a failure genuinely predates your work, the CI pipeline does not
@@ -411,9 +407,9 @@ Every new feature MUST include tests covering:
 
 ```
 Is this about a single module's behavior in isolation?
-  YES → Unit test (per-app test/)
+  YES → Unit test (test/unit/<subsystem>/)
   NO  ↓
-Is this testing cross-app integration (HTTP + EventBus + Plugins)?
+Does it cross subsystems (HTTP + EventBus + Plugins)?
   YES → Full-stack integration test (project root test/integration/)
   NO  ↓
 Is this about random/adversarial input generation?
@@ -423,7 +419,7 @@ Is this verifying normative BPMN 2.0 behavior?
   YES → Conformance test (.bpmn + YAML spec corpus)
   NO  ↓
 Is this about throughput or latency under load?
-  YES → Load test (k6/wrk, separate suite)
+  YES → Load test (test/load/, mix test.load*)
 ```
 
 ---
@@ -432,12 +428,12 @@ Is this about throughput or latency under load?
 
 | Alias | What it runs |
 |-------|-------------|
-| `mix test.unit` | All per-app tests (excludes `@tag :integration`) |
+| `mix test.unit` | All unit tests (excludes `@tag :integration`) |
 | `mix test.integration` | Full-stack integration tests at project root (no coverage) |
 | `mix test.conformance` | YAML-driven conformance corpus (no coverage) |
 | `mix test.coverdata` | Integration + conformance under one `:cover` session; exports coverdata for `--import-cover` |
-| `mix test.full` | Compile + credo + unit tests + integration tests |
-| `mix quality` | Compile, lint, analysis, docs, `test.coverdata`, then `coveralls.html --umbrella --import-cover cover` |
+| `mix test.full` | Compile + unit + integration + conformance tests |
+| `mix quality` | Compile, lint, analysis, docs, `test.coverdata`, then `coveralls.html --import-cover cover` |
 
 ---
 

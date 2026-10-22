@@ -12,7 +12,7 @@ defmodule BfwEngine.Integration.ListWaitingServiceTasksTest do
 
   setup do
     Application.put_env(
-      :core_execution,
+      :bfw_engine,
       :service_task_dispatch,
       BfwEngine.Plugins.RegistryDispatch
     )
@@ -26,7 +26,7 @@ defmodule BfwEngine.Integration.ListWaitingServiceTasksTest do
 
     on_exit(fn ->
       Application.put_env(
-        :core_execution,
+        :bfw_engine,
         :service_task_dispatch,
         BfwEngine.Execution.ServiceTaskDispatch.NoOp
       )

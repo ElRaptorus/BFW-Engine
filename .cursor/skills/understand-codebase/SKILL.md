@@ -10,13 +10,16 @@ description: >-
 
 ## Step 0: Project Overview
 
-Bifrost Forge World Engine (or simply "the Engine") is a fully qualified BPMN 2.0 Workflow Engine built with Elixir/OTP, Ash Framework, Phoenix, and PostgreSQL 18+. It is structured as an Elixir umbrella project following DDD domain boundaries.
+Bifrost Forge World Engine (or simply "the Engine") is a fully qualified BPMN 2.0 Workflow Engine built with Elixir/OTP, Ash Framework, Phoenix, and PostgreSQL 18+. It is one OTP application (`:bfw_engine`) whose DDD subsystems are compile-time boundaries (the `boundary` library).
 
 | Directory | What's here |
 |-----------|------------|
-| `apps/core_*` | Core domain apps: types, execution, events, timers, expressions, BPMN parsing |
-| `apps/peripheral_*` | Peripheral domain apps: persistence, telemetry, plugins |
-| `apps/api_*` | API domain apps: auth, HTTP, GraphQL, WebSocket, admin |
+| `lib/bfw_engine/<subsystem>/` | One boundary per subsystem: types, execution, events, timers, expressions, bpmn, dmn, persistence, telemetry, plugins, plugin contracts, api, auth |
+| `lib/bfw_engine_web/` | REST, GraphQL, WebSocket, admin |
+| `lib/mix/tasks/` | `bfw.*` Mix tasks |
+| `native/feel_nif/` | Rust FEEL NIF crate |
+| `test/unit/<subsystem>/`, `test/integration/`, `test/conformance/`, `test/load/` | Unit, integration, conformance, and load tests; harness in `test/support/` and `test/unit/*/support/`, fixtures in `test/fixtures/` (layout: `docs/architecture/testing.md` §Test layout) |
+| `host/` | Release project (`mix release` delegates here) |
 | `docs/` | Project documentation (architecture, implementation plan, phases, glossary, schema) |
 | `docs/architecture/` | Detailed single-topic architecture references |
 
@@ -30,7 +33,7 @@ Based on your task, read the specific architecture doc:
 
 | Task | Read |
 |------|------|
-| Plugin system, loading model, SDK | `docs/architecture/plugins.md` |
+| Plugin system, loading model, plugin contracts | `docs/architecture/plugins.md` |
 | Database schema, tables, partitioning | `docs/architecture/data-model.md` |
 | EngineEventBus, event sinks | `docs/architecture/event-system.md` |
 | REST/GraphQL/WebSocket endpoints | `docs/architecture/api.md` |
@@ -47,47 +50,49 @@ Based on your task, read the specific architecture doc:
 | Terminology | `docs/Glossary.md` |
 | Database ER diagram | `docs/Schema.md` |
 
-## Step 3: Key Apps by Domain Layer
+## Step 3: Key Subsystems by Domain Layer
 
-### Core (`apps/core_*`)
+### Core
 
-The engine's domain logic. Core apps never import from API or Peripheral apps.
+The engine's domain logic. Core boundaries never import from API or Peripheral boundaries.
 
-| App | Purpose |
+| Boundary | Purpose |
 |-----|---------|
-| `core_types` | Behaviour-free structs, shared types, the contract layer |
-| `core_execution` | PI/FNI runtime, resume logic, payload cap enforcement |
-| `core_events` | EngineEventBus, pending event sweeper |
-| `core_timers` | ISO 8601 timer scheduler |
-| `core_expressions` | FEEL expression evaluator |
-| `core_bpmn` | XML parser, ModelCache, linter gate |
+| `BfwEngine.Types` | Behaviour-free structs, shared types, the contract layer |
+| `BfwEngine.Execution` | PI/FNI runtime, resume logic, payload cap enforcement |
+| `BfwEngine.Events` | EngineEventBus, pending event sweeper |
+| `BfwEngine.Timers` | ISO 8601 timer scheduler |
+| `BfwEngine.Expressions` | FEEL expression evaluator |
+| `BfwEngine.BPMN` | XML parser, ModelCache, linter gate |
+| `BfwEngine.DMN` | DMN parser and evaluator |
+| `BfwEngine.Plugin`, `BfwEngine.EngineFacade` | Internal plugin contracts |
 
-### Peripheral (`apps/peripheral_*`)
+### Peripheral
 
 Infrastructure adapters. May import Core, never imported by Core.
 
-| App | Purpose |
+| Boundary | Purpose |
 |-----|---------|
-| `peripheral_persistence` | Ash + AshPostgres resources. Mix `bfw.retention.purge` hard-deletes aged terminal PI trees |
-| `peripheral_telemetry` | `:telemetry` counters, /stats data |
+| `BfwEngine.Persistence` | Ash + AshPostgres resources. Mix `bfw.retention.purge` hard-deletes aged terminal PI trees |
+| `BfwEngine.Telemetry` | `:telemetry` counters, /stats data |
 
-### Plugins (`apps/engine_plugins`)
+### Plugins (`lib/bfw_engine/plugins`)
 
-In-BEAM plugin host. May depend on Core and on `api_facade`.
+In-BEAM plugin host. May depend on Core and on `BfwEngine.Api`.
 
-| App | Purpose |
+| Boundary | Purpose |
 |-----|---------|
-| `engine_plugins` | Plugin registry, in-BEAM loader |
+| `BfwEngine.Plugins` | Plugin registry, in-BEAM loader |
 
-### API (`apps/api_*`)
+### API
 
 Wire adapters. Thin translation layer between external protocols and `BfwEngine.Api`.
 
-| App | Purpose |
+| Boundary | Purpose |
 |-----|---------|
-| `api_auth` | JWT validation, claim extraction |
-| `api_facade` | `BfwEngine.Api` service-layer facade — no Phoenix dep |
-| `api_web` | REST + GraphQL + WebSocket + Admin (merged from api_http/api_graphql/api_websocket/api_admin) |
+| `BfwEngine.Auth` | JWT validation, claim extraction |
+| `BfwEngine.Api` | `BfwEngine.Api` service-layer facade — no Phoenix dep |
+| `BfwEngineWeb` | REST + GraphQL + WebSocket + Admin |
 
 ## Step 4: Core Patterns
 
@@ -99,7 +104,7 @@ The 4 patterns agents encounter most:
 
 ### 2. Dependency Direction
 
-Dependency direction: Core never depends on Peripheral, Plugins, or API. Peripheral depends on Core. Plugins (`engine_plugins`) depend on Core and `api_facade`. API depends on Core and Peripheral; `api_web` also depends on `engine_plugins`. `dependency_direction_test.exs` enforces the declared edges.
+Dependency direction: Core never depends on Peripheral, Plugins, or API. Peripheral depends on Core. Plugins (`BfwEngine.Plugins`) depend on Core and `BfwEngine.Api`. API depends on Core and Peripheral; `BfwEngineWeb` also depends on `BfwEngine.Plugins`. Each boundary root module declares its `deps`; `mix compile` fails on an undeclared edge (table: `docs/Architecture.md` §Subsystem Boundaries).
 
 ### 3. EngineEventBus Fan-Out
 

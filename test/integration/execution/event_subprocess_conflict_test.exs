@@ -1,6 +1,6 @@
 defmodule BfwEngine.Integration.Execution.EventSubprocessConflictTest do
   @moduledoc """
-  Umbrella-level integration tests for Event Subprocess conflict resolution.
+  Integration tests for Event Subprocess conflict resolution.
 
   Validates the "proximity first, specificity second" conflict-resolution
   law across escalation, error, message, and signal events. Error and
@@ -50,19 +50,19 @@ defmodule BfwEngine.Integration.Execution.EventSubprocessConflictTest do
   end
 
   setup do
-    original_resolver = Application.get_env(:core_execution, :called_element_resolver)
+    original_resolver = Application.get_env(:bfw_engine, :called_element_resolver)
 
     Application.put_env(
-      :core_execution,
+      :bfw_engine,
       :called_element_resolver,
       BfwEngine.Persistence.CalledElementResolverImpl
     )
 
     on_exit(fn ->
       if original_resolver do
-        Application.put_env(:core_execution, :called_element_resolver, original_resolver)
+        Application.put_env(:bfw_engine, :called_element_resolver, original_resolver)
       else
-        Application.delete_env(:core_execution, :called_element_resolver)
+        Application.delete_env(:bfw_engine, :called_element_resolver)
       end
     end)
 

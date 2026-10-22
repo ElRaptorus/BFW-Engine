@@ -17,16 +17,17 @@ Bifrost Forge World Engine is a BPMN 2.0 workflow engine built on Elixir/OTP, de
 
 ## Architecture at a Glance
 
-The engine is an Elixir umbrella project with **14 OTP applications** organized into four layers:
+The engine is one Elixir OTP application whose subsystems are organized into five layers:
 
-| Layer | Applications | Purpose |
+| Layer | Subsystems | Purpose |
 |-------|-------------|---------|
-| **Core** | `core_types`, `core_execution`, `core_expressions`, `core_bpmn`, `core_dmn`, `core_timers`, `core_events` | Domain logic, runtime, FEEL evaluation, BPMN parsing, DMN evaluation |
-| **Peripheral** | `peripheral_persistence`, `peripheral_telemetry`, `engine_plugins` | Database, metrics, plugin registry |
-| **API** | `api_auth`, `api_facade`, `api_web` | JWT, service-layer facade, REST + GraphQL + Channels + Swagger UI |
-| **SDK** | `engine_sdk` | Public behaviours and types for plugin authors |
+| **Wire** | `BfwEngineWeb` | REST + GraphQL + Channels + Swagger UI |
+| **Plugin host** | `BfwEngine.Plugins` | Plugin registry and in-BEAM loader |
+| **API** | `BfwEngine.Api`, `BfwEngine.Auth` | Service-layer facade, JWT |
+| **Peripheral** | `BfwEngine.Persistence`, `BfwEngine.Telemetry` | Database, metrics |
+| **Core** | `BfwEngine.Types`, `BfwEngine.Execution`, `BfwEngine.Expressions`, `BfwEngine.BPMN`, `BfwEngine.DMN`, `BfwEngine.Timers`, `BfwEngine.Events`, plus the plugin contracts `BfwEngine.Plugin` and `BfwEngine.EngineFacade` | Domain logic, runtime, FEEL evaluation, BPMN parsing, DMN evaluation, the behaviours plugins implement |
 
-Dependencies flow strictly inward: **Peripheral depends on Core; API depends on both; Core never depends on Peripheral.** The SDK re-exports types only.
+Dependencies flow strictly inward: each layer depends only on the layers below it, and Core depends on nothing outside Core. The compiler enforces these edges ([Architecture](../../Architecture.md)).
 
 ## Current Element Support
 

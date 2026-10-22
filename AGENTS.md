@@ -8,7 +8,7 @@
 >
 > **"Integration tests deferred because the database is not running" is a rule violation. Start the container yourself. No exceptions.**
 >
-> **QUALITY GATE — NON-NEGOTIABLE:** After any Engine code change, run `mix quality` from the project root (after the database one-liner). That alias in `mix.exs` is the only acceptable completion check. Do not substitute a subset (`mix compile`, `mix test apps/…`, `mix credo`) and claim the work is verified. See `.cursor/rules/build.mdc`.
+> **QUALITY GATE — NON-NEGOTIABLE:** After any Engine code change, run `mix quality` from the project root (after the database one-liner). That alias in `mix.exs` is the only acceptable completion check. Do not substitute a subset (`mix compile`, `mix test test/unit/…`, `mix credo`) and claim the work is verified. See `.cursor/rules/build.mdc`.
 
 This document is the domain knowledge reference for Bifrost Forge World Engine,
 a BPMN 2.0 Workflow Engine built with Elixir/OTP and sanctified oils and pistons from the holy Forges of Mars, in honor of the Omnissiah.
@@ -101,7 +101,7 @@ REST and WebSocket JSON surfaces use **camelCase structural keys**. GraphQL was 
 
 **Boundary rule:** Structural fields defined in engine structs are camelCased by per-struct `Jason.Encoder` implementations in `BfwEngine.Types.Wire`. Opaque user-payload subtrees (`payload`, `result`, `inputToken`, `outputToken`, `startedWithContext`, `claims`, `typeProperties`, `errorInfo`, etc.) pass through unchanged — their nested keys are NOT transformed.
 
-**Implementation:** `apps/core_types/lib/bfw_engine/types/wire.ex` (conversion logic), `apps/core_events/lib/bfw_engine/events/json_encoders.ex` (Jason.Encoder implementations).
+**Implementation:** `lib/bfw_engine/types/wire.ex` (conversion logic), `lib/bfw_engine/events/json_encoders.ex` (Jason.Encoder implementations).
 
 ---
 
@@ -1500,7 +1500,7 @@ Example (WebSocket `FlowNodeInstanceFinished.errorInfo`):
 }
 ```
 
-**Diagnostic quality requirement:** Every `message` must be a complete English sentence that names the specific element or construct that failed and explains why. Good messages include flow node IDs, BPMN element names, FEEL expression text, `implementation` values, DMN decision refs, contract violation summaries, or payload size figures. Generic fallbacks such as `"An unexpected error occurred"` or atom-to-words conversions (`"In mapping failed"`) are temporary placeholders — each must be replaced with a specific `humanize_error/1` clause in `apps/core_execution/lib/bfw_engine/execution/process_instance/error_info.ex` as the error shape is identified.
+**Diagnostic quality requirement:** Every `message` must be a complete English sentence that names the specific element or construct that failed and explains why. Good messages include flow node IDs, BPMN element names, FEEL expression text, `implementation` values, DMN decision refs, contract violation summaries, or payload size figures. Generic fallbacks such as `"An unexpected error occurred"` or atom-to-words conversions (`"In mapping failed"`) are temporary placeholders — each must be replaced with a specific `humanize_error/1` clause in `lib/bfw_engine/execution/process_instance/error_info.ex` as the error shape is identified.
 
 **Implementation contract:**
 
@@ -1607,14 +1607,14 @@ For implementation details see
 
 ## EngineFacade (Plugin API Surface)
 
-The `BfwEngine.EngineFacade` behaviour (in `apps/engine_sdk/lib/bfw_engine/engine_facade.ex`) provides the runtime API available to plugins. It is the Elixir-side counterpart of the TypeScript `EngineFacade` interface in `@elraptorus/bfw_engine_sdk`.
+The `BfwEngine.EngineFacade` behaviour (in `lib/bfw_engine/engine_facade.ex`) provides the runtime API available to plugins. It is the Elixir-side counterpart of the TypeScript `EngineFacade` interface in `@elraptorus/bfw_engine_sdk`.
 
-### Key corrections (2026-05-07 audit)
+### Return contracts
 
 - `fail_async_service_task/3` takes three string arguments: `(flow_node_instance_id, reason, details)` — not a map for details
 - Typed registration closures (`register_service_task_handler/2`, `register_named_script/2`, `register_rest_api_extension/2`, `register_auth_provider/1`) return `:ok`, `{:error, :conflict, incumbent_plugin_name}`, `{:error, :invalid_handler, message}`, or `{:error, :module_not_loaded, message}`. For in-BEAM plugins, the Registry validates at registration time that the handler module implements the expected `@behaviour` (e.g. `BfwEngine.Plugin.ServiceTaskHandler` for service task handlers, `BfwEngine.Plugin.AuthProvider` for auth providers). Auth provider is a singleton capability — first-writer wins, duplicate registration is rejected and the offending plugin is quarantined. Non-atom handler descriptors skip the behaviour check. PersistenceAdapter, MonitoringPanel, TimerSource, and DataStoreAdapter plugin capabilities **do not exist** — do not register them.
 - `register_event_sink/3` returns `{:ok, :registered}` or `{:error, :already_registered}` — duplicate sink names are rejected
-- `get_config/1` retrieves engine configuration by key
+- `get_config/1` reads a key from `config :bfw_engine, :plugin_config`; other engine configuration (secrets, Repo) is not visible to plugins
 
 ### Signal facade
 
@@ -1644,13 +1644,13 @@ The `BfwEngine.EngineFacade` behaviour (in `apps/engine_sdk/lib/bfw_engine/engin
 
 ### alignment
 
-All external entry points converge through `BfwEngine.Api`. REST controllers are thin HTTP adapters — they call facade functions and map errors; claim and lane enforcement lives in the facade via `BfwEngine.Api.Validation`. Plugins call the same facade with `skip_claims: true`. A static enforcement test (`apps/api_web/test/architecture/facade_enforcement_test.exs`) scans all `api_web` lib files and fails if any direct `Ash.*` call is found. Umbrella layer edges are checked by `apps/api_web/test/architecture/dependency_direction_test.exs`.
+All external entry points converge through `BfwEngine.Api`. REST controllers are thin HTTP adapters — they call facade functions and map errors; claim and lane enforcement lives in the facade via `BfwEngine.Api.Validation`. Plugins call the same facade with `skip_claims: true`. A static enforcement test (`test/unit/web/architecture/facade_enforcement_test.exs`) scans all `lib/bfw_engine_web/` files and fails if any direct `Ash.*` call is found. Subsystem edges are checked at compile time by the `boundary` compiler.
 
 ---
 
 ## DMN Decision Engine
 
-The `core_dmn` umbrella app implements a DMN 1.5 CL3-conformant decision
+The `BfwEngine.DMN` subsystem implements a DMN 1.5 CL3-conformant decision
 engine. It parses DMN XML, validates structural constraints, precompiles
 FEEL expressions, and evaluates decisions with full DRG chaining, boxed
 expressions, and Decision Services.
@@ -1766,7 +1766,7 @@ Input + decision_id → DependencyResolver (topo sort)
 
 ### Trace structs (observability)
 
-`EvaluationTrace` and `EvaluationResult` carry nested trace types for Studio debugger "step-into" navigation. Modules live under `BfwEngine.DMN.EvaluationTrace` in `apps/core_dmn/lib/bfw_engine/dmn/evaluation_trace.ex`.
+`EvaluationTrace` and `EvaluationResult` carry nested trace types for Studio debugger "step-into" navigation. Modules live under `BfwEngine.DMN.EvaluationTrace` in `lib/bfw_engine/dmn/evaluation_trace.ex`.
 
 #### `BkmTrace`
 
@@ -1826,8 +1826,8 @@ Stored at the root `EvaluationTrace` level as `input_coercions`.
 
 ## Timer Events
 
-Timer events use a two-layer architecture: `core_timers` provides the
-metadata-opaque scheduling infrastructure, while `core_execution`
+Timer events use a two-layer architecture: `BfwEngine.Timers` provides the
+metadata-opaque scheduling infrastructure, while `BfwEngine.Execution`
 handlers translate BPMN semantics into Scheduler registrations.
 
 ### Timer Event Types on BPMN Elements
@@ -2073,35 +2073,38 @@ For architecture details see [`docs/architecture/execution.md`](docs/architectur
 
 ## Project Structure
 
-Bifrost Forge World Engine is an Elixir umbrella project following DDD domain
-boundaries with a strict dependency direction.
+Bifrost Forge World Engine is one OTP application, `:bfw_engine`, at the
+repository root. Its subsystems are compile-time boundaries (the `boundary`
+library), not separate apps. `mix compile` fails on any call that crosses a
+boundary without a declared dependency, or that reaches a module the target
+boundary does not export. The dependency table lives in
+[`docs/Architecture.md`](docs/Architecture.md) §Subsystem Boundaries.
 
-### Dependency rule
+### Subsystems
 
-```
-Core  <--  Peripheral  <--  API
-Core  <--  Plugins    -->  api_facade
-```
+| Boundary | Source | Purpose |
+|----------|--------|---------|
+| `BfwEngine.Types` | `lib/bfw_engine/types/` | Behaviour-free structs, shared types |
+| `BfwEngine.Expressions` | `lib/bfw_engine/expressions/`, `native/feel_nif/` | FEEL evaluator (Rust NIF) |
+| `BfwEngine.Timers` | `lib/bfw_engine/timers/` | Metadata-opaque timer service: Scheduler (ETS + tick + PID monitor), ISO 8601 parser, StartEventManager (cycle schedule lifecycle + persistence) |
+| `BfwEngine.Events` | `lib/bfw_engine/events/` | EngineEventBus, pending sweeper |
+| `BfwEngine.BPMN` | `lib/bfw_engine/bpmn/` | XML parser, ModelCache, validator, linter gate |
+| `BfwEngine.DMN` | `lib/bfw_engine/dmn/` | DMN parser, evaluator, DRG chaining, BKM invocation, boxed expressions, Decision Services, type system |
+| `BfwEngine.Execution` | `lib/bfw_engine/execution/` | PI/FNI runtime, resume, payload cap |
+| `BfwEngine.Plugin`, `BfwEngine.EngineFacade` | `lib/bfw_engine/plugin/`, `lib/bfw_engine/engine_facade/` | Internal plugin contracts: plugin behaviours and the facade plugins receive |
+| `BfwEngine.Persistence` | `lib/bfw_engine/persistence/`, `priv/repo/` | Ash + AshPostgres, dual-pool (Repo + ReadRepo). Mix `bfw.retention.purge` for opt-in PI-tree hard-delete |
+| `BfwEngine.Api` | `lib/bfw_engine/api/` | `BfwEngine.Api` delegates to `BfwEngine.Api.Processes`, `ProcessInstances`, `Tasks`, `Triggers`, `TimerSchedules`, `AdhocSubprocesses`, `DataObjects`, and `Decisions` |
+| `BfwEngine.Plugins` | `lib/bfw_engine/plugins/` | Plugin registry, in-BEAM loader |
+| `BfwEngine.Telemetry` | `lib/bfw_engine/telemetry/` | :telemetry counters, `/stats`, optional `GET /metrics` (Prometheus) |
+| `BfwEngine.Auth` | `lib/bfw_engine/auth/` | JWT validation (HS256 + RS256/ES256 + JWKS) |
+| `BfwEngineWeb` | `lib/bfw_engine_web/` | REST + GraphQL + WebSocket + Admin |
 
-Core never imports from Peripheral, Plugins, or API. Peripheral never imports from API. Plugins may depend on Core and `api_facade`. `api_web` and `peripheral_telemetry` may depend on `engine_plugins`. Nothing depends on `api_web`. `apps/api_web/test/architecture/dependency_direction_test.exs` enforces the declared edges.
-
-### Umbrella apps
-
-| App | Domain | Purpose |
-|-----|--------|---------|
-| `core_types` | Core | Behaviour-free structs, shared types |
-| `core_execution` | Core | PI/FNI runtime, resume, payload cap |
-| `core_events` | Core | EngineEventBus, pending sweeper |
-| `core_timers` | Core | Metadata-opaque timer service: Scheduler (ETS + tick + PID monitor), ISO 8601 parser, StartEventManager (cycle schedule lifecycle + persistence) |
-| `core_expressions` | Core | FEEL evaluator (Rust NIF) |
-| `core_bpmn` | Core | XML parser, ModelCache, validator, linter gate |
-| `core_dmn` | Core | DMN parser, evaluator, DRG chaining, BKM invocation, boxed expressions, Decision Services, type system |
-| `peripheral_persistence` | Peripheral | Ash + AshPostgres, dual-pool (Repo + ReadRepo). Mix `bfw.retention.purge` for opt-in PI-tree hard-delete (RET-D1) |
-| `peripheral_telemetry` | Peripheral | :telemetry counters, `/stats`, optional `GET /metrics` (Prometheus) |
-| `engine_plugins` | Plugins | Plugin registry, in-BEAM loader |
-| `api_auth` | API | JWT validation (HS256 + RS256/ES256 + JWKS) |
-| `api_facade` | API | `BfwEngine.Api` delegates to `BfwEngine.Api.Processes`, `ProcessInstances`, `Tasks`, `Triggers`, `TimerSchedules`, `AdhocSubprocesses`, `DataObjects`, and `Decisions` |
-| `api_web` | API | REST + GraphQL + WebSocket + Admin (merged from api_http/api_graphql/api_websocket/api_admin) |
+The boundaries form five layers (Core, Peripheral, API, plugin host, wire); see
+[`docs/Architecture.md`](docs/Architecture.md) §1. Unit tests live in
+`test/unit/<subsystem>/`; integration and conformance tests live in
+`test/integration/` and `test/conformance/` (layout:
+[`docs/architecture/testing.md`](docs/architecture/testing.md) §Test layout). The OTP release is
+defined by `host/mix.exs` (app `:bfw_engine_host`, release `bfw_engine`).
 
 ### TypeScript packages (`packages/js/`)
 
@@ -2250,7 +2253,7 @@ Minimal pool + lane skeleton:
 
 ## Timer Event REST Endpoint
 
-The `TimerEventController` (`apps/api_web/lib/bfw_engine_web/http/controllers/timer_event_controller.ex`)
+The `TimerEventController` (`lib/bfw_engine_web/http/controllers/timer_event_controller.ex`)
 exposes manual timer trigger via REST. JWT authentication required.
 
 | Method | Path | Purpose | Required Access |
@@ -2267,7 +2270,7 @@ Eligible FNIs: Intermediate Catch or Boundary events with `event_type: "timer"`.
 
 ## Escalation REST Endpoint
 
-The `EscalationController` (`apps/api_web/lib/bfw_engine_web/http/controllers/escalation_controller.ex`)
+The `EscalationController` (`lib/bfw_engine_web/http/controllers/escalation_controller.ex`)
 exposes engine-wide escalation inject via REST. JWT authentication required.
 
 | Method | Path | Purpose | Required Access |
@@ -2284,7 +2287,7 @@ Delegates to `BfwEngine.Api.trigger_escalation/3`.
 
 ## Ad-hoc Subprocess REST Endpoints
 
-The `AdhocSubprocessController` (`apps/api_web/lib/bfw_engine_web/http/controllers/adhoc_subprocess_controller.ex`)
+The `AdhocSubprocessController` (`lib/bfw_engine_web/http/controllers/adhoc_subprocess_controller.ex`)
 exposes ad-hoc subprocess control via REST. JWT authentication required.
 
 | Method | Path | Purpose | Required Claim |
@@ -2311,7 +2314,7 @@ Plugin facade: `facade.adhoc_subprocesses.{get_enabled_activities, activate_acti
 
 ## DMN REST Endpoints
 
-The `DecisionController` (`apps/api_web/lib/bfw_engine_web/http/controllers/decision_controller.ex`)
+The `DecisionController` (`lib/bfw_engine_web/http/controllers/decision_controller.ex`)
 exposes DMN operations via REST. All endpoints require JWT authentication.
 
 | Method | Path | Purpose | Required Claim |

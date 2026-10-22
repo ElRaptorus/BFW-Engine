@@ -74,7 +74,7 @@ defmodule BfwEngine.Integration.ExampleAuthProvidersTest do
     end
 
     test "works end-to-end when registered as active provider" do
-      with_config(:api_auth, :auth_disabled, false, fn ->
+      with_config(:bfw_engine, :auth_disabled, false, fn ->
         ProviderRegistry.register_provider(MyCompany.LdapAuthProvider)
 
         conn =
@@ -87,7 +87,7 @@ defmodule BfwEngine.Integration.ExampleAuthProvidersTest do
     end
 
     test "rejects invalid token end-to-end when registered" do
-      with_config(:api_auth, :auth_disabled, false, fn ->
+      with_config(:bfw_engine, :auth_disabled, false, fn ->
         ProviderRegistry.register_provider(MyCompany.LdapAuthProvider)
 
         conn =
@@ -211,7 +211,7 @@ defmodule BfwEngine.Integration.ExampleAuthProvidersTest do
     end
 
     test "admin works end-to-end when registered as active provider" do
-      with_config(:api_auth, :auth_disabled, false, fn ->
+      with_config(:bfw_engine, :auth_disabled, false, fn ->
         ProviderRegistry.register_provider(MyCompany.CompanyGraphAuthProvider)
 
         conn =
@@ -224,7 +224,7 @@ defmodule BfwEngine.Integration.ExampleAuthProvidersTest do
     end
 
     test "deployer works end-to-end when registered" do
-      with_config(:api_auth, :auth_disabled, false, fn ->
+      with_config(:bfw_engine, :auth_disabled, false, fn ->
         ProviderRegistry.register_provider(MyCompany.CompanyGraphAuthProvider)
 
         conn =
@@ -237,7 +237,7 @@ defmodule BfwEngine.Integration.ExampleAuthProvidersTest do
     end
 
     test "viewer works end-to-end when registered" do
-      with_config(:api_auth, :auth_disabled, false, fn ->
+      with_config(:bfw_engine, :auth_disabled, false, fn ->
         ProviderRegistry.register_provider(MyCompany.CompanyGraphAuthProvider)
 
         conn =
@@ -250,7 +250,7 @@ defmodule BfwEngine.Integration.ExampleAuthProvidersTest do
     end
 
     test "rejects invalid token end-to-end when registered" do
-      with_config(:api_auth, :auth_disabled, false, fn ->
+      with_config(:bfw_engine, :auth_disabled, false, fn ->
         ProviderRegistry.register_provider(MyCompany.CompanyGraphAuthProvider)
 
         conn =

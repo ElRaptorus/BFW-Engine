@@ -1,20 +1,14 @@
-defmodule BfwEngine.Umbrella.MixProject do
+defmodule BfwEngine.MixProject do
   @moduledoc """
-  Umbrella root for the Bifrost Forge World Engine — a BPMN 2.0 workflow engine.
+  Mix project for the Bifrost Forge World Engine — a BPMN 2.0 workflow engine.
 
-  Each subsystem lives under `apps/` as its own OTP application, per the
-  Domain-Driven layout described in `docs/Architecture.md`.
-
-  This root project only carries:
-    * cross-app tooling (credo, dialyxir, ex_doc, sobelow, mix_audit,
-      excoveralls)
-    * aliases that fan the usual commands out to every app
+  The Engine is one OTP application, `:bfw_engine`. Its layers (Core,
+  Peripheral, Plugins, API) are top-level namespaces under `lib/`; the
+  `boundary` compiler enforces which namespace may call which. See
+  `docs/Architecture.md`.
 
   The OTP release is built by `host/mix.exs`. `mix release` from this
   root delegates there.
-
-  External runtime deps are declared per-app so each application remains
-  independently buildable and the domain boundaries stay honest.
   """
 
   use Mix.Project
@@ -23,15 +17,19 @@ defmodule BfwEngine.Umbrella.MixProject do
 
   def project do
     [
-      apps_path: "apps",
+      app: :bfw_engine,
       version: @version,
+      elixir: "~> 1.20",
       name: "Bifrost Forge World Engine",
       source_url: "https://github.com/ElRaptorus/BFW-Engine",
       homepage_url: "https://github.com/ElRaptorus/BFW-Engine",
       start_permanent: Mix.env() == :prod,
+      compilers: [:boundary] ++ Mix.compilers(),
+      elixirc_paths: elixirc_paths(Mix.env()),
+      test_paths: ["test/unit"],
       deps: deps(),
       aliases: aliases(),
-      test_coverage: [tool: ExCoveralls, threshold: 0],
+      test_coverage: [tool: ExCoveralls],
       dialyzer: [
         plt_core_path: "priv/plts",
         plt_local_path: "priv/plts",
@@ -162,12 +160,12 @@ defmodule BfwEngine.Umbrella.MixProject do
           "Core — Events": ~r{BfwEngine\.Events\.},
           "Peripheral — Persistence": ~r{BfwEngine\.Persistence\.},
           "Peripheral — Telemetry": ~r{BfwEngine\.Telemetry\.},
-          "Peripheral — Plugins": ~r{BfwEngine\.Plugins\.},
+          "Plugins — Loader and Registry": ~r{BfwEngine\.Plugins\.},
           "API — HTTP": ~r{BfwEngineWeb\.Http\.},
           "API — GraphQL": ~r{BfwEngineWeb\.Graphql\.},
           "API — WebSocket": ~r{BfwEngineWeb\.WebSocket\.},
           "API — Auth": ~r{BfwEngine\.Auth\.},
-          SDK: ~r{BfwEngine\.(SDK|Plugin\.|EngineFacade)}
+          "Plugins — Contracts": ~r{^BfwEngine\.(Plugin(\.|$)|EngineFacade)}
         ]
       ]
     ]
@@ -200,8 +198,55 @@ defmodule BfwEngine.Umbrella.MixProject do
     ]
   end
 
+  def application do
+    [
+      extra_applications: [:logger, :public_key, :runtime_tools],
+      mod: {BfwEngine.Application, []}
+    ]
+  end
+
+  # Root `test/support` is not compiled: the integration, conformance and load
+  # runners load it with `Code.require_file/1`.
+  defp elixirc_paths(:test), do: ["lib" | Path.wildcard("test/unit/*/support")]
+  defp elixirc_paths(_), do: ["lib"]
+
   defp deps do
     [
+      # Core
+      {:saxy, "~> 1.6"},
+      {:ex_json_schema, "~> 0.11"},
+      {:jason, "~> 1.4"},
+      {:telemetry, "~> 1.4"},
+      {:phoenix_pubsub, "~> 2.2"},
+      {:rustler, "~> 0.37.3", runtime: false},
+
+      # Peripheral
+      {:ash, "~> 3.24"},
+      {:ash_graphql, "~> 1.9"},
+      {:ash_postgres, "~> 2.9"},
+      {:simple_sat, "~> 0.1"},
+      {:ecto_sql, "~> 3.12"},
+      {:postgrex, "~> 0.19"},
+      {:telemetry_metrics, "~> 1.1"},
+      {:telemetry_metrics_prometheus_core, "~> 1.1"},
+      {:telemetry_poller, "~> 1.1"},
+
+      # Plugins
+      {:req, "~> 0.5"},
+
+      # API
+      {:jose, "~> 1.11"},
+      {:plug, "~> 1.16"},
+      {:phoenix, "~> 1.8"},
+      {:bandit, "~> 1.10"},
+      {:open_api_spex, "~> 3.21"},
+      {:yaml_elixir, "~> 2.11"},
+      {:absinthe, "~> 1.7"},
+      {:absinthe_plug, "~> 1.5"},
+      {:dataloader, "~> 2.0"},
+
+      # Tooling
+      {:boundary, "~> 0.11", runtime: false},
       {:logger_json, "~> 7.0", only: :prod},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
@@ -216,16 +261,15 @@ defmodule BfwEngine.Umbrella.MixProject do
 
   defp aliases do
     [
-      setup: ["deps.get", "deps.patch", "deps.compile.sat", &run_client_deps_get/1],
+      setup: ["deps.get", "deps.compile.sat", &run_client_deps_get/1],
       release: &run_host_release/1,
-      "deps.patch": &apply_dep_patches/1,
       "deps.compile.sat": ["deps.compile simple_sat", "deps.compile crux --force"],
-      "ecto.setup": ["do --app peripheral_persistence ecto.setup"],
-      "ecto.reset": ["do --app peripheral_persistence ecto.reset"],
+      "ecto.setup": ["ash.setup"],
+      "ecto.reset": ["ash.reset", "ash.setup"],
 
       # --- Test aliases -----------------------------------------------------
       "test.unit": ["test --exclude integration"],
-      "test.examples": ["test apps/engine_plugins/test/examples/"],
+      "test.examples": ["test test/unit/plugins/examples/"],
       "test.integration": ["run test/integration_runner.exs"],
       "test.release": &run_release_test/1,
       "test.cookbook": ["run test/integration_runner.exs -- integration/plugins"],
@@ -236,7 +280,7 @@ defmodule BfwEngine.Umbrella.MixProject do
       "test.load.all": &run_load_all_tests/1,
       "test.conformance": ["run test/conformance_runner.exs"],
       # Integration + conformance under one :cover session; exports
-      # cover/umbrella.coverdata (and copies it into each apps/*/cover/).
+      # cover/integration.coverdata.
       # Named test.coverdata so it does not shadow Mix's built-in
       # `mix test.coverage` (aggregates exported reports).
       "test.coverdata": ["run test/coverage_runner.exs"],
@@ -249,7 +293,7 @@ defmodule BfwEngine.Umbrella.MixProject do
 
       # --- Quality gate (compile + lint + analysis + docs + test + coverage) -
       # test.coverdata runs integration + conformance under :cover; the
-      # coveralls.* --import-cover step runs per-app unit tests and merges
+      # coveralls.* --import-cover step runs the unit tests and merges
       # that coverdata. CI uses the same pair with `coveralls` (terminal)
       # instead of `coveralls.html`.
       quality: [
@@ -259,11 +303,11 @@ defmodule BfwEngine.Umbrella.MixProject do
         "format",
         "credo --strict",
         "dialyzer",
-        "sobelow",
+        "sobelow --config",
         "docs --warnings-as-errors",
         &run_client_quality/1,
         "test.coverdata",
-        "coveralls.html --umbrella --import-cover cover"
+        "coveralls.html --import-cover cover"
       ],
 
       # --- CI pipeline ------------------------------------------------------
@@ -272,10 +316,7 @@ defmodule BfwEngine.Umbrella.MixProject do
         "credo --strict",
         "deps.audit"
       ],
-      lint: ["format", "credo"],
-      sobelow: [
-        "sobelow --root apps/api_web"
-      ]
+      lint: ["format", "credo"]
     ]
   end
 
@@ -334,10 +375,10 @@ defmodule BfwEngine.Umbrella.MixProject do
     end
   end
 
-  # The client package is a standalone Mix project (not an umbrella app), so
-  # its own deps.get / _build must be driven with a nested `mix` invocation
-  # rather than `Mix.Task.run/2` (which would resolve deps into the umbrella
-  # root's own `_build`/`deps` trees).
+  # The client package is a standalone Mix project, so its own deps.get /
+  # _build must be driven with a nested `mix` invocation rather than
+  # `Mix.Task.run/2` (which would resolve deps into the Engine's own
+  # `_build`/`deps` trees).
   @client_package_path "packages/elixir/bfw_engine_client"
 
   defp run_client_deps_get(_args) do
@@ -359,27 +400,6 @@ defmodule BfwEngine.Umbrella.MixProject do
 
     if exit_code != 0 do
       Mix.raise("mix quality (client package) failed with exit code #{exit_code}")
-    end
-  end
-
-  defp apply_dep_patches(_args) do
-    target = "deps/ex_doc/lib/mix/tasks/docs.ex"
-
-    if File.exists?(target) do
-      content = File.read!(target)
-
-      patched =
-        String.replace(
-          content,
-          "Code.prepend_path(source_beams)",
-          "Code.prepend_paths(source_beams)"
-        )
-
-      if patched != content do
-        File.write!(target, patched)
-        Mix.shell().info("Patched ex_doc: Code.prepend_path → Code.prepend_paths (umbrella fix)")
-        Mix.Task.run("deps.compile", ["ex_doc", "--force"])
-      end
     end
   end
 

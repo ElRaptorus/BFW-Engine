@@ -86,7 +86,7 @@ BPMN models are data. Tokens are data. Event payloads are data. Plugin
 capabilities are data.
 
 The engine represents these as plain structs — `%BfwEngine.BPMN.Model.Process{}`,
-`%BfwEngine.Execution.Token{}`, `%BfwEngine.Types.Event.FlowNodeInstanceStarted{}`. They
+`%BfwEngine.Types.Token{}`, `%BfwEngine.Types.Event.FlowNodeInstanceStarted{}`. They
 have no methods, no inheritance hierarchies, no mutable state. They are
 validated at the boundary (parsing, API ingestion, plugin registration) and
 trusted thereafter.

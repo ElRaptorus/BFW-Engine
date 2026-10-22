@@ -103,7 +103,7 @@ facade.register_event_sink.(
 
 ## Further reading
 
-- [`BfwEngine.Plugin.EventSink`](../../../../apps/engine_sdk/lib/bfw_engine/plugin/event_sink.ex) — sink callbacks
+- [`BfwEngine.Plugin.EventSink`](../../../../lib/bfw_engine/plugin/event_sink.ex) — sink callbacks
 - [`docs/architecture/event-system.md`](../../../../docs/architecture/event-system.md) — `EngineEventBus` fan-out
 - [`docs/architecture/dmn.md`](../../../../docs/architecture/dmn.md) — DMN evaluation and BRT `type_properties`
 - [`docs/guides/handbook/business-rule-tasks.md`](../../../../docs/guides/handbook/business-rule-tasks.md) — Business Rule Task configuration

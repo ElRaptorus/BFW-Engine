@@ -17,10 +17,10 @@ defmodule BfwEngine.Plugins.Integration.ServiceTaskPluginRobustnessTest do
   @plugin_name "evil:test_plugin_robustness"
 
   setup do
-    previous_dispatch = Application.fetch_env(:core_execution, :service_task_dispatch)
+    previous_dispatch = Application.fetch_env(:bfw_engine, :service_task_dispatch)
 
     Application.put_env(
-      :core_execution,
+      :bfw_engine,
       :service_task_dispatch,
       BfwEngine.Plugins.RegistryDispatch
     )
@@ -32,8 +32,8 @@ defmodule BfwEngine.Plugins.Integration.ServiceTaskPluginRobustnessTest do
       Registry.unregister_plugin_capabilities(@plugin_name)
 
       case previous_dispatch do
-        {:ok, dispatch} -> Application.put_env(:core_execution, :service_task_dispatch, dispatch)
-        :error -> Application.delete_env(:core_execution, :service_task_dispatch)
+        {:ok, dispatch} -> Application.put_env(:bfw_engine, :service_task_dispatch, dispatch)
+        :error -> Application.delete_env(:bfw_engine, :service_task_dispatch)
       end
     end)
 
@@ -397,9 +397,9 @@ defmodule BfwEngine.Plugins.Integration.ServiceTaskPluginRobustnessTest do
   describe "E2: built-in HTTP handler after an engine restart" do
     setup %{facade: facade} do
       _registration = facade.register_service_task_handler.("http", HttpServiceTaskHandler)
-      previous_options = Application.get_env(:engine_plugins, :http_req_options)
+      previous_options = Application.get_env(:bfw_engine, :http_req_options)
 
-      Application.put_env(:engine_plugins, :http_req_options,
+      Application.put_env(:bfw_engine, :http_req_options,
         plug: {Req.Test, __MODULE__},
         retry: false
       )
@@ -410,9 +410,9 @@ defmodule BfwEngine.Plugins.Integration.ServiceTaskPluginRobustnessTest do
         Req.Test.set_req_test_to_private()
 
         if previous_options do
-          Application.put_env(:engine_plugins, :http_req_options, previous_options)
+          Application.put_env(:bfw_engine, :http_req_options, previous_options)
         else
-          Application.delete_env(:engine_plugins, :http_req_options)
+          Application.delete_env(:bfw_engine, :http_req_options)
         end
       end)
 

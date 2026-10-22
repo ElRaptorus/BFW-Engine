@@ -1,6 +1,6 @@
 defmodule Examples.Plugins.LifecycleAware.LifecycleDemoEventSink do
   @moduledoc """
-  Minimal [`BfwEngine.Plugin.EventSink`](https://github.com/ElRaptorus/BFW-Engine/blob/main/apps/engine_sdk/lib/bfw_engine/plugin/event_sink.ex)
+  Minimal [`BfwEngine.Plugin.EventSink`](https://github.com/ElRaptorus/BFW-Engine/blob/main/lib/bfw_engine/plugin/event_sink.ex)
   registered only to prove `facade.register_event_sink/3` succeeds. `accepts?/1`
   always returns `false`, so no hot-path work runs.
   """
@@ -27,7 +27,7 @@ end
 defmodule Examples.Plugins.LifecycleAware.LifecyclePlugin do
   @moduledoc """
   Demonstrates `on_load/1` versus `on_ready/1` responsibilities for
-  [`BfwEngine.Plugin`](https://github.com/ElRaptorus/BFW-Engine/blob/main/apps/engine_sdk/lib/bfw_engine/plugin.ex).
+  [`BfwEngine.Plugin`](https://github.com/ElRaptorus/BFW-Engine/blob/main/lib/bfw_engine/plugin.ex).
   """
 
   @behaviour BfwEngine.Plugin

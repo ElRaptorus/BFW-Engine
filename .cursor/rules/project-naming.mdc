@@ -8,7 +8,7 @@ alwaysApply: true
 The project is called **Bifrost Forge World Engine** (or simply "the Engine"). Short form: **BFW-Engine**.
 
 - Never use "Daemon Engine", "ThomasTheDaemonEngine", "EvilEngine", or `TDE_` in new documentation, code comments, or commit messages.
-- Hex package names use the `bfw_engine_` prefix (e.g., `bfw_engine_sdk`).
+- Hex package names use the `bfw_engine_` prefix (e.g., `bfw_engine_client`).
 - The npm SDK package is `@elraptorus/bfw_engine_sdk`.
 - The npm client package is `@elraptorus/bfw_engine_client`.
 - The Elixir module namespace is `BfwEngine.*` (e.g., `BfwEngine.Api`, `BfwEngine.Execution.ProcessInstance`).
