@@ -185,7 +185,7 @@ Resolves `typeRef` values against `ItemDefinition` declarations and built-in FEE
 | `check_output_types/3` | Soft-checks output column `typeRef` after evaluation; returns `[warning()]` maps with `:output_type_mismatch` code (not hard errors per CL1) |
 | `value_conforms?/3` | Predicate: returns `true` when a value matches the resolved type |
 
-Built-in FEEL types: `string`, `number`, `boolean`, `date`, `time`, `dateTime`, `dayTimeDuration`, `yearMonthDuration`, `Any`.
+Built-in FEEL types: `string`, `number`, `boolean`, `date`, `time`, `date and time`, `days and time duration`, `years and months duration`, `Any`. These are the DMN-specification names; any other spelling is an unknown type (`:unknown_type` at evaluation, `invalid_item_definition` at deploy for an `itemDefinition`).
 
 Input coercion pipeline (runs in `Evaluator.evaluate/4` before decision resolution):
 

@@ -1547,15 +1547,32 @@ defmodule BfwEngine.DMN.EvaluatorTest do
       assert date_string =~ "1990-05-15"
     end
 
-    test "TypeResolver coerces dateTime string to FEEL dateTime tuple" do
+    test "TypeResolver coerces date and time string to FEEL datetime tuple" do
       alias BfwEngine.DMN.TypeResolver
 
       definitions = %Definitions{item_definitions: [], raw_xml: ""}
 
       assert {:ok, {:feel_datetime, datetime_string}} =
-               TypeResolver.coerce_value("2025-03-20T14:30:00", "dateTime", definitions)
+               TypeResolver.coerce_value("2025-03-20T14:30:00", "date and time", definitions)
 
       assert datetime_string =~ "2025-03-20"
+    end
+
+    test "coerce_input_context processes date and time and duration InputData from fixture" do
+      alias BfwEngine.DMN.TypeResolver
+
+      definitions = parse_fixture("date_time_input.dmn")
+
+      {:ok, coerced} =
+        TypeResolver.coerce_input_context(definitions, %{
+          "appointment" => "2025-03-20T14:30:00",
+          "contractTerm" => "P1Y2M",
+          "processingTime" => "P1DT2H"
+        })
+
+      assert {:feel_datetime, _} = coerced["appointment"]
+      assert {:feel_duration_ym, _} = coerced["contractTerm"]
+      assert {:feel_duration_dt, _} = coerced["processingTime"]
     end
 
     test "TypeResolver coerces time string to FEEL time tuple" do

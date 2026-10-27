@@ -16,9 +16,9 @@ defmodule BfwEngine.DMN.TypeResolver do
     "boolean" => :boolean,
     "date" => :date,
     "time" => :time,
-    "dateTime" => :dateTime,
-    "dayTimeDuration" => :dayTimeDuration,
-    "yearMonthDuration" => :yearMonthDuration,
+    "date and time" => :date_and_time,
+    "days and time duration" => :days_and_time_duration,
+    "years and months duration" => :years_and_months_duration,
     "Any" => :Any
   }
 
@@ -28,9 +28,9 @@ defmodule BfwEngine.DMN.TypeResolver do
           | :boolean
           | :date
           | :time
-          | :dateTime
-          | :dayTimeDuration
-          | :yearMonthDuration
+          | :date_and_time
+          | :days_and_time_duration
+          | :years_and_months_duration
           | :Any
 
   @type type_descriptor :: {:builtin, builtin_type()} | {:item_definition, ItemDefinition.t()}
@@ -416,23 +416,27 @@ defmodule BfwEngine.DMN.TypeResolver do
     coerce_feel_temporal(value, :time, ~r/^\d{2}:\d{2}(:\d{2})?/)
   end
 
-  defp coerce_to_builtin(value, :dateTime) when is_binary(value) do
-    coerce_feel_temporal(value, :dateTime, ~r/^\d{4}-\d{2}-\d{2}T/)
+  defp coerce_to_builtin(value, :date_and_time) when is_binary(value) do
+    coerce_feel_temporal(value, :date_and_time, ~r/^\d{4}-\d{2}-\d{2}T/)
   end
 
-  defp coerce_to_builtin(value, :dayTimeDuration) when is_binary(value) do
+  defp coerce_to_builtin(value, :days_and_time_duration) when is_binary(value) do
     coerce_feel_literal(value, :feel_duration_dt)
   end
 
-  defp coerce_to_builtin(value, :yearMonthDuration) when is_binary(value) do
+  defp coerce_to_builtin(value, :years_and_months_duration) when is_binary(value) do
     coerce_feel_literal(value, :feel_duration_ym)
   end
 
   defp coerce_to_builtin({:feel_date, _} = value, :date), do: {:ok, value}
   defp coerce_to_builtin({:feel_time, _} = value, :time), do: {:ok, value}
-  defp coerce_to_builtin({:feel_datetime, _} = value, :dateTime), do: {:ok, value}
-  defp coerce_to_builtin({:feel_duration_dt, _} = value, :dayTimeDuration), do: {:ok, value}
-  defp coerce_to_builtin({:feel_duration_ym, _} = value, :yearMonthDuration), do: {:ok, value}
+  defp coerce_to_builtin({:feel_datetime, _} = value, :date_and_time), do: {:ok, value}
+
+  defp coerce_to_builtin({:feel_duration_dt, _} = value, :days_and_time_duration),
+    do: {:ok, value}
+
+  defp coerce_to_builtin({:feel_duration_ym, _} = value, :years_and_months_duration),
+    do: {:ok, value}
 
   defp coerce_to_builtin(_value, _builtin_type), do: :error
 
@@ -453,7 +457,7 @@ defmodule BfwEngine.DMN.TypeResolver do
 
   defp feel_kind_atom(:date), do: :feel_date
   defp feel_kind_atom(:time), do: :feel_time
-  defp feel_kind_atom(:dateTime), do: :feel_datetime
+  defp feel_kind_atom(:date_and_time), do: :feel_datetime
 
   defp parse_number_string(string_value) do
     case Integer.parse(string_value) do
@@ -546,9 +550,9 @@ defmodule BfwEngine.DMN.TypeResolver do
   defp conforms_to_builtin?(value, :boolean), do: is_boolean(value)
   defp conforms_to_builtin?({:feel_date, _}, :date), do: true
   defp conforms_to_builtin?({:feel_time, _}, :time), do: true
-  defp conforms_to_builtin?({:feel_datetime, _}, :dateTime), do: true
-  defp conforms_to_builtin?({:feel_duration_dt, _}, :dayTimeDuration), do: true
-  defp conforms_to_builtin?({:feel_duration_ym, _}, :yearMonthDuration), do: true
+  defp conforms_to_builtin?({:feel_datetime, _}, :date_and_time), do: true
+  defp conforms_to_builtin?({:feel_duration_dt, _}, :days_and_time_duration), do: true
+  defp conforms_to_builtin?({:feel_duration_ym, _}, :years_and_months_duration), do: true
   defp conforms_to_builtin?(_value, _builtin_type), do: false
 
   defp allowed_values_conforms?(_value, nil), do: true

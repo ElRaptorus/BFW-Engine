@@ -7,8 +7,24 @@
     <typeRef>date</typeRef>
   </itemDefinition>
 
+  <itemDefinition id="ItemDef_duration" name="DurationType">
+    <typeRef>days and time duration</typeRef>
+  </itemDefinition>
+
   <inputData id="InputData_birthDate" name="birthDate">
     <variable name="birthDate" typeRef="DateType"/>
+  </inputData>
+
+  <inputData id="InputData_appointment" name="appointment">
+    <variable name="appointment" typeRef="date and time"/>
+  </inputData>
+
+  <inputData id="InputData_contractTerm" name="contractTerm">
+    <variable name="contractTerm" typeRef="years and months duration"/>
+  </inputData>
+
+  <inputData id="InputData_processingTime" name="processingTime">
+    <variable name="processingTime" typeRef="DurationType"/>
   </inputData>
 
   <decision id="Decision_date_check" name="Date Check">

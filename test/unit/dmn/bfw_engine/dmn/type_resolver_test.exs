@@ -28,15 +28,26 @@ defmodule BfwEngine.DMN.TypeResolverTest do
       assert {:ok, {:builtin, :boolean}} = TypeResolver.resolve_type("boolean", definitions)
       assert {:ok, {:builtin, :date}} = TypeResolver.resolve_type("date", definitions)
       assert {:ok, {:builtin, :time}} = TypeResolver.resolve_type("time", definitions)
-      assert {:ok, {:builtin, :dateTime}} = TypeResolver.resolve_type("dateTime", definitions)
 
-      assert {:ok, {:builtin, :dayTimeDuration}} =
-               TypeResolver.resolve_type("dayTimeDuration", definitions)
+      assert {:ok, {:builtin, :date_and_time}} =
+               TypeResolver.resolve_type("date and time", definitions)
 
-      assert {:ok, {:builtin, :yearMonthDuration}} =
-               TypeResolver.resolve_type("yearMonthDuration", definitions)
+      assert {:ok, {:builtin, :days_and_time_duration}} =
+               TypeResolver.resolve_type("days and time duration", definitions)
+
+      assert {:ok, {:builtin, :years_and_months_duration}} =
+               TypeResolver.resolve_type("years and months duration", definitions)
 
       assert {:ok, {:builtin, :Any}} = TypeResolver.resolve_type("Any", definitions)
+    end
+
+    test "treats the camelCase temporal names as unknown types" do
+      definitions = %Definitions{item_definitions: [], raw_xml: ""}
+
+      for type_ref <- ["dateTime", "dayTimeDuration", "yearMonthDuration"] do
+        assert {:error, :unknown_type, %{type_ref: ^type_ref}} =
+                 TypeResolver.resolve_type(type_ref, definitions)
+      end
     end
 
     test "resolves custom ItemDefinition by id and name" do
@@ -105,11 +116,28 @@ defmodule BfwEngine.DMN.TypeResolverTest do
                TypeResolver.coerce_value("14:30:00", "time", definitions)
     end
 
-    test "coerces ISO 8601 string to FEEL dateTime" do
+    test "coerces ISO 8601 string to FEEL date and time" do
       definitions = %Definitions{item_definitions: [], raw_xml: ""}
 
       assert {:ok, {:feel_datetime, _}} =
-               TypeResolver.coerce_value("2025-03-20T14:30:00", "dateTime", definitions)
+               TypeResolver.coerce_value("2025-03-20T14:30:00", "date and time", definitions)
+    end
+
+    test "coerces ISO 8601 duration strings to FEEL durations" do
+      definitions = %Definitions{item_definitions: [], raw_xml: ""}
+
+      assert {:ok, {:feel_duration_dt, _}} =
+               TypeResolver.coerce_value("P1DT2H", "days and time duration", definitions)
+
+      assert {:ok, {:feel_duration_ym, _}} =
+               TypeResolver.coerce_value("P1Y2M", "years and months duration", definitions)
+    end
+
+    test "rejects a malformed date and time string" do
+      definitions = %Definitions{item_definitions: [], raw_xml: ""}
+
+      assert {:error, :type_coercion_failed, _} =
+               TypeResolver.coerce_value("2025-03-20", "date and time", definitions)
     end
 
     test "Any type passes through any value" do

@@ -33,7 +33,17 @@ defmodule BfwEngine.DMN.Validator do
   @valid_hit_policies [:unique, :first, :any, :collect, :rule_order, :output_order, :priority]
   @collect_aggregations [:sum, :min, :max, :count, nil]
 
-  @builtin_feel_types ~w(string number boolean date time dateTime dayTimeDuration yearMonthDuration Any)
+  @builtin_feel_types [
+    "string",
+    "number",
+    "boolean",
+    "date",
+    "time",
+    "date and time",
+    "days and time duration",
+    "years and months duration",
+    "Any"
+  ]
 
   @spec validate(Definitions.t()) :: {:ok, Definitions.t()} | {:error, :validation_failed, map()}
   def validate(%Definitions{} = definitions) do

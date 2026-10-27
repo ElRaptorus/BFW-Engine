@@ -544,6 +544,43 @@ defmodule BfwEngine.DMN.ValidatorTest do
       assert {:ok, _definitions} = Validator.validate(definitions)
     end
 
+    test "ItemDefinition with spec-named temporal FEEL types passes" do
+      definitions =
+        minimal_definitions(
+          item_definitions: [
+            %ItemDefinition{id: "IT1", name: "AppointmentType", type_ref: "date and time"},
+            %ItemDefinition{
+              id: "IT2",
+              name: "ProcessingTimeType",
+              type_ref: "days and time duration"
+            },
+            %ItemDefinition{
+              id: "IT3",
+              name: "ContractTermType",
+              type_ref: "years and months duration"
+            }
+          ]
+        )
+
+      assert {:ok, _definitions} = Validator.validate(definitions)
+    end
+
+    test "ItemDefinition with camelCase temporal type produces error" do
+      definitions =
+        minimal_definitions(
+          item_definitions: [
+            %ItemDefinition{id: "IT1", name: "AppointmentType", type_ref: "dateTime"}
+          ]
+        )
+
+      assert {:error, :validation_failed, %{violations: violations}} =
+               Validator.validate(definitions)
+
+      assert Enum.any?(violations, fn {code, message} ->
+               code == :invalid_item_definition and message =~ "dateTime"
+             end)
+    end
+
     test "ItemDefinition referencing another ItemDefinition by name passes" do
       definitions =
         minimal_definitions(
