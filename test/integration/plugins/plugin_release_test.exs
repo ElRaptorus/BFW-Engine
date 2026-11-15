@@ -52,7 +52,7 @@ defmodule BfwEngine.Integration.PluginReleaseTest do
 
     start_script =
       File.read!(
-        Path.join(["_build", "prod", "rel", "bfw_engine", "releases", "0.1.0", "start.script"])
+        Path.join(["_build", "prod", "rel", "bfw_engine", "releases", "1.0.0", "start.script"])
       )
 
     assert start_script =~ @plugin_name

@@ -34,7 +34,7 @@ Engine identity and feature flags. No authentication required.
 {
   "engineId": "bfw-engine-local",
   "engineName": "Bifrost Forge World Engine (local)",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "startedAt": "2026-05-03T15:00:00Z"
 }
 ```

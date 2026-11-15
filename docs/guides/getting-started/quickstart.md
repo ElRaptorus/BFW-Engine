@@ -47,7 +47,7 @@ curl -i http://localhost:4000/health
 # HTTP/1.1 204 No Content
 
 curl http://localhost:4000/info
-# {"engineId":"...","engineName":"...","version":"0.1.0","startedAt":"..."}
+# {"engineId":"...","engineName":"...","version":"1.0.0","startedAt":"..."}
 ```
 
 ## Mint a Dev Token

@@ -5,7 +5,7 @@ defmodule BfwEngine.Integration.EventBusWiringTest do
   alias BfwEngine.Events.EngineEventBus
   alias BfwEngine.Types.Event.{EngineStarted, SinkFailed}
 
-  defp engine_started(version \\ "0.1.0") do
+  defp engine_started(version \\ "1.0.0") do
     %EngineStarted{
       engine_id: "test-engine",
       version: version,
@@ -24,7 +24,7 @@ defmodule BfwEngine.Integration.EventBusWiringTest do
 
       EngineEventBus.publish(engine_started())
 
-      assert_receive {:integration_sink, %EngineStarted{version: "0.1.0"}}, 500
+      assert_receive {:integration_sink, %EngineStarted{version: "1.0.0"}}, 500
     end
 
     test "crash in one sink does not block another" do
@@ -44,7 +44,7 @@ defmodule BfwEngine.Integration.EventBusWiringTest do
 
       EngineEventBus.publish(engine_started())
 
-      assert_receive {:integration_sink, %EngineStarted{version: "0.1.0"}}, 500
+      assert_receive {:integration_sink, %EngineStarted{version: "1.0.0"}}, 500
       assert_receive {:integration_sink, %SinkFailed{}}, 500
     end
 

@@ -14,7 +14,7 @@ defmodule BfwEngine.Events.EngineEventBusTest do
     %Event.EngineStarted{
       engine_id: "test-engine",
       engine_name: "test",
-      version: "0.1.0",
+      version: "1.0.0",
       started_at: DateTime.utc_now()
     }
   end

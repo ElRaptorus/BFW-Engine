@@ -1,6 +1,6 @@
 {
   "name": "@elraptorus/bfw_engine_sdk",
-  "version": "0.3.0",
+  "version": "1.0.0",
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"
   },
@@ -20,7 +20,7 @@
   "devEngines": {
     "packageManager": {
       "name": "pnpm",
-      "version": "12.14.0",
+      "version": "12.21.0",
       "onFail": "download"
     }
   },
@@ -45,7 +45,7 @@
     "format:check": "oxfmt -c ../.oxfmtrc.json --check src test"
   },
   "dependencies": {
-    "fast-xml-parser": "^5.11.2"
+    "fast-xml-parser": "^5.12.1"
   },
   "devDependencies": {
     "oxfmt": "catalog:",

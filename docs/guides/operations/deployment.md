@@ -28,14 +28,14 @@ docker compose up --build
 ```
 
 Published private images live on GitHub Container Registry as
-`ghcr.io/<github-username>/bfw_engine:<version>` (currently `0.1.0`).
+`ghcr.io/<github-username>/bfw_engine:<version>`.
 The `docker-publish` job in `.github/workflows/ci.yml` pushes the
 smoke-tested image after both CI jobs succeed on `main`. First publish is
 private; do not switch the package to public (that change cannot be undone).
 
 ```bash
 echo "$CR_PAT" | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin
-docker pull ghcr.io/elraptorus/bfw_engine:0.1.0
+docker pull ghcr.io/elraptorus/bfw_engine:1.0.0
 ```
 
 The PAT must be a **classic** token with `read:packages`. Fine-grained PATs

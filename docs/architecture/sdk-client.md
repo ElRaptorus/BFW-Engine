@@ -21,7 +21,7 @@ The SDK never imports from the client. All contracts (types, error classes, even
 
 The pnpm workspace root is `packages/js/`. Example packages under `examples/client-js/` and `examples/sdk-js/` are workspace members (they are not published). Shared toolchain versions live in the `catalog:` map in `packages/js/pnpm-workspace.yaml` (`typescript`, `vitest`, `tsx`, `@types/node`, `oxlint`, `oxfmt`). Members reference them with `"catalog:"` so examples cannot drift onto an older Vitest/Vite line.
 
-TypeScript is pinned to **6.0.x** in the catalog.
+TypeScript is pinned to **7.0.x** in the catalog.
 
 ### Lint and format
 
@@ -31,13 +31,13 @@ Not covered: `no-octal` (the TypeScript compiler rejects octal literals) and `no
 
 `sdk/src/generated/extension-manifest.json` is listed in `ignorePatterns` of `.oxfmtrc.json`: `mix bfw.gen.extension_manifest --check` compares it byte for byte with the Elixir generator output, so the formatter must not touch it.
 
-The catalog pins **Vitest 5** (`^5.0.0`). Requires Node.js `>=22.12.0` (packages declare `>=24.20.0`) and Vite `>=6.4.0` as a transitive peer. Vitest 5 removed `describe.sequential` / `test.sequential`; client integration suites that must not run concurrently use `describe('…', { concurrent: false }, …)`. Unlike the Studio, SDK/client configs do **not** enable `sequence.shuffle` — tests keep declaration order. `client/vitest.config.ts` keeps `fileParallelism: false`. Artifact output lives under `.vitest/` (gitignored).
+The catalog pins **Vitest 5** (`^5.1.0`). Requires Node.js `>=22.12.0` (packages declare `>=24.20.0`) and Vite `>=6.4.0` as a transitive peer. Vitest 5 removed `describe.sequential` / `test.sequential`; client integration suites that must not run concurrently use `describe('…', { concurrent: false }, …)`. Unlike the Studio, SDK/client configs do **not** enable `sequence.shuffle` — tests keep declaration order. `client/vitest.config.ts` keeps `fileParallelism: false`. Artifact output lives under `.vitest/` (gitignored).
 
 `pnpm-lock.yaml` `catalogs.default` must resolve a version that satisfies each catalog specifier. `pnpm ci` (frozen lockfile) fails with `ERR_PNPM_OUTDATED_LOCKFILE` when they disagree. After a catalog bump, run `pnpm update -r <package>` so every importer and the catalog snapshot move together.
 
-TypeScript 6 does not auto-include `@types/*`. Packages that `tsc` Node builtins (`node:fs`, `import.meta.dirname`) set `"types": ["node"]` in their own `tsconfig.json`. That must not go on `packages/js/tsconfig.base.json` — the published SDK/client must not pick up Node globals.
+TypeScript 7 does not auto-include `@types/*`. Packages that `tsc` Node builtins (`node:fs`, `import.meta.dirname`) set `"types": ["node"]` in their own `tsconfig.json`. That must not go on `packages/js/tsconfig.base.json` — the published SDK/client must not pick up Node globals.
 
-Runtime package versions (not catalogued): SDK `fast-xml-parser` `^5.11.1`; client `phoenix` `^1.8.13`; client test-only `jose` `^6.2.10`.
+Runtime package versions (not catalogued): SDK `fast-xml-parser` `^5.12.1`; client `phoenix` `^1.8.16`; client test-only `jose` `^6.2.17`.
 
 ## SDK Structure (`packages/js/sdk/src/`)
 

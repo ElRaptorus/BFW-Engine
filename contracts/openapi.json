@@ -1957,7 +1957,7 @@
   "info": {
     "description": "Bifrost Forge World Engine — a BPMN 2.0 Workflow Engine.\n\nThis REST API surface exposes health checks, engine info, telemetry,\nprocess deployment, instance management, timer schedule management,\nDMN decision evaluation, and trigger endpoints.\n\n**GraphQL** is served separately at `POST /api/v1/graphql` (requires JWT).\nAn interactive [GraphQL Playground](/admin/graphiql) is available for\nbrowsing the schema and running queries. It comes pre-loaded with\nexample query tabs covering catalog resources, instances, data objects,\ndecisions, and the BPMN process-model graph.\n\n**Note:** This spec, Swagger UI, and GraphQL Playground are disabled in\nproduction by default (`BFE_DEVTOOLS_ENABLED`). The spec endpoint can\nbe individually enabled via `BFE_EXPOSE_OPENAPI_SPEC=true`.\n",
     "title": "Bifrost Forge World Engine API",
-    "version": "0.1.0"
+    "version": "1.0.0"
   },
   "openapi": "3.0.3",
   "paths": {
@@ -2887,7 +2887,7 @@
                       "type": "string"
                     },
                     "version": {
-                      "example": "0.1.0",
+                      "example": "1.0.0",
                       "type": "string"
                     }
                   },

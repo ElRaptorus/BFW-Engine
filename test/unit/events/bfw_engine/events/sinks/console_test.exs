@@ -58,7 +58,7 @@ defmodule BfwEngine.Events.Sinks.ConsoleTest do
       event = %Event.EngineStarted{
         engine_id: "e-1",
         engine_name: "test",
-        version: "0.1.0",
+        version: "1.0.0",
         started_at: DateTime.utc_now()
       }
 
@@ -96,7 +96,7 @@ defmodule BfwEngine.Events.Sinks.ConsoleTest do
       event = %Event.EngineStarted{
         engine_id: "e-1",
         engine_name: "test",
-        version: "0.1.0",
+        version: "1.0.0",
         started_at: DateTime.utc_now()
       }
 

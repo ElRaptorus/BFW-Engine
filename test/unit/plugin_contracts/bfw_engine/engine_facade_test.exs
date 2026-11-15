@@ -18,12 +18,12 @@ defmodule BfwEngine.EngineFacadeTest do
       facade = %EngineFacade{
         engine_id: "e-1",
         engine_name: "test-engine",
-        version: "0.1.0"
+        version: "1.0.0"
       }
 
       assert facade.engine_id == "e-1"
       assert facade.engine_name == "test-engine"
-      assert facade.version == "0.1.0"
+      assert facade.version == "1.0.0"
     end
 
     test "raises when required key is missing" do
@@ -36,7 +36,7 @@ defmodule BfwEngine.EngineFacadeTest do
       facade = %EngineFacade{
         engine_id: "e-1",
         engine_name: "test",
-        version: "0.1.0"
+        version: "1.0.0"
       }
 
       assert %EngineFacade.Processes{} = facade.processes
@@ -57,7 +57,7 @@ defmodule BfwEngine.EngineFacadeTest do
       facade = %EngineFacade{
         engine_id: "e-1",
         engine_name: "test",
-        version: "0.1.0"
+        version: "1.0.0"
       }
 
       %{facade: facade}
@@ -208,7 +208,7 @@ defmodule BfwEngine.EngineFacadeTest do
       facade = %EngineFacade{
         engine_id: "e-1",
         engine_name: "test",
-        version: "0.1.0"
+        version: "1.0.0"
       }
 
       %{facade: facade}
@@ -372,7 +372,7 @@ defmodule BfwEngine.EngineFacadeTest do
       facade = %EngineFacade{
         engine_id: "e-1",
         engine_name: "test",
-        version: "0.1.0",
+        version: "1.0.0",
         register_service_task_handler: fn implementation, handler ->
           :ets.insert(captured_calls, {:register_sth, implementation, handler})
           :ok
@@ -406,7 +406,7 @@ defmodule BfwEngine.EngineFacadeTest do
       facade = %EngineFacade{
         engine_id: "e-1",
         engine_name: "test",
-        version: "0.1.0",
+        version: "1.0.0",
         service_tasks: %EngineFacade.ServiceTasks{
           finish_async: fn fni_id, result -> {:ok, {fni_id, result}} end,
           fail_async: fn fni_id, code, msg -> {:ok, {fni_id, code, msg}} end

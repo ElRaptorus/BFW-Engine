@@ -106,7 +106,7 @@ defmodule Mix.Tasks.Bfw.Plugin.AddTest do
         use Mix.Project
 
         def project do
-          [app: :engine, version: "0.1.0", deps: []]
+          [app: :engine, version: "1.0.0", deps: []]
         end
       end
       """)
@@ -201,7 +201,7 @@ defmodule Mix.Tasks.Bfw.Plugin.AddTest do
         use Mix.Project
 
         def project do
-          [app: :sample_plugin, version: "0.1.0", deps: []]
+          [app: :sample_plugin, version: "1.0.0", deps: []]
         end
       end
       """,

@@ -4,8 +4,6 @@
 
 A BPMN 2.0 workflow engine written in Elixir / OTP and sanctified oils and pistons from the holy [Forges of Mars](https://wh40k.lexicanum.com/wiki/Adeptus_Mechanicus).
 
-> **Current Project Status: Beta. Feture complete, but not yet battle-tested.**
-
 Used to run awesome stuff created with the [Forge World Studio](https://github.com/ElRaptorus/BFW-Studio)
 
 - **User Manual & API Reference**: see [Documentation](#documentation) below.

@@ -669,7 +669,7 @@ defmodule BfwEngine.Execution.ProcessInstance.ErrorInfoTest do
     end
 
     test "defaults error_code to 'error' when missing" do
-      info = %{"message" => "#PID<0.1.0> died"}
+      info = %{"message" => "#PID<1.0.0> died"}
       result = ErrorInfo.sanitize(info)
       assert result["message"] =~ "error code: error"
     end

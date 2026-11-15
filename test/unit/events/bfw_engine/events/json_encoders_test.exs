@@ -11,7 +11,7 @@ defmodule BfwEngine.Events.JsonEncodersTest do
       event = %Event.EngineStarted{
         engine_id: "eng-1",
         engine_name: "test",
-        version: "0.1.0",
+        version: "1.0.0",
         started_at: @now
       }
 

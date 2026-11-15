@@ -1,6 +1,6 @@
 {
   "name": "@elraptorus/bfw_engine_client",
-  "version": "0.3.0",
+  "version": "1.0.0",
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"
   },
@@ -20,7 +20,7 @@
   "devEngines": {
     "packageManager": {
       "name": "pnpm",
-      "version": "12.14.0",
+      "version": "12.21.0",
       "onFail": "download"
     }
   },
@@ -46,11 +46,11 @@
   },
   "dependencies": {
     "@elraptorus/bfw_engine_sdk": "workspace:*",
-    "phoenix": "^1.8.15"
+    "phoenix": "^1.8.16"
   },
   "devDependencies": {
-    "@types/phoenix": "^1.6.7",
-    "jose": "^6.2.12",
+    "@types/phoenix": "^1.6.8",
+    "jose": "^6.2.17",
     "oxfmt": "catalog:",
     "oxlint": "catalog:",
     "typescript": "catalog:",
